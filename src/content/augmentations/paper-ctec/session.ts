@@ -72,8 +72,12 @@ export function buildStatusBarData(args: BuildStatusBarDataArgs): PaperCtecStatu
     };
   }
 
+  // Suppress the loading bar entirely until we have at least one verified
+  // resolution. Otherwise a brief race during syncTargets — setProgress runs
+  // before inFlight.set, so activeCount is momentarily 0 — flashes a
+  // "Loading CTECs · 0/N classes checked" bar that's gone milliseconds later.
   const verifiedResolvedCount = foundCount + notFoundCount + errorCount;
-  if (verifiedResolvedCount === 0 && activeCount > 0) {
+  if (verifiedResolvedCount === 0) {
     return null;
   }
 
