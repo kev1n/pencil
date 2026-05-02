@@ -1050,10 +1050,9 @@ export function injectStyles(): void {
   (document.head ?? document.documentElement).appendChild(style);
 }
 
+export { hideAuthModal, renderAuthModal } from "./auth-modal";
 export {
-  hideAuthModal,
   hideStatusBar,
-  renderAuthModal,
   renderLoading,
   renderStatusBar,
   renderWidget
