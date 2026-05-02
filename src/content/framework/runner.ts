@@ -1,3 +1,4 @@
+import { isAccessAllowed, onGateStatusChange } from "../access-gate";
 import { FEATURES_STORAGE_KEY, isFeatureEnabled } from "../settings";
 import type { Augmentation } from "./template";
 
@@ -27,13 +28,19 @@ export class AugmentationRunner {
     this.runAll();
     this.observeMutations();
     this.observeSettings();
+    this.observeAccessGate();
   }
 
   private runAll(): void {
+    if (!isAccessAllowed()) return;
     for (const augmentation of this.augmentations) {
       if (!isFeatureEnabled(augmentation.id)) continue;
       augmentation.run(document);
     }
+  }
+
+  private observeAccessGate(): void {
+    onGateStatusChange(() => this.runAll());
   }
 
   private observeMutations(): void {

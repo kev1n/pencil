@@ -1,9 +1,13 @@
+import { startAccessGate } from "./access-gate";
+import { mountAccessGateToast } from "./access-gate/toast";
 import { augmentationRegistry } from "./augmentations/registry";
 import { AugmentationRunner } from "./framework";
 import { registerLookupMessageHandler } from "./messaging";
 
 injectEarlyTermPageMask();
 registerLookupMessageHandler();
+void startAccessGate();
+mountAccessGateToast();
 new AugmentationRunner(augmentationRegistry).start();
 
 function injectEarlyTermPageMask(): void {
