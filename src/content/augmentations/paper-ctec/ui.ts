@@ -1,6 +1,7 @@
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
   AUTH_MODAL_ID,
+  NO_HOVER_LIFT_CLASS,
   SIDECARD_ANALYTICS_PANEL_CLASS,
   SIDECARD_TABS_CLASS,
   STATUS_BAR_ID,
@@ -19,6 +20,19 @@ export function injectStyles(): void {
   style.textContent = `
     ${PAPER_CTEC_CONFIG.selectors.scheduleGrid} div.absolute.z-\\[31\\].-translate-y-1\\/2.whitespace-nowrap.rounded-md.bg-emerald-500.px-1\\.5.py-0\\.5.text-\\[10px\\].font-medium.text-white {
       display: none !important;
+    }
+    .${NO_HOVER_LIFT_CLASS} div.absolute.z-10.rounded-lg:hover {
+      transform: none !important;
+      box-shadow: none !important;
+      outline: 2px solid rgba(17, 24, 39, 0.7);
+      outline-offset: -1px;
+    }
+    .${NO_HOVER_LIFT_CLASS} div.absolute.z-10.rounded-lg.-translate-y-2 {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .dark .${NO_HOVER_LIFT_CLASS} div.absolute.z-10.rounded-lg:hover {
+      outline-color: rgba(248, 250, 252, 0.7);
     }
     .${WIDGET_CLASS} {
       margin-top: 3px;
@@ -841,6 +855,123 @@ export function injectStyles(): void {
     .dark .bc-paper-ctec-comment-highlight {
       background: rgba(250, 204, 21, 0.24);
     }
+    .bc-paper-ctec-analytics-refresh-toolbar {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin: 0 0 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px dashed rgba(102, 2, 60, 0.22);
+      background: rgba(102, 2, 60, 0.04);
+    }
+    .dark .bc-paper-ctec-analytics-refresh-toolbar {
+      border-color: rgba(252, 165, 207, 0.22);
+      background: rgba(252, 165, 207, 0.06);
+    }
+    .bc-paper-ctec-analytics-refresh-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .bc-paper-ctec-analytics-refresh-copy {
+      flex: 1 1 180px;
+      min-width: 0;
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.45;
+      color: #5b4451;
+    }
+    .dark .bc-paper-ctec-analytics-refresh-copy {
+      color: #f3e5ed;
+    }
+    .bc-paper-ctec-analytics-refresh-explainer {
+      font-size: 11px;
+      line-height: 1.4;
+      color: #6b5a65;
+    }
+    .dark .bc-paper-ctec-analytics-refresh-explainer {
+      color: #d8c7d0;
+    }
+    .bc-paper-ctec-analytics-load-more {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 16px 0 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px dashed rgba(102, 2, 60, 0.22);
+      background: rgba(102, 2, 60, 0.04);
+    }
+    .dark .bc-paper-ctec-analytics-load-more {
+      border-color: rgba(252, 165, 207, 0.22);
+      background: rgba(252, 165, 207, 0.06);
+    }
+    .bc-paper-ctec-analytics-load-more-copy {
+      flex: 1 1 180px;
+      min-width: 0;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #5b4451;
+    }
+    .dark .bc-paper-ctec-analytics-load-more-copy {
+      color: #f3e5ed;
+    }
+    .bc-paper-ctec-analytics-refresh-btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(102, 2, 60, 0.32);
+      background: rgba(255, 255, 255, 0.72);
+      color: #66023c;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    .bc-paper-ctec-analytics-refresh-btn:hover:not(:disabled) {
+      background: rgba(102, 2, 60, 0.12);
+    }
+    .bc-paper-ctec-analytics-refresh-btn:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+    .dark .bc-paper-ctec-analytics-refresh-btn {
+      border-color: rgba(252, 165, 207, 0.36);
+      background: rgba(17, 24, 39, 0.32);
+      color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-analytics-refresh-btn:hover:not(:disabled) {
+      background: rgba(252, 165, 207, 0.14);
+    }
+    .bc-paper-ctec-analytics-load-more-btn {
+      flex: 0 0 auto;
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid #66023c;
+      background: #66023c;
+      color: #ffffff;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      cursor: pointer;
+    }
+    .bc-paper-ctec-analytics-load-more-btn:hover {
+      background: #500030;
+    }
+    .dark .bc-paper-ctec-analytics-load-more-btn {
+      background: #fbcfe8;
+      border-color: #fbcfe8;
+      color: #500030;
+    }
+    .dark .bc-paper-ctec-analytics-load-more-btn:hover {
+      background: #f9a8d4;
+    }
     #${AUTH_MODAL_ID} {
       position: fixed;
       inset: 0;
@@ -1053,6 +1184,7 @@ export function injectStyles(): void {
 export { hideAuthModal, renderAuthModal } from "./auth-modal";
 export {
   hideStatusBar,
+  renderIdle,
   renderLoading,
   renderStatusBar,
   renderWidget

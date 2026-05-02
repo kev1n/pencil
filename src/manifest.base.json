@@ -26,9 +26,10 @@
       "all_frames": true
     }
   ],
-  "permissions": ["storage"],
+  "permissions": ["storage", "declarativeNetRequestWithHostAccess"],
   "host_permissions": [
     "https://caesar.ent.northwestern.edu/*",
+    "https://caesar.northwestern.edu/*",
     "https://www.paper.nu/*",
     "https://paper.nu/*",
     "https://northwestern.bluera.com/*",

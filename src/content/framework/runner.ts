@@ -1,6 +1,21 @@
 import { FEATURES_STORAGE_KEY, isFeatureEnabled } from "../settings";
 import type { Augmentation } from "./template";
 
+// IMPORTANT: every augmentation's `run()` is invoked on initial load AND after
+// every DOM mutation (debounced via requestAnimationFrame). PeopleSoft and
+// paper.nu both navigate via in-place DOM swaps, which produces a steady
+// stream of mutations.
+//
+// Each augmentation is therefore responsible for its OWN dedup/idempotence —
+// any side effect that hits the network, writes storage, or mutates shared
+// state must be guarded so it only happens when the page state actually
+// requires it. Patterns used in this repo:
+//   - DOM markers (e.g. dataset.ctecReady / dataset.ctecDone in ctec-links)
+//   - In-flight Sets/Maps keyed by target identity (e.g. paper-ctec inFlight)
+//   - Resolved caches that short-circuit on subsequent runs
+//
+// Adding network calls or expensive work directly inside `run()` without one
+// of these guards will fan out badly under mutation pressure.
 export class AugmentationRunner {
   private readonly augmentations: Augmentation[];
 

@@ -7,6 +7,9 @@ import {
 } from "./constants";
 import type { RowCells, SeatsNotesResult, SeatsNotesSuccess } from "./types";
 
+const TIMESTAMP_REFRESH_INTERVAL_MS = 30_000;
+let timestampRefreshTimer: number | null = null;
+
 export function ensureCustomHeaders(table: HTMLTableElement): void {
   const headerRow = table.querySelector("tr");
   if (!headerRow) return;
@@ -35,47 +38,76 @@ export function ensureCustomCells(row: HTMLTableRowElement): RowCells {
   };
 }
 
-export function findExistingCells(row: HTMLTableRowElement): RowCells | null {
-  const seatsCell = row.querySelector<HTMLTableCellElement>(`.${SEATS_CELL_CLASS}`);
-  const notesCell = row.querySelector<HTMLTableCellElement>(`.${NOTES_CELL_CLASS}`);
-  if (!seatsCell || !notesCell) return null;
-  return { seatsCell, notesCell };
+export function renderIdle(cells: RowCells, classNumber: string, onLoad: () => void): void {
+  cells.seatsCell.dataset.classNumber = classNumber;
+  cells.notesCell.dataset.classNumber = classNumber;
+  cells.seatsCell.dataset.bcState = "idle";
+  cells.notesCell.dataset.bcState = "idle";
+
+  clearChildren(cells.seatsCell);
+  clearChildren(cells.notesCell);
+
+  const wrap = document.createElement("div");
+  wrap.className = "better-caesar-idle";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "better-caesar-load-btn";
+  button.textContent = "Load seats & notes";
+  button.addEventListener("click", () => {
+    onLoad();
+  });
+  wrap.appendChild(button);
+
+  cells.seatsCell.appendChild(wrap);
+
+  const dash = document.createElement("div");
+  dash.className = "better-caesar-muted";
+  dash.textContent = "—";
+  cells.notesCell.appendChild(dash);
 }
 
-export function renderMetadata(response: SeatsNotesResult, classNumber: string, cells: RowCells): void {
-  cells.seatsCell.textContent = "";
-  cells.notesCell.textContent = "";
+export function renderLoading(cells: RowCells, classNumber: string): void {
+  cells.seatsCell.dataset.classNumber = classNumber;
+  cells.notesCell.dataset.classNumber = classNumber;
+  cells.seatsCell.dataset.bcState = "loading";
+  cells.notesCell.dataset.bcState = "loading";
+  cells.seatsCell.textContent = "Loading seats…";
+  cells.notesCell.textContent = "Loading notes…";
+}
 
-  if (!response.ok) {
-    cells.seatsCell.appendChild(buildError(`Unavailable: ${response.error}`));
+export function renderLoaded(
+  cells: RowCells,
+  result: SeatsNotesResult,
+  fetchedAt: number,
+  classNumber: string,
+  onRefresh: () => void
+): void {
+  cells.seatsCell.dataset.classNumber = classNumber;
+  cells.notesCell.dataset.classNumber = classNumber;
+  cells.seatsCell.dataset.bcState = "loaded";
+  cells.notesCell.dataset.bcState = "loaded";
+
+  clearChildren(cells.seatsCell);
+  clearChildren(cells.notesCell);
+
+  const meta = buildMetaBar(fetchedAt, onRefresh);
+  cells.seatsCell.appendChild(meta);
+
+  if (!result.ok) {
+    cells.seatsCell.appendChild(buildError(`Unavailable: ${result.error}`));
     cells.notesCell.appendChild(buildError("No notes available."));
     return;
   }
 
-  cells.seatsCell.appendChild(buildSeatsCard(response));
-  cells.notesCell.appendChild(buildNotesCard(response, classNumber));
+  cells.seatsCell.appendChild(buildSeatsCard(result));
+  cells.notesCell.appendChild(buildNotesCard(result, classNumber));
+
+  ensureTimestampRefresh();
 }
 
-export function markCellsLoading(cells: RowCells, classNumber: string): void {
-  cells.seatsCell.dataset.classNumber = classNumber;
-  cells.notesCell.dataset.classNumber = classNumber;
-  cells.seatsCell.dataset.loaded = "0";
-  cells.notesCell.dataset.loaded = "0";
-  cells.seatsCell.textContent = "Loading seats...";
-  cells.notesCell.textContent = "Loading notes...";
-}
-
-export function markCellsLoaded(cells: RowCells): void {
-  cells.seatsCell.dataset.loaded = "1";
-  cells.notesCell.dataset.loaded = "1";
-}
-
-export function isCellsLoaded(cells: RowCells, classNumber: string): boolean {
-  return (
-    cells.seatsCell.dataset.classNumber === classNumber &&
-    cells.seatsCell.dataset.loaded === "1" &&
-    cells.notesCell.dataset.loaded === "1"
-  );
+export function getCellState(cells: RowCells): string | undefined {
+  return cells.seatsCell.dataset.bcState;
 }
 
 export function injectStyles(): void {
@@ -99,80 +131,126 @@ export function injectStyles(): void {
       background: var(--bc-tyrian);
       border-color: var(--bc-tyrian-ink);
     }
-	    .${SEATS_CELL_CLASS},
-	    .${NOTES_CELL_CLASS} {
-	      min-width: 220px;
-	      width: 220px;
-	      max-width: 320px;
-	      padding: 4px 6px;
-	      border-left: 2px solid var(--bc-tyrian-mid);
-	      vertical-align: top;
-	      overflow: hidden;
-	      box-sizing: border-box;
-	    }
-	    .better-caesar-card {
-	      display: grid;
-	      gap: 6px;
-	      padding: 8px;
+    .${SEATS_CELL_CLASS},
+    .${NOTES_CELL_CLASS} {
+      min-width: 220px;
+      width: 220px;
+      max-width: 320px;
+      padding: 4px 6px;
+      border-left: 2px solid var(--bc-tyrian-mid);
+      vertical-align: top;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .better-caesar-idle {
+      display: grid;
+      gap: 6px;
+      padding: 8px 4px;
+    }
+    .better-caesar-load-btn {
+      padding: 6px 10px;
+      font: 600 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      border: 1px solid var(--bc-tyrian);
+      background: #fff;
+      color: var(--bc-tyrian);
+      border-radius: 4px;
+    }
+    .better-caesar-load-btn:hover { background: var(--bc-tyrian); color: #fff; }
+    .better-caesar-load-btn:disabled { opacity: 0.6; cursor: default; }
+    .better-caesar-load-btn:disabled:hover { background: #fff; color: var(--bc-tyrian); }
+    .better-caesar-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 4px;
+      font-size: 10px;
+      color: var(--bc-tyrian);
+    }
+    .better-caesar-meta-time {
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    .better-caesar-refresh-btn {
+      padding: 2px 6px;
+      font: 600 10px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+      cursor: pointer;
+      border: 1px solid var(--bc-tyrian);
+      background: #fff;
+      color: var(--bc-tyrian);
+      border-radius: 3px;
+    }
+    .better-caesar-refresh-btn:hover { background: var(--bc-tyrian); color: #fff; }
+    .better-caesar-refresh-btn:disabled { opacity: 0.6; cursor: default; }
+    .better-caesar-refresh-btn:disabled:hover { background: #fff; color: var(--bc-tyrian); }
+    .better-caesar-hint {
+      font-size: 10px;
+    }
+    .better-caesar-card {
+      display: grid;
+      gap: 6px;
+      padding: 8px;
       border-radius: 8px;
       border: 1px solid var(--bc-tyrian-mid);
-	      background: var(--bc-tyrian-soft);
-	      color: var(--bc-tyrian-ink);
-	      font-size: 11px;
-	      line-height: 1.35;
-	      width: 100%;
-	      min-width: 0;
-	      overflow: hidden;
-	      box-sizing: border-box;
-	    }
-	    .better-caesar-pill {
-	      display: inline-block;
-	      justify-self: start;
-	      padding: 2px 8px;
-	      border-radius: 999px;
-	      border: 1px solid transparent;
-	      font-weight: 700;
-	      max-width: 100%;
-	      overflow: hidden;
-	      text-overflow: ellipsis;
-	      white-space: nowrap;
-	    }
-	    .better-caesar-lines {
-	      display: grid;
-	      gap: 2px;
-	      min-width: 0;
-	    }
-	    .better-caesar-line {
-	      font-size: 11px;
-	      color: var(--bc-tyrian-ink);
-	      min-width: 0;
-	      overflow: hidden;
-	      text-overflow: ellipsis;
-	      white-space: nowrap;
-	    }
-	    .better-caesar-note {
-	      display: grid;
-	      gap: 2px;
-	      min-width: 0;
-	    }
-	    .better-caesar-note-label {
-	      font-size: 10px;
+      background: var(--bc-tyrian-soft);
+      color: var(--bc-tyrian-ink);
+      font-size: 11px;
+      line-height: 1.35;
+      width: 100%;
+      min-width: 0;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+    .better-caesar-pill {
+      display: inline-block;
+      justify-self: start;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .better-caesar-lines {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .better-caesar-line {
+      font-size: 11px;
+      color: var(--bc-tyrian-ink);
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .better-caesar-note {
+      display: grid;
+      gap: 2px;
+      min-width: 0;
+    }
+    .better-caesar-note-label {
+      font-size: 10px;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.25px;
       color: var(--bc-tyrian);
     }
-	    .better-caesar-note-text {
-	      color: var(--bc-tyrian-ink);
-	      overflow-wrap: anywhere;
-	      overflow: hidden;
-	      display: -webkit-box;
-	      -webkit-box-orient: vertical;
-	      -webkit-line-clamp: 4;
-	    }
-	    .better-caesar-warning {
-	      color: #8a2e00;
-	      border-top: 1px dashed #d99a66;
+    .better-caesar-note-text {
+      color: var(--bc-tyrian-ink);
+      overflow-wrap: anywhere;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 4;
+    }
+    .better-caesar-warning {
+      color: #8a2e00;
+      border-top: 1px dashed #d99a66;
       padding-top: 4px;
       font-weight: 600;
     }
@@ -188,6 +266,28 @@ export function injectStyles(): void {
   const host = document.head ?? document.documentElement ?? document.body;
   if (!host) return;
   host.appendChild(style);
+}
+
+function buildMetaBar(fetchedAt: number, onRefresh: () => void): HTMLElement {
+  const bar = document.createElement("div");
+  bar.className = "better-caesar-meta";
+
+  const time = document.createElement("span");
+  time.className = "better-caesar-meta-time";
+  time.dataset.bcFetchedAt = String(fetchedAt);
+  time.textContent = `Loaded ${formatRelativeTime(Date.now() - fetchedAt)}`;
+  bar.appendChild(time);
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "better-caesar-refresh-btn";
+  button.textContent = "↻ Refresh";
+  button.addEventListener("click", () => {
+    onRefresh();
+  });
+  bar.appendChild(button);
+
+  return bar;
 }
 
 function buildSeatsCard(response: SeatsNotesSuccess): HTMLElement {
@@ -396,4 +496,31 @@ function ensureCustomCell(row: HTMLTableRowElement, customClass: string): HTMLTa
   td.style.verticalAlign = "top";
   row.appendChild(td);
   return td;
+}
+
+function clearChildren(node: Node): void {
+  while (node.firstChild) node.removeChild(node.firstChild);
+}
+
+function ensureTimestampRefresh(): void {
+  if (timestampRefreshTimer !== null) return;
+  timestampRefreshTimer = window.setInterval(() => {
+    const now = Date.now();
+    document.querySelectorAll<HTMLElement>("[data-bc-fetched-at]").forEach((el) => {
+      const ts = Number(el.dataset.bcFetchedAt);
+      if (!Number.isFinite(ts)) return;
+      el.textContent = `Loaded ${formatRelativeTime(now - ts)}`;
+    });
+  }, TIMESTAMP_REFRESH_INTERVAL_MS);
+}
+
+function formatRelativeTime(deltaMs: number): string {
+  const seconds = Math.max(0, Math.round(deltaMs / 1000));
+  if (seconds < 45) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  const days = Math.round(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }

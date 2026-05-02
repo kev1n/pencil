@@ -3,7 +3,8 @@ export const FEATURES_STORAGE_KEY = "better-caesar:features:v1";
 const DEFAULT_FEATURE_STATES: Record<string, boolean> = {
   "paper-ctec-compact-card-stars": false,
   "paper-ctec-single-summary-card": true,
-  "paper-ctec-rating-percent": false
+  "paper-ctec-rating-percent": false,
+  "paper-card-border-on-hover": true
 };
 
 // In-memory settings loaded from extension storage on startup.

@@ -1,3 +1,4 @@
+import { FEATURES_STORAGE_KEY } from "./content/settings";
 import type {
   AbortFetchMessage,
   AuthPopupClosedMessage,
@@ -8,6 +9,9 @@ import type {
 
 const FETCH_TIMEOUT_MS = 30_000;
 const fetchControllers = new Map<string, AbortController>();
+
+const CAESAR_REDIRECT_FEATURE_ID = "caesar-domain-redirect";
+const CAESAR_REDIRECT_RULE_ID = 1;
 
 const POST_AUTH_URL_PATTERNS = [
   /^https:\/\/caesar\.ent\.northwestern\.edu\/psc\//i,
@@ -29,7 +33,47 @@ const settleTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Better CAESAR extension installed.");
+  void syncCaesarRedirectRule();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  void syncCaesarRedirectRule();
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return;
+  if (!changes[FEATURES_STORAGE_KEY]) return;
+  void syncCaesarRedirectRule();
+});
+
+async function syncCaesarRedirectRule(): Promise<void> {
+  const result = await chrome.storage.local.get(FEATURES_STORAGE_KEY) as Record<string, unknown>;
+  const raw = result[FEATURES_STORAGE_KEY];
+  const settings = raw && typeof raw === "object" ? raw as Record<string, boolean> : {};
+  const enabled = settings[CAESAR_REDIRECT_FEATURE_ID] ?? true;
+
+  await chrome.declarativeNetRequest.updateDynamicRules({
+    removeRuleIds: [CAESAR_REDIRECT_RULE_ID],
+    addRules: enabled
+      ? [
+          {
+            id: CAESAR_REDIRECT_RULE_ID,
+            priority: 1,
+            action: {
+              type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
+              redirect: {
+                transform: { host: "caesar.ent.northwestern.edu" }
+              }
+            },
+            condition: {
+              requestDomains: ["caesar.northwestern.edu"],
+              resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME]
+            }
+          }
+        ]
+      : []
+  });
+}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "fetch-text") {

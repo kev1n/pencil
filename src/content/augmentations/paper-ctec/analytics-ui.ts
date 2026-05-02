@@ -35,6 +35,11 @@ type SideCardAnalyticsRenderData = {
   authUrl?: string;
   awaitingAuthRetry?: boolean;
   errorMessage?: string;
+  notFound: boolean;
+  canLoadMoreTerms: boolean;
+  loadMoreBatchSize: number;
+  remainingTerms: number;
+  parsedTermCount: number;
 };
 
 type AnalyticsMetricKind =
@@ -51,7 +56,9 @@ export function renderSideCardAnalytics(
   onSelectTab: (tab: "paper" | "analytics") => void,
   onSelectTerm: (term: string) => void,
   onToggleChart: (chartKey: string) => void,
-  onLogin: () => void
+  onLogin: () => void,
+  onLoadMoreTerms: () => void,
+  onRefresh: () => void
 ): void {
   const header = ensureSideCardHeader(context.panel);
   const tabsRoot = ensureSideCardTabs(context.panel, header);
@@ -114,22 +121,51 @@ export function renderSideCardAnalytics(
     );
   }
 
-  if (!data.snapshot) {
-    body.append(
-      makeAnalyticsCallout(
-        context.panel.ownerDocument,
-        data.loading
-          ? "Reading CTEC reports for this course…"
-          : "No CTEC analytics are available for this section yet.",
-        "is-muted"
-      )
-    );
+  if (!data.snapshot || data.parsedTermCount === 0) {
+    if (data.notFound) {
+      body.append(
+        makeAnalyticsCallout(
+          context.panel.ownerDocument,
+          "No CTEC reports were found for this section.",
+          "is-muted"
+        )
+      );
+    } else if (!data.authUrl && !data.errorMessage) {
+      // Nothing loaded yet → the load-more CTA is the primary action, so it
+      // anchors at the top by itself.
+      body.append(
+        renderLoadMorePrompt(
+          context.panel.ownerDocument,
+          data,
+          onLoadMoreTerms,
+          /* hasParsed */ false
+        )
+      );
+    }
     panelRoot.append(body);
     panelRoot.dataset.bcPaperCtecSignature = signature;
     return;
   }
 
+  if (!data.authUrl && !data.errorMessage) {
+    body.append(renderRefreshToolbar(context.panel.ownerDocument, data, onRefresh));
+  }
+
   body.append(renderAnalyticsAggregate(context.panel.ownerDocument, data.snapshot));
+
+  // Load-more lives inside renderSelectedTermAnalytics, anchored just above
+  // the student comments so it stays reachable without scrolling past a wall
+  // of comments.
+  const loadMorePrompt =
+    !data.authUrl && !data.errorMessage && (data.canLoadMoreTerms || data.loading)
+      ? renderLoadMorePrompt(
+          context.panel.ownerDocument,
+          data,
+          onLoadMoreTerms,
+          /* hasParsed */ true
+        )
+      : null;
+
   body.append(
     renderSelectedTermAnalytics(
       context.panel.ownerDocument,
@@ -138,12 +174,100 @@ export function renderSideCardAnalytics(
       data.expandedChartKeys,
       data.commentQuery,
       onSelectTerm,
-      onToggleChart
+      onToggleChart,
+      loadMorePrompt
     )
   );
 
   panelRoot.append(body);
   panelRoot.dataset.bcPaperCtecSignature = signature;
+}
+
+function renderRefreshToolbar(
+  doc: Document,
+  data: SideCardAnalyticsRenderData,
+  onRefresh: () => void
+): HTMLElement {
+  const wrapper = doc.createElement("div");
+  wrapper.className = "bc-paper-ctec-analytics-refresh-toolbar";
+
+  const row = doc.createElement("div");
+  row.className = "bc-paper-ctec-analytics-refresh-row";
+
+  const copy = doc.createElement("div");
+  copy.className = "bc-paper-ctec-analytics-refresh-copy";
+  copy.textContent = "Check for newly-published CTECs";
+  row.append(copy);
+
+  const button = doc.createElement("button");
+  button.type = "button";
+  button.className = "bc-paper-ctec-analytics-refresh-btn";
+  button.disabled = data.loading;
+  button.title =
+    "Re-fetch this course's CTEC list from Northwestern. Use this when newly-published evaluations should appear (CTECs from a recent term may not show until weeks after the term ends).";
+  button.textContent = data.loading ? "Refreshing…" : "↻ Refresh";
+  button.addEventListener("pointerdown", (event) => {
+    if (button.disabled) return;
+    preventAndStop(event);
+    onRefresh();
+  });
+  button.addEventListener("click", preventAndStop);
+  row.append(button);
+
+  const explainer = doc.createElement("div");
+  explainer.className = "bc-paper-ctec-analytics-refresh-explainer";
+  explainer.textContent =
+    "Refresh re-fetches this course's CTEC list to pick up newly-published evaluations (e.g. last term's reports that weren't out when you first loaded). Only re-checks this one course, not the whole subject.";
+
+  wrapper.append(row, explainer);
+  return wrapper;
+}
+
+function renderLoadMorePrompt(
+  doc: Document,
+  data: SideCardAnalyticsRenderData,
+  onLoadMoreTerms: () => void,
+  hasParsed: boolean
+): HTMLElement {
+  const wrapper = doc.createElement("div");
+  wrapper.className = "bc-paper-ctec-analytics-load-more";
+
+  const copy = doc.createElement("div");
+  copy.className = "bc-paper-ctec-analytics-load-more-copy";
+
+  if (data.loading) {
+    copy.textContent = hasParsed
+      ? `Loading the next ${data.loadMoreBatchSize} CTEC term${data.loadMoreBatchSize === 1 ? "" : "s"}…`
+      : `Loading the most recent ${data.loadMoreBatchSize} CTEC term${data.loadMoreBatchSize === 1 ? "" : "s"}…`;
+  } else if (hasParsed) {
+    copy.textContent = data.remainingTerms > 0
+      ? `${data.remainingTerms} earlier term${data.remainingTerms === 1 ? "" : "s"} not yet loaded.`
+      : "All available CTEC terms are loaded.";
+  } else {
+    copy.textContent = "CTEC term reports load on demand to keep traffic low.";
+  }
+  wrapper.append(copy);
+
+  const showButton = !data.loading && (hasParsed ? data.canLoadMoreTerms : true);
+  if (showButton) {
+    const button = doc.createElement("button");
+    button.type = "button";
+    button.className = "bc-paper-ctec-analytics-load-more-btn";
+    const batchLabel = data.remainingTerms > 0
+      ? Math.min(data.loadMoreBatchSize, data.remainingTerms)
+      : data.loadMoreBatchSize;
+    button.textContent = hasParsed
+      ? `Load next ${batchLabel} term${batchLabel === 1 ? "" : "s"}`
+      : `Load ${batchLabel} most recent term${batchLabel === 1 ? "" : "s"}`;
+    button.addEventListener("pointerdown", (event) => {
+      preventAndStop(event);
+      onLoadMoreTerms();
+    });
+    button.addEventListener("click", preventAndStop);
+    wrapper.append(button);
+  }
+
+  return wrapper;
 }
 
 function ensureSideCardHeader(panel: HTMLElement): HTMLElement | null {
@@ -229,6 +353,10 @@ function buildSideCardAnalyticsSignature(data: SideCardAnalyticsRenderData): str
     snapshot?.recentAggregate.evaluationCount ?? 0,
     snapshot?.recentAggregate.aggregateEvaluationCount ?? 0,
     snapshot?.recentAggregate.windowTerms.join(",") ?? "",
+    data.parsedTermCount,
+    data.remainingTerms,
+    data.canLoadMoreTerms ? "1" : "0",
+    data.notFound ? "1" : "0",
     ratingPercentSignature(),
     entrySignature
   ].join("||");
@@ -427,7 +555,8 @@ function renderSelectedTermAnalytics(
   expandedChartKeys: string[],
   commentQuery: string,
   onSelectTerm: (entryId: string) => void,
-  onToggleChart: (chartKey: string) => void
+  onToggleChart: (chartKey: string) => void,
+  loadMorePrompt: HTMLElement | null
 ): HTMLElement {
   const section = doc.createElement("section");
 
@@ -436,20 +565,25 @@ function renderSelectedTermAnalytics(
   title.textContent = "SELECTED TERM";
   section.append(title);
 
-  if (snapshot.entries.length === 0) {
+  // Only entries with parsed reports show in the picker. "pending" entries
+  // exist in the index but haven't been fetched yet — they appear once the
+  // user clicks "Load next N terms".
+  const pickerEntries = snapshot.entries.filter((entry) => entry.status !== "pending");
+  if (pickerEntries.length === 0) {
     section.append(
       makeAnalyticsCallout(
         doc,
-        "No term-level CTEC records are available for this section.",
+        "No term-level CTEC records are loaded yet.",
         "is-muted"
       )
     );
+    if (loadMorePrompt) section.append(loadMorePrompt);
     return section;
   }
 
-  const selectedEntry = snapshot.entries.find(
+  const selectedEntry = pickerEntries.find(
     (entry) => buildAnalyticsEntryKey(entry) === selectedEntryId
-  ) ?? snapshot.entries[0]!;
+  ) ?? pickerEntries[0]!;
 
   const toolbar = doc.createElement("div");
   toolbar.className = "bc-paper-ctec-analytics-term-toolbar";
@@ -465,7 +599,7 @@ function renderSelectedTermAnalytics(
   select.title = "Switch the currently displayed CTEC term.";
   guardNestedInteraction(select);
 
-  for (const entry of snapshot.entries) {
+  for (const entry of pickerEntries) {
     const option = doc.createElement("option");
     option.value = buildAnalyticsEntryKey(entry);
     option.textContent = buildTermSelectorLabel(entry);
@@ -516,6 +650,7 @@ function renderSelectedTermAnalytics(
     note.className = "bc-paper-ctec-analytics-state-note";
     note.textContent = "Full details for this term are still loading.";
     section.append(note);
+    if (loadMorePrompt) section.append(loadMorePrompt);
     return section;
   }
 
@@ -524,6 +659,7 @@ function renderSelectedTermAnalytics(
     note.className = "bc-paper-ctec-analytics-state-note";
     note.textContent = "No parsed CTEC details were available for this term.";
     section.append(note);
+    if (loadMorePrompt) section.append(loadMorePrompt);
     return section;
   }
 
@@ -542,8 +678,14 @@ function renderSelectedTermAnalytics(
     note.className = "bc-paper-ctec-analytics-state-note";
     note.textContent = "No parsed CTEC details were available for this term.";
     section.append(note);
+    if (loadMorePrompt) section.append(loadMorePrompt);
     return section;
   }
+
+  // Anchor the load-more prompt directly above the comments block so the
+  // user can reach it without scrolling past potentially hundreds of student
+  // comments. Falls through to end-of-section when no comments exist.
+  if (loadMorePrompt) section.append(loadMorePrompt);
 
   if (selectedEntry.commentGroups.length > 0) {
     section.append(renderTermComments(doc, selectedEntry, commentQuery));

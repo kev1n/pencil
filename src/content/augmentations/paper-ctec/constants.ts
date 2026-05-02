@@ -7,3 +7,5 @@ export const SIDECARD_ANALYTICS_PANEL_CLASS = "bc-paper-ctec-analytics-panel";
 export const COMPACT_CARD_FEATURE_ID = "paper-ctec-compact-cards";
 export const COMPACT_CARD_STARS_FEATURE_ID = "paper-ctec-compact-card-stars";
 export const SINGLE_SUMMARY_CARD_FEATURE_ID = "paper-ctec-single-summary-card";
+export const CARD_BORDER_ON_HOVER_FEATURE_ID = "paper-card-border-on-hover";
+export const NO_HOVER_LIFT_CLASS = "bc-paper-no-hover-lift";

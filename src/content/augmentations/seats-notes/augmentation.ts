@@ -1,88 +1,129 @@
-import { TemplateAugmentation } from "../../framework";
+import type { Augmentation } from "../../framework";
 import { isRetryablePeopleSoftTaskError, lookupClass } from "../../peoplesoft";
-import { ensureActionBar } from "../action-bar";
-import { CLASS_LINK_SELECTOR, NOTES_CELL_CLASS, SEATS_CELL_CLASS } from "./constants";
+import { CLASS_LINK_SELECTOR } from "./constants";
 import { extractCareerHint, extractClassNumber, queryTargetTables } from "./helpers";
 import { toFailure, toSeatsNotesResult } from "./parser";
-import type { RowTarget, SeatsNotesResult } from "./types";
+import {
+  RATE_LIMIT_MAX,
+  getRateLimitState,
+  initStorage,
+  readCachedEntry,
+  recordFetch,
+  writeCachedEntry
+} from "./storage";
+import { showToast } from "./toast";
+import type { RowCells, RowTarget, SeatsNotesResult } from "./types";
 import {
   ensureCustomCells,
   ensureCustomHeaders,
-  findExistingCells,
+  getCellState,
   injectStyles,
-  isCellsLoaded,
-  markCellsLoaded,
-  markCellsLoading,
-  renderMetadata
+  renderIdle,
+  renderLoaded,
+  renderLoading
 } from "./ui";
 
-const RELOAD_BTN_ID = "bc-seats-reload-btn";
+export class SeatsNotesAugmentation implements Augmentation {
+  readonly id = "seats-notes";
 
-export class SeatsNotesAugmentation extends TemplateAugmentation<RowTarget, SeatsNotesResult> {
-  private runOnce = false;
+  private readonly inFlight = new Set<string>();
+  private storageReady = false;
 
   constructor() {
-    super("seats-notes");
+    void initStorage().then(() => {
+      this.storageReady = true;
+      this.run();
+    });
   }
 
-  override run(doc: Document = document): void {
-    super.run(doc);
-    this.runOnce = false;
-  }
-
-  protected beforeRun(doc: Document): void {
-    injectStyles();
-    this.ensureReloadButton(doc);
-  }
-
-  protected appliesToPage(): boolean {
-    return queryTargetTables().length > 0;
-  }
-
-  protected collectTargets(): RowTarget[] {
-    const targets: RowTarget[] = [];
+  run(_doc: Document = document): void {
+    if (!this.storageReady) return;
     const tables = queryTargetTables();
+    if (tables.length === 0) return;
+
+    injectStyles();
 
     for (const table of tables) {
-      // Only inject headers and create cells when actively loading.
-      if (this.runOnce) ensureCustomHeaders(table);
-
+      ensureCustomHeaders(table);
       const rows = table.querySelectorAll<HTMLTableRowElement>("tr[bufnum]");
-
       for (const row of Array.from(rows)) {
-        const link = row.querySelector<HTMLAnchorElement>(CLASS_LINK_SELECTOR);
-        if (!link) continue;
-
-        const classNumber = extractClassNumber(link.textContent ?? "");
-        if (!classNumber) continue;
-
-        const cells = this.runOnce ? ensureCustomCells(row) : findExistingCells(row);
-        if (!cells) continue;
-
-        targets.push({
-          classNumber,
-          careerHint: extractCareerHint(link.textContent ?? ""),
-          cells
-        });
+        this.processRow(row);
       }
     }
-
-    return targets;
   }
 
-  protected targetKey(target: RowTarget): string {
-    return `${target.classNumber}:${target.careerHint ?? "AUTO"}`;
+  private processRow(row: HTMLTableRowElement): void {
+    const link = row.querySelector<HTMLAnchorElement>(CLASS_LINK_SELECTOR);
+    if (!link) return;
+    const classNumber = extractClassNumber(link.textContent ?? "");
+    if (!classNumber) return;
+
+    const cells = ensureCustomCells(row);
+
+    if (
+      cells.seatsCell.dataset.classNumber === classNumber &&
+      getCellState(cells) !== undefined
+    ) {
+      return;
+    }
+
+    const target: RowTarget = {
+      classNumber,
+      careerHint: extractCareerHint(link.textContent ?? ""),
+      cells
+    };
+
+    this.hydrate(target);
   }
 
-  protected shouldProcessTarget(target: RowTarget): boolean {
-    return this.runOnce && !isCellsLoaded(target.cells, target.classNumber);
+  private hydrate(target: RowTarget): void {
+    if (this.inFlight.has(target.classNumber)) {
+      renderLoading(target.cells, target.classNumber);
+      return;
+    }
+
+    const cached = readCachedEntry(target.classNumber);
+    if (cached) {
+      this.renderLoadedWithRefresh(target, cached.result, cached.fetchedAt);
+      return;
+    }
+
+    renderIdle(target.cells, target.classNumber, () => {
+      void this.fetchOne(target, false);
+    });
   }
 
-  protected markLoading(target: RowTarget): void {
-    markCellsLoading(target.cells, target.classNumber);
+  private renderLoadedWithRefresh(
+    target: RowTarget,
+    result: SeatsNotesResult,
+    fetchedAt: number
+  ): void {
+    renderLoaded(target.cells, result, fetchedAt, target.classNumber, () => {
+      void this.fetchOne(target, true);
+    });
   }
 
-  protected async fetchData(target: RowTarget): Promise<SeatsNotesResult> {
+  private async fetchOne(target: RowTarget, isRefresh: boolean): Promise<void> {
+    if (this.inFlight.has(target.classNumber)) return;
+    if (!isRowConnected(target.cells)) return;
+
+    const now = Date.now();
+    const rate = getRateLimitState(now);
+    if (rate.recentCount >= RATE_LIMIT_MAX) {
+      const waitMs = rate.nextAvailableAt ? rate.nextAvailableAt - now : 0;
+      const waitMin = Math.max(1, Math.ceil(waitMs / 60_000));
+      showToast(
+        `Limit reached: ${RATE_LIMIT_MAX} loads per 30 min to reduce CAESAR load. Try again in ${waitMin} min.`,
+        { tone: "warn", durationMs: 6000 }
+      );
+      return;
+    }
+
+    this.inFlight.add(target.classNumber);
+    renderLoading(target.cells, target.classNumber);
+    recordFetch(now);
+
+    let result: SeatsNotesResult;
     try {
       const lookupResponse = await lookupClass(
         {
@@ -90,74 +131,37 @@ export class SeatsNotesAugmentation extends TemplateAugmentation<RowTarget, Seat
           classNumber: target.classNumber,
           careerHint: target.careerHint
         },
-        {
-          priority: "background",
-          owner: "seats-notes"
-        }
+        { priority: "background", owner: "seats-notes" }
       );
-
-      return toSeatsNotesResult(lookupResponse);
+      result = toSeatsNotesResult(lookupResponse);
     } catch (error) {
       if (isRetryablePeopleSoftTaskError(error)) {
-        throw error;
+        this.inFlight.delete(target.classNumber);
+        renderIdle(target.cells, target.classNumber, () => {
+          void this.fetchOne(target, isRefresh);
+        });
+        return;
       }
-
-      return toFailure(error);
-    }
-  }
-
-  protected renderSuccess(target: RowTarget, data: SeatsNotesResult): void {
-    renderMetadata(data, target.classNumber, target.cells);
-  }
-
-  protected renderError(target: RowTarget, error: Error): void {
-    renderMetadata({ ok: false, error: error.message }, target.classNumber, target.cells);
-  }
-
-  protected markLoaded(target: RowTarget): void {
-    markCellsLoaded(target.cells);
-  }
-
-  private ensureReloadButton(doc: Document): void {
-    let btn = doc.getElementById(RELOAD_BTN_ID) as HTMLButtonElement | null;
-
-    if (!btn) {
-      const bar = ensureActionBar(doc);
-      if (!bar) return;
-
-      btn = doc.createElement("button");
-      btn.type = "button";
-      btn.id = RELOAD_BTN_ID;
-      btn.className = "bc-action-btn";
-      btn.addEventListener("click", () => { this.reloadAll(doc, btn!); });
-      bar.appendChild(btn);
+      result = toFailure(error);
     }
 
-    if (!btn.disabled) {
-      const anyLoaded = this.collectTargets().some((t) =>
-        isCellsLoaded(t.cells, t.classNumber)
-      );
-      btn.textContent = anyLoaded ? "Reload Seats & Notes" : "Load Seats & Notes";
-    }
-  }
+    this.inFlight.delete(target.classNumber);
 
-  private reloadAll(doc: Document, btn: HTMLButtonElement): void {
-    btn.disabled = true;
+    const fetchedAt = Date.now();
+    writeCachedEntry(target.classNumber, { result, fetchedAt });
 
-    for (const table of queryTargetTables()) {
-      for (const row of Array.from(table.querySelectorAll<HTMLTableRowElement>("tr[bufnum]"))) {
-        const seatsCell = row.querySelector<HTMLElement>(`.${SEATS_CELL_CLASS}`);
-        const notesCell = row.querySelector<HTMLElement>(`.${NOTES_CELL_CLASS}`);
-        if (seatsCell) seatsCell.dataset.loaded = "0";
-        if (notesCell) notesCell.dataset.loaded = "0";
-      }
+    if (isRowConnected(target.cells)) {
+      this.renderLoadedWithRefresh(target, result, fetchedAt);
     }
 
-    this.clearCache();
-    this.runOnce = true;
-    this.run(doc);
-
-    btn.textContent = "Reload Seats & Notes";
-    btn.disabled = false;
+    const remaining = Math.max(0, RATE_LIMIT_MAX - getRateLimitState(fetchedAt).recentCount);
+    const verb = isRefresh ? "Refreshed" : "Loaded";
+    showToast(
+      `${verb}. ${remaining} of ${RATE_LIMIT_MAX} loads left this 30 min (cap reduces CAESAR load).`
+    );
   }
+}
+
+function isRowConnected(cells: RowCells): boolean {
+  return cells.seatsCell.isConnected && cells.notesCell.isConnected;
 }

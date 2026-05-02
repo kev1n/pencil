@@ -34,6 +34,39 @@ type WidgetAggregate = Extract<PaperCtecWidgetData, { state: "found" }>["aggrega
 const STATUS_STACK_CLASS = "bc-paper-ctec-status-stack";
 const STATUS_LEGEND_ID = "bc-paper-ctec-status-legend";
 
+export function renderIdle(widget: HTMLElement, onLoad: () => void): void {
+  const signature = "idle";
+  if (widget.dataset.bcPaperCtecSignature === signature) {
+    return;
+  }
+
+  widget.textContent = "";
+  widget.title = "Click to fetch CTEC summary for this class.";
+
+  const summary = widget.ownerDocument.createElement("div");
+  summary.className = `${WIDGET_CLASS}-summary`;
+
+  const chip = widget.ownerDocument.createElement("button");
+  chip.type = "button";
+  chip.className = `${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`;
+  chip.append(createIcon("spark"), document.createTextNode("Load CTEC"));
+
+  const trigger = (event: Event) => {
+    preventAndStop(event);
+    onLoad();
+  };
+  chip.addEventListener("pointerdown", trigger);
+  chip.addEventListener("click", preventAndStop);
+  chip.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    trigger(event);
+  });
+
+  summary.appendChild(chip);
+  widget.appendChild(summary);
+  widget.dataset.bcPaperCtecSignature = signature;
+}
+
 export function renderLoading(widget: HTMLElement, message = "CTEC…"): void {
   const signature = `loading|${message}`;
   if (widget.dataset.bcPaperCtecSignature === signature) {

@@ -1,102 +1,72 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repo.
+
+## Keeping this file fresh
+
+This file is a living document. Update it as the repo evolves — when adding/removing augmentations, changing host permissions, restructuring folders, or shifting conventions. Keep entries **high level**: directory roles, plugin patterns, and where things live. Avoid pinning specific DOM selectors, regexes, or detailed flow steps — those drift fast and belong in code comments or the augmentation's own files.
 
 ## What this is
 
-A Chrome/Firefox extension (Manifest V3) that augments Northwestern University's CAESAR course registration system. It adds faster class-level lookups, seat/notes display, enrollment navigation, CTEC rating navigation, and per-class CTEC evaluation links directly in the CAESAR UI.
+A Manifest V3 Chrome/Firefox extension that augments two sites for Northwestern students:
+
+- **CAESAR** (`caesar.ent.northwestern.edu`) — course registration. Adds seat/notes details, CTEC evaluation links, CTEC navigation indexing, and enrollment-term navigation.
+- **Paper.nu** (`paper.nu`, `www.paper.nu`) — schedule planner. Overlays CTEC summaries and analytics onto schedule cards and the section detail panel.
+
+It also reaches `northwestern.bluera.com` and Northwestern SSO hosts to fetch CTEC reports.
 
 ## Commands
 
 ```bash
-npm run build          # Build for both Chrome and Firefox (output: dist/chrome, dist/firefox)
-npm run build:chrome   # Build for Chrome only
-npm run build:firefox  # Build for Firefox only
-npm run dev            # Watch mode for Chrome (single target only)
-npm run typecheck      # Type-check without emitting (tsc --noEmit)
+npm run build          # Build Chrome + Firefox into dist/<target>/
+npm run build:chrome   # Chrome only
+npm run build:firefox  # Firefox only
+npm run dev            # Watch mode (Chrome)
+npm run typecheck      # tsc --noEmit
 ```
 
-**Always run `npm run build:chrome` after every change** and confirm it passes before considering a task done. There are no tests.
+**Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. There are no tests.
 
-Build output goes to `dist/<target>/`. Load `dist/chrome` as an unpacked extension in Chrome for development.
+## Top-level layout
 
-## Architecture
+- `src/background.ts` — service worker. Used for things content scripts can't do directly (e.g. cross-origin fetches).
+- `src/content/index.ts` — entry for both CAESAR and Paper.nu. Registers the lookup message handler and starts the augmentation runner.
+- `src/content/framework/` — `Augmentation` interface, `TemplateAugmentation` base class, and the `AugmentationRunner` (load + debounced mutation re-runs).
+- `src/content/augmentations/` — one folder per feature. Registered in `registry.ts`.
+- `src/content/peoplesoft/` — typed wrapper around CAESAR's PeopleSoft AJAX (context, http, params, parsers, lookup, traffic mutex).
+- `src/content/settings.ts` — feature-toggle state, backed by `chrome.storage.local`. Defaults are on unless overridden in `DEFAULT_FEATURE_STATES`.
+- `src/content/messaging.ts`, `src/content/remote-fetch.ts` — message plumbing and background-mediated fetches.
+- `src/popup/` — popup UI with toggle switches and a "clear CTEC cache" button.
+- `src/shared/messages.ts` — typed message contracts shared across contexts.
+- `src/manifest.base.json` — base manifest; `scripts/build.mjs` patches it per target.
 
-### Entry points (bundled by esbuild as IIFE)
+## Augmentation pattern
 
-- `src/background.ts` — Service worker (Chrome) / background script (Firefox).
-- `src/content/index.ts` — Main content script injected into `caesar.ent.northwestern.edu`. Registers message handler and starts the augmentation runner.
-- `src/content/bluera-probe.ts` — Content script injected into `northwestern.bluera.com` (CTEC evaluation pages).
-- `src/popup/popup.ts` — Extension popup UI: on/off toggle switches for each augmentation feature.
+Each feature lives in `src/content/augmentations/<name>/` and exports a plugin instance from `index.ts`. Most use `TemplateAugmentation` (`appliesToPage` → `collectTargets` → `fetchData` → `renderSuccess`/`renderError`). Some (e.g. CTEC links, paper-ctec) implement `Augmentation` directly when they need richer state (in-flight tracking, retry-on-demand, multi-tab UI, etc.).
 
-### Augmentation plugin system
+The runner invokes plugins on initial load and after every DOM mutation (debounced via `requestAnimationFrame`) — needed because PeopleSoft and Paper.nu both navigate via in-place DOM swaps. Each plugin is gated by `isFeatureEnabled(id)`.
 
-Each augmentation lives in `src/content/augmentations/<name>/`. Two patterns exist:
+To add a new augmentation:
 
-**`TemplateAugmentation<TTarget, TData>`** (`src/content/framework/template.ts`) — preferred for simple augmentations. Implement:
-- `appliesToPage(doc)`, `collectTargets(doc)`, `targetKey(target)`, `shouldProcessTarget(target, key)`, `markLoading`, `fetchData`, `renderSuccess`, `renderError`
+1. Create `src/content/augmentations/<name>/` with `index.ts` exporting a plugin.
+2. Register it in `src/content/augmentations/registry.ts`.
+3. Add it (and any sub-toggles) to `FEATURE_SECTIONS` in `src/popup/popup.ts`.
 
-**Direct `Augmentation` interface** — used by `ctec-links` which needs retry-on-demand behavior and explicit in-flight tracking via a `Set<string>`.
+## Current augmentations
 
-`AugmentationRunner` (`src/content/framework/runner.ts`) runs all augmentations on load and re-runs on every DOM mutation (debounced via `requestAnimationFrame`) to handle PeopleSoft's AJAX navigation. It checks `isFeatureEnabled(augmentation.id)` (from `src/content/settings.ts`) before running each augmentation.
+- `seats-notes` — CAESAR shopping cart: loads class notes, attributes, requirements, seat counts.
+- `ctec-links` — CAESAR shopping cart: per-class CTEC evaluation history widget. Fetches via Bluera and writes a shared CTEC index.
+- `ctec-navigation` — CAESAR CTEC pages: indexes subject results so future lookups can hit cache.
+- `enrollment-navigation` — CAESAR: smoother navigation across enrollment terms / registration screens.
+- `paper-ctec` — Paper.nu: overlays CTEC summaries on schedule cards and analytics in the section side panel. Has its own sub-toggles (single summary card, dense cards, dense card stars).
 
-### Adding a new augmentation
+## Shared CTEC index
 
-1. Create `src/content/augmentations/<name>/` with an `index.ts` exporting a plugin instance.
-2. Add it to `src/content/augmentations/registry.ts`.
-3. Add it to the `FEATURES` list in `src/popup/popup.ts`.
-
-### Feature toggles
-
-`src/content/settings.ts` reads `better-caesar:features:v1` from `chrome.storage.local`. All features are **on by default** (`settings[id] !== false`). The popup renders toggle switches that write to this key.
-
-### PeopleSoft layer (`src/content/peoplesoft/`)
-
-- `context.ts` — reads session tokens and term/career codes from the live DOM
-- `http.ts` — `fetchPeopleSoft` (POST) and `fetchPeopleSoftGet` (GET) for PeopleSoft AJAX requests
-- `params.ts` — builds search and detail form parameters
-- `parsers.ts` — parses PeopleSoft HTML responses into structured data
-- `lookup.ts` — orchestrates a full class lookup (search → detail)
-- `traffic.ts` — mutex to serialize PeopleSoft requests
-
-### CTEC navigation storage
-
-`src/content/augmentations/ctec-navigation/storage.ts` uses `chrome.storage.local` with an **in-memory write-through cache**. On startup, data is loaded once into `memoryStore`. All reads are synchronous (from memory); writes update memory immediately and persist async. Storage key: `better-caesar:ctec-index:v1`. Both `ctec-navigation` and `ctec-links` share this index.
-
-### CTEC links augmentation (`src/content/augmentations/ctec-links/`)
-
-Adds a per-class CTEC evaluation history widget to the shopping cart (`SSR_SSENRL_CART`).
-
-**Key DOM selectors for shopping cart rows:**
-- Class rows: `tr[bufnum]`
-- Class name link: `a[id^='P_CLASS_NAME$']` or `a[id^='E_CLASS_NAME$']`
-- Instructor: `[id^='DERIVED_REGFRM1_SSR_INSTR_LONG$']` (NOT `MTG_INSTR` — that's wrong)
-
-**Flow:**
-1. Cache hit via `readSubjectIndex(subject)` → filter by `entryMatchesCourse` → render immediately (no button)
-2. No cache → render "CTEC" fetch button → on click, `fetchCourseEntries` navigates the CTEC results page, filters class rows by instructor before fetching Bluera URLs, writes partial index, returns results
-3. Results sorted newest-first by `termToSortKey`. CTEC terms use "2016 Summer" (year-first) format.
-
-**Instructor matching:** `entryMatchesCourse` tokenizes the query instructor name (tokens > 2 chars) and checks if any token appears in `entry.instructor`. The pre-filter in `fetchCourseEntries` uses the same logic to avoid fetching Bluera URLs for non-matching rows.
-
-**Catalog number matching:** Uses a token regex `(?:^|\s)395(?:\s|$)` to match standalone catalog numbers — prevents "395" from matching "3950" and handles "395-0-21" style descriptions.
-
-### PeopleSoft CTEC page navigation
-
-The fetcher navigates: `buildSubjectResultsUrl` → GET subject results → find course row → POST `buildActionParams` → collect class rows via `collectClassRowsFromText` (reads `CTEC_INSTRUCTOR$N`, `MYDESCR2$N`, `MYDESCR$N`) → POST each class row → `extractBlueraUrl` from response.
-
-State between requests is maintained via `ICStateNum` (extracted by `applyResponseState`) and hidden form inputs.
-
-### Messaging (`src/shared/messages.ts`)
-
-Typed Chrome message types shared between content scripts, background, and popup.
-
-### Manifest
-
-`src/manifest.base.json` is the shared base; `scripts/build.mjs` patches it per-target. Required permissions include `storage` (for `chrome.storage.local`).
+`ctec-navigation/storage.ts` owns a `chrome.storage.local`-backed CTEC index with an in-memory write-through cache. Both `ctec-navigation` and `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write it. The popup's "Clear CTEC cache" button wipes it.
 
 ## User preferences
 
-- Build after every change — always run `npm run build:chrome` and verify it passes.
+- Build after every change — `npm run build:chrome` must pass before considering work done.
 - Keep solutions minimal — don't add abstractions, error handling, or features beyond what's asked.
 - No time estimates.
+- Update this file when the structure or feature set changes meaningfully.

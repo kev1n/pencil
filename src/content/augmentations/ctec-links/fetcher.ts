@@ -47,8 +47,11 @@ export async function fetchCtecLinksBackground(
   );
 }
 
-// Remove all cached entries (including sentinels) matching this course+instructor
-// so the next fetch will hit the network.
+// Removes all cached entries (including sentinels) matching this course +
+// instructor so the next fetch hits the network. Used by the analytics-tab
+// refresh button: when newly-published CTECs appear after the subject was
+// cached, this clears the stale per-course slice without dropping the rest
+// of the subject index.
 export function clearCtecCacheForCourse(
   subject: string,
   catalogNumber: string,

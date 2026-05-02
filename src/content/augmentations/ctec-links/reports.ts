@@ -107,9 +107,10 @@ export async function fetchCtecCourseAnalytics(
   params: CtecLinkParams,
   titleHint?: string,
   recentAggregateLimit?: number,
-  onProgress?: (message: string) => void
+  onProgress?: (message: string) => void,
+  fetchLimit?: number
 ): Promise<CtecCourseAnalyticsResult> {
-  const result = await ensureReportEntries(params, titleHint, onProgress);
+  const result = await ensureReportEntries(params, titleHint, onProgress, { fetchLimit });
   if (result.state !== "found") return result;
 
   return {
@@ -126,6 +127,25 @@ export function getCtecCourseAnalyticsSnapshot(
   const entries = getIndexedEntriesForCourse(params, titleHint);
   if (entries.length === 0) return null;
   return buildCourseAnalytics(entries, recentAggregateLimit);
+}
+
+// Cache-only aggregate: returns a CtecReportAggregate from the subject index
+// if any of the top recentTerms entries already have a parsed reportSummary.
+// Returns null when nothing useful is cached, so callers can show a "Load CTEC"
+// placeholder instead of triggering network traffic.
+export function getCachedReportAggregate(
+  params: CtecLinkParams,
+  titleHint: string | undefined,
+  recentTerms: number
+): CtecReportAggregate | null {
+  const entries = sortEntries(getIndexedEntriesForCourse(params, titleHint));
+  if (entries.length === 0) return null;
+
+  const window = entries.slice(0, recentTerms);
+  const hasAnyParsed = window.some((entry) => entry.reportSummary !== undefined);
+  if (!hasAnyParsed) return null;
+
+  return buildReportAggregate(entries, { aggregateLimit: recentTerms });
 }
 
 export function parseCtecReportHtml(

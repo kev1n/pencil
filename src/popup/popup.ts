@@ -38,6 +38,11 @@ const FEATURE_SECTIONS: FeatureSection[] = [
         id: "enrollment-navigation",
         label: "Enrollment Terms",
         description: "Improves navigation across enrollment terms and related registration screens."
+      },
+      {
+        id: "caesar-domain-redirect",
+        label: "Short Domain Redirect",
+        description: "Sends caesar.northwestern.edu to caesar.ent.northwestern.edu so the short URL works."
       }
     ]
   },
@@ -69,6 +74,11 @@ const FEATURE_SECTIONS: FeatureSection[] = [
         id: "paper-ctec-rating-percent",
         label: "Percent Ratings",
         description: "Shows CTEC ratings as a /100 percentage instead of the native /6 score."
+      },
+      {
+        id: "paper-card-border-on-hover",
+        label: "Card Border on Hover",
+        description: "Disables Paper's hover-lift animation on schedule cards and shows a static border outline instead."
       }
     ]
   }
