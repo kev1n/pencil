@@ -208,7 +208,7 @@ export class PaperCtecAugmentation implements Augmentation {
   }
 
   private generation(): number {
-    return this.generation();
+    return this.auth?.getGeneration() ?? 0;
   }
 
   private syncSideCard(doc: Document): void {
