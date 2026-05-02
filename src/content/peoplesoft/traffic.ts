@@ -124,6 +124,14 @@ export function getCurrentPeopleSoftTaskSignal(): AbortSignal | null {
   return activeTaskSignal;
 }
 
+export function abortPeopleSoftTasks(reason: string, predicate?: (task: { owner?: string }) => boolean): void {
+  const matches = predicate ?? (() => true);
+  cancelQueuedTasks((task) => matches({ owner: task.owner }), reason);
+  if (activeTask && matches({ owner: activeTask.owner })) {
+    activeTask.controller.abort(new PeopleSoftTaskCancelledError(reason));
+  }
+}
+
 export function isRetryablePeopleSoftTaskError(error: unknown): boolean {
   return error instanceof PeopleSoftTaskCancelledError;
 }

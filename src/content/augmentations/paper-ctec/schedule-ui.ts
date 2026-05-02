@@ -2,14 +2,21 @@ import type { CtecAggregateMetric } from "../ctec-links/reports";
 import { isFeatureEnabled } from "../../settings";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
+  AUTH_MODAL_ID,
   COMPACT_CARD_STARS_FEATURE_ID,
   STATUS_BAR_ID,
   WIDGET_CLASS
 } from "./constants";
+import {
+  formatChipRating,
+  formatRatingDetail,
+  ratingPercentSignature
+} from "./rating-format";
 import type { PaperCtecStatusBarData, PaperCtecWidgetData } from "./types";
 import {
   createIcon,
   createRatingStars,
+  preventAndStop,
   stopPropagation,
   type IconName
 } from "./ui-shared";
@@ -44,7 +51,11 @@ export function renderLoading(widget: HTMLElement, message = "CTEC…"): void {
   widget.dataset.bcPaperCtecSignature = signature;
 }
 
-export function renderWidget(widget: HTMLElement, data: PaperCtecWidgetData): void {
+export function renderWidget(
+  widget: HTMLElement,
+  data: PaperCtecWidgetData,
+  onAuthChipClick?: () => void
+): void {
   const signature = buildWidgetSignature(data);
   if (widget.dataset.bcPaperCtecSignature === signature) {
     return;
@@ -64,8 +75,8 @@ export function renderWidget(widget: HTMLElement, data: PaperCtecWidgetData): vo
   }
 
   if (data.state === "auth-required") {
-    widget.title = "CTEC data requires a Northwestern login before the reports can be read.";
-    summary.appendChild(makeChip("lock", "Login needed", "is-warn"));
+    widget.title = "Click to open the Northwestern login prompt for Better CAESAR.";
+    summary.appendChild(makeAuthChip(onAuthChipClick));
     widget.dataset.bcPaperCtecSignature = signature;
     return;
   }
@@ -113,9 +124,13 @@ export function renderWidget(widget: HTMLElement, data: PaperCtecWidgetData): vo
 
 export function renderStatusBar(
   doc: Document,
-  data: PaperCtecStatusBarData,
-  onLogin: () => void
+  data: PaperCtecStatusBarData
 ): void {
+  if (data.state === "auth-required") {
+    hideStatusBar(doc);
+    return;
+  }
+
   const host = findActionHost(doc);
   if (!host) return;
   ensureActionHostLayout(host);
@@ -140,11 +155,7 @@ export function renderStatusBar(
     return;
   }
 
-  const nextClassName = data.state === "auth-required"
-    ? "is-auth"
-    : data.state === "ready"
-      ? "is-ready"
-      : "is-loading";
+  const nextClassName = data.state === "ready" ? "is-ready" : "is-loading";
 
   bar.className = nextClassName;
   bar.replaceChildren();
@@ -164,21 +175,6 @@ export function renderStatusBar(
   copy.textContent = buildStatusCopy(data);
 
   bar.append(mark, copy);
-
-  if (data.state === "auth-required" && data.loginUrl) {
-    const action = doc.createElement("a");
-    action.className = "bc-paper-ctec-status-action";
-    action.href = data.loginUrl;
-    action.target = "_blank";
-    action.rel = "noopener noreferrer";
-    action.textContent = data.awaitingAuthRetry ? "Open again" : "Open login";
-    action.addEventListener("click", (event) => {
-      stopPropagation(event);
-      onLogin();
-    });
-    bar.append(action);
-  }
-
   bar.dataset.bcPaperCtecSignature = signature;
 }
 
@@ -186,6 +182,235 @@ export function hideStatusBar(doc: Document): void {
   doc.getElementById(STATUS_BAR_ID)?.remove();
   doc.getElementById(STATUS_LEGEND_ID)?.remove();
   doc.querySelector<HTMLElement>(`.${STATUS_STACK_CLASS}`)?.remove();
+}
+
+type AuthModalCallbacks = {
+  onLogin: () => void;
+  onDismiss: () => void;
+  onCancelPending: () => void;
+};
+
+export function renderAuthModal(
+  doc: Document,
+  data: { loginUrl?: string; awaitingAuthRetry: boolean; pending: boolean },
+  callbacks: AuthModalCallbacks
+): void {
+  let modal = doc.getElementById(AUTH_MODAL_ID) as HTMLDivElement | null;
+  if (!modal) {
+    modal = doc.createElement("div");
+    modal.id = AUTH_MODAL_ID;
+    modal.setAttribute("role", "dialog");
+    modal.setAttribute("aria-modal", "true");
+    modal.setAttribute("aria-labelledby", `${AUTH_MODAL_ID}-title`);
+    (doc.body ?? doc.documentElement).appendChild(modal);
+  }
+
+  modal.onclick = (event) => {
+    if (event.target !== modal) return;
+    preventAndStop(event);
+    if (data.pending) {
+      callbacks.onCancelPending();
+    } else {
+      callbacks.onDismiss();
+    }
+  };
+
+  const signature = `${data.loginUrl ?? ""}|${data.awaitingAuthRetry ? "1" : "0"}|${data.pending ? "P" : "N"}`;
+  if (modal.dataset.bcPaperCtecSignature === signature) return;
+
+  modal.replaceChildren();
+
+  const card = doc.createElement("div");
+  card.className = "bc-paper-ctec-auth-card";
+  card.addEventListener("click", stopPropagation);
+
+  const close = doc.createElement("button");
+  close.type = "button";
+  close.className = "bc-paper-ctec-auth-close";
+  close.setAttribute("aria-label", data.pending ? "Cancel login flow" : "Dismiss login prompt");
+  close.textContent = "×";
+  close.addEventListener("click", (event) => {
+    preventAndStop(event);
+    if (data.pending) {
+      callbacks.onCancelPending();
+    } else {
+      callbacks.onDismiss();
+    }
+  });
+  card.append(close);
+
+  if (data.pending) {
+    renderPendingCard(doc, card, data, callbacks);
+  } else {
+    renderLoginCard(doc, card, data, callbacks);
+  }
+
+  modal.append(card);
+  modal.dataset.bcPaperCtecSignature = signature;
+}
+
+function renderLoginCard(
+  doc: Document,
+  card: HTMLElement,
+  data: { loginUrl?: string; awaitingAuthRetry: boolean },
+  callbacks: AuthModalCallbacks
+): void {
+  const lock = doc.createElement("div");
+  lock.className = "bc-paper-ctec-auth-icon";
+  lock.append(createIcon("lock"));
+  card.append(lock);
+
+  const title = doc.createElement("h2");
+  title.id = `${AUTH_MODAL_ID}-title`;
+  title.className = "bc-paper-ctec-auth-title";
+  title.textContent = "Northwestern login required";
+  card.append(title);
+
+  const body = doc.createElement("p");
+  body.className = "bc-paper-ctec-auth-body";
+  body.append(
+    doc.createTextNode(
+      "Better CAESAR needs a CAESAR login to read CTEC reports on your behalf to display on your paper.nu. "
+    )
+  );
+  const bodyEmphasis = doc.createElement("strong");
+  bodyEmphasis.textContent =
+    "It authorizes that you have the permissions to access CTECs before you can view them.";
+  body.append(bodyEmphasis);
+  card.append(body);
+
+  const note = doc.createElement("p");
+  note.className = "bc-paper-ctec-auth-note";
+  note.textContent =
+    "You'll need to repeat this any time Northwestern signs you out (typically every few hours).";
+  card.append(note);
+
+  const trust = doc.createElement("p");
+  trust.className = "bc-paper-ctec-auth-trust";
+  trust.append(doc.createTextNode("Better CAESAR is open source. If you'd like, you may review the code at "));
+
+  const repoLink = doc.createElement("a");
+  repoLink.className = "bc-paper-ctec-auth-link";
+  repoLink.href = "https://github.com/kev1n/better-caesar";
+  repoLink.target = "_blank";
+  repoLink.rel = "noopener noreferrer";
+  repoLink.textContent = "github.com/kev1n/better-caesar";
+  repoLink.addEventListener("click", stopPropagation);
+  trust.append(repoLink, doc.createTextNode("."));
+  card.append(trust);
+
+  const actions = doc.createElement("div");
+  actions.className = "bc-paper-ctec-auth-actions";
+
+  if (data.loginUrl) {
+    const open = doc.createElement("button");
+    open.type = "button";
+    open.className = "bc-paper-ctec-auth-primary";
+    open.textContent = data.awaitingAuthRetry
+      ? "Open Northwestern login again"
+      : "Open Northwestern login";
+    open.addEventListener("click", (event) => {
+      preventAndStop(event);
+      callbacks.onLogin();
+    });
+    actions.append(open);
+  }
+
+  const dismiss = doc.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "bc-paper-ctec-auth-secondary";
+  dismiss.textContent = "Not now";
+  dismiss.addEventListener("click", (event) => {
+    preventAndStop(event);
+    callbacks.onDismiss();
+  });
+  actions.append(dismiss);
+
+  card.append(actions);
+}
+
+function renderPendingCard(
+  doc: Document,
+  card: HTMLElement,
+  data: { loginUrl?: string },
+  callbacks: AuthModalCallbacks
+): void {
+  const spinner = doc.createElement("div");
+  spinner.className = "bc-paper-ctec-auth-icon bc-paper-ctec-auth-spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  card.append(spinner);
+
+  const title = doc.createElement("h2");
+  title.id = `${AUTH_MODAL_ID}-title`;
+  title.className = "bc-paper-ctec-auth-title";
+  title.textContent = "Waiting for Northwestern login…";
+  card.append(title);
+
+  const body = doc.createElement("p");
+  body.className = "bc-paper-ctec-auth-body";
+  body.textContent =
+    "Finish signing in on the Northwestern tab. Better CAESAR will detect when you're back and resume loading CTECs automatically — the login tab will close on its own.";
+  card.append(body);
+
+  const note = doc.createElement("p");
+  note.className = "bc-paper-ctec-auth-note";
+  note.textContent =
+    "Don't see the login tab? Click the button below to reopen it.";
+  card.append(note);
+
+  const actions = doc.createElement("div");
+  actions.className = "bc-paper-ctec-auth-actions";
+
+  if (data.loginUrl) {
+    const reopen = doc.createElement("button");
+    reopen.type = "button";
+    reopen.className = "bc-paper-ctec-auth-primary";
+    reopen.textContent = "Reopen login tab";
+    reopen.addEventListener("click", (event) => {
+      preventAndStop(event);
+      callbacks.onLogin();
+    });
+    actions.append(reopen);
+  }
+
+  const cancel = doc.createElement("button");
+  cancel.type = "button";
+  cancel.className = "bc-paper-ctec-auth-secondary";
+  cancel.textContent = "Cancel";
+  cancel.addEventListener("click", (event) => {
+    preventAndStop(event);
+    callbacks.onCancelPending();
+  });
+  actions.append(cancel);
+
+  card.append(actions);
+}
+
+export function hideAuthModal(doc: Document): void {
+  doc.getElementById(AUTH_MODAL_ID)?.remove();
+}
+
+function makeAuthChip(onClick?: () => void): HTMLElement {
+  const chip = document.createElement("button");
+  chip.type = "button";
+  chip.className = `${WIDGET_CLASS}-chip is-warn ${WIDGET_CLASS}-chip-button`;
+  chip.title = "Open the Northwestern login prompt for Better CAESAR.";
+  chip.append(createIcon("lock"), document.createTextNode("Login needed"));
+
+  if (onClick) {
+    const trigger = (event: Event) => {
+      preventAndStop(event);
+      onClick();
+    };
+    chip.addEventListener("pointerdown", trigger);
+    chip.addEventListener("click", preventAndStop);
+    chip.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      trigger(event);
+    });
+  }
+
+  return chip;
 }
 
 function findActionHost(doc: Document): HTMLElement | null {
@@ -357,9 +582,13 @@ function metricChip(
       : buildCompactChipTone(metric.mean, PAPER_CTEC_CONFIG.aggregate.ratingScaleMax, false)
     : undefined;
 
+  const value = scale === "rating"
+    ? formatChipRating(metric.mean)
+    : metric.mean.toFixed(1);
+
   return makeMetricValueChip(
     shortLabel,
-    metric.mean.toFixed(1),
+    value,
     "",
     buildMetricChipTooltip(label, metric, aggregate),
     tone
@@ -385,6 +614,7 @@ function buildWidgetSignature(data: PaperCtecWidgetData): string {
   return [
     data.state,
     isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID) ? "stars" : "values",
+    ratingPercentSignature(),
     aggregate.evaluationCount,
     aggregate.aggregateEvaluationCount,
     aggregate.partial ? "1" : "0",
@@ -532,7 +762,7 @@ function buildMetricChipTooltip(
   aggregate: WidgetAggregate
 ): string {
   const scope = buildAggregateScopeText(aggregate);
-  return `${label} ${metric.mean.toFixed(2)} across ${metric.evaluationCount} matching term${
+  return `${label} ${formatRatingDetail(metric.mean)} across ${metric.evaluationCount} matching term${
     metric.evaluationCount === 1 ? "" : "s"
   } in ${scope}.`;
 }

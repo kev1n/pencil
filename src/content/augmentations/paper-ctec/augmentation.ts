@@ -1,4 +1,9 @@
 import type { Augmentation } from "../../framework";
+import type {
+  AuthPopupClosedMessage,
+  OpenAuthPopupMessage,
+  OpenAuthPopupResponse
+} from "../../../shared/messages";
 import {
   fetchCtecCourseAnalytics,
   fetchCtecReportAggregate,
@@ -11,6 +16,8 @@ import {
   extractSideCardContext,
   readSideCardCommentQuery
 } from "./dom";
+import { abortPeopleSoftTasks } from "../../peoplesoft/traffic";
+import { REQUEST_OWNER as CTEC_LINKS_REQUEST_OWNER } from "../ctec-links/constants";
 import {
   buildStatusBarData,
   captureCommentQuery,
@@ -25,13 +32,23 @@ import type {
   PaperCtecWidgetData
 } from "./types";
 import {
+  hideAuthModal,
   hideStatusBar,
   injectStyles,
+  renderAuthModal,
   renderLoading,
   renderSideCardAnalytics,
   renderStatusBar,
   renderWidget
 } from "./ui";
+
+const AUTH_MODAL_DISMISSED_STORAGE_KEY = "better-caesar:paper-ctec:auth-modal-dismissed";
+const AUTH_PENDING_STORAGE_KEY = "better-caesar:paper-ctec:auth-pending";
+
+function isPaperHost(): boolean {
+  const host = window.location.hostname;
+  return host === "paper.nu" || host === "www.paper.nu";
+}
 
 export class PaperCtecAugmentation implements Augmentation {
   readonly id = "paper-ctec";
@@ -49,6 +66,83 @@ export class PaperCtecAugmentation implements Augmentation {
   private readonly commentQueries = new Map<string, string>();
   private awaitingAuthRetry = false;
   private focusListenerAttached = false;
+  private popupListenerAttached = false;
+  private authModalOpen = false;
+  private authModalAutoShown = false;
+  private authModalDismissed = false;
+  private authPendingActive = false;
+  private authStorageLoaded = false;
+  private authGeneration = 0;
+
+  constructor() {
+    if (!isPaperHost()) return;
+
+    this.attachPopupListener();
+    void chrome.storage.local
+      .get([AUTH_MODAL_DISMISSED_STORAGE_KEY, AUTH_PENDING_STORAGE_KEY])
+      .then((result: Record<string, unknown>) => {
+        this.authModalDismissed = result[AUTH_MODAL_DISMISSED_STORAGE_KEY] === true;
+        if (result[AUTH_PENDING_STORAGE_KEY] === true) {
+          this.authPendingActive = true;
+          this.authModalOpen = true;
+          this.authModalAutoShown = true;
+          this.awaitingAuthRetry = true;
+        }
+        this.authStorageLoaded = true;
+        this.run(document);
+      });
+  }
+
+  private attachPopupListener(): void {
+    if (this.popupListenerAttached) return;
+    this.popupListenerAttached = true;
+    chrome.runtime.onMessage.addListener((message: unknown) => {
+      if (
+        !message ||
+        typeof message !== "object" ||
+        (message as { type?: string }).type !== "auth-popup-closed"
+      ) {
+        return;
+      }
+      // Ignore stale/unexpected close events. If we weren't actively waiting for
+      // a login, do nothing — let the existing focus retry handle anything new.
+      if (!this.authPendingActive) return;
+
+      const reason = (message as AuthPopupClosedMessage).reason;
+      if (reason === "succeeded") {
+        this.finalizeAuthSuccess(document);
+      }
+      // For "user-closed", leave pending in place — user can reopen via the modal.
+    });
+  }
+
+  private finalizeAuthSuccess(doc: Document): void {
+    // Bumping the generation invalidates any in-flight pre-login fetches —
+    // their results will be dropped instead of repopulating `resolved` with
+    // a stale auth-required state.
+    this.authGeneration += 1;
+    // Abort any pre-login PeopleSoft fetches still wedged in the global queue
+    // so the new post-login fetches can actually start.
+    abortPeopleSoftTasks(
+      "Aborted because Northwestern login completed.",
+      (task) => task.owner === CTEC_LINKS_REQUEST_OWNER
+    );
+    clearAuthRequiredStates(this.resolved, this.analyticsResolved);
+    this.inFlight.clear();
+    this.analyticsInFlight.clear();
+    this.loadingMessages.clear();
+    this.authPendingActive = false;
+    this.awaitingAuthRetry = false;
+    this.authModalOpen = false;
+    this.setAuthPendingPersisted(false);
+    // Intentionally NOT resetting authModalAutoShown / authModalDismissed.
+    // If the silent refetch still returns auth-required (cookies not yet
+    // propagated, etc.), the chip is the manual re-trigger — we don't want
+    // the modal to auto-pop again right after the user just logged in.
+    hideAuthModal(doc);
+    hideStatusBar(doc);
+    this.run(doc);
+  }
 
   run(doc: Document = document): void {
     if (!this.appliesToPage(doc)) return;
@@ -76,16 +170,21 @@ export class PaperCtecAugmentation implements Augmentation {
 
       const resolved = this.resolved.get(target.key);
       if (resolved) {
-        renderWidget(target.widget, resolved);
+        renderWidget(target.widget, resolved, () => this.openAuthModal());
         continue;
       }
 
       if (!this.inFlight.has(target.key)) {
         this.setProgress(target.key, "Connecting to Northwestern CTEC…");
         renderLoading(target.widget);
+        const jobGeneration = this.authGeneration;
         const job = this.loadTarget(target);
         this.inFlight.set(target.key, job);
         void job.finally(() => {
+          // If the auth generation has moved on, this job's tracking entry was
+          // already replaced (or cleared) by a newer cycle. Don't clobber the
+          // newer state — let the newer job's own finally clean up.
+          if (jobGeneration !== this.authGeneration) return;
           this.inFlight.delete(target.key);
           if (!this.analyticsInFlight.has(target.key)) {
             this.loadingMessages.delete(target.key);
@@ -103,11 +202,13 @@ export class PaperCtecAugmentation implements Augmentation {
   }
 
   private async loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData> {
+    const generation = this.authGeneration;
     try {
       const data = await fetchCtecReportAggregate(
         target.params,
         target.titleHint,
         (message) => {
+          if (generation !== this.authGeneration) return;
           this.renderLoadingForKey(target.key, message);
         },
         {
@@ -121,6 +222,13 @@ export class PaperCtecAugmentation implements Augmentation {
           ? { state: "found", aggregate: data.aggregate }
           : data;
 
+      // Stale fetch from a previous auth generation — drop it. Otherwise an
+      // in-flight pre-login fetch can repopulate `resolved` with auth-required
+      // right after a successful login.
+      if (generation !== this.authGeneration) {
+        return widgetData;
+      }
+
       this.resolved.set(target.key, widgetData);
       this.renderForKey(target.key, widgetData);
       return widgetData;
@@ -129,6 +237,9 @@ export class PaperCtecAugmentation implements Augmentation {
         state: "error",
         message: error instanceof Error ? error.message : String(error)
       };
+      if (generation !== this.authGeneration) {
+        return widgetData;
+      }
       this.resolved.set(target.key, widgetData);
       this.renderForKey(target.key, widgetData);
       return widgetData;
@@ -144,7 +255,7 @@ export class PaperCtecAugmentation implements Augmentation {
 
   private renderForKey(key: string, data: PaperCtecWidgetData): void {
     for (const widget of this.findWidgetsByKey(document, key)) {
-      renderWidget(widget, data);
+      renderWidget(widget, data, () => this.openAuthModal());
     }
     this.syncStatusBar(document);
     this.syncSideCard(document);
@@ -168,14 +279,124 @@ export class PaperCtecAugmentation implements Augmentation {
       loadingMessages: this.loadingMessages,
       awaitingAuthRetry: this.awaitingAuthRetry
     });
+
     if (!status) {
       hideStatusBar(doc);
+      if (!this.authPendingActive) {
+        hideAuthModal(doc);
+      } else {
+        this.syncAuthModal(doc, undefined);
+      }
       return;
     }
 
-    renderStatusBar(doc, status, () => {
-      this.awaitingAuthRetry = true;
-    });
+    renderStatusBar(doc, status);
+
+    if (status.state === "auth-required") {
+      if (
+        this.authStorageLoaded &&
+        !this.authModalAutoShown &&
+        !this.authModalDismissed &&
+        !this.authPendingActive
+      ) {
+        this.authModalAutoShown = true;
+        this.authModalOpen = true;
+      }
+    } else if (status.state === "ready") {
+      // Verified success — clear pending, close modal, allow future auto-shows.
+      if (this.authPendingActive) {
+        this.completeAuthPending();
+      }
+      this.authModalOpen = false;
+      this.authModalAutoShown = false;
+    } else if (!this.authPendingActive) {
+      // Loading state with no pending — keep modal closed, don't change flags.
+      this.authModalOpen = false;
+    }
+    // Loading state during pending: leave modal in pending mode untouched.
+
+    this.syncAuthModal(doc, status.loginUrl);
+  }
+
+  private syncAuthModal(doc: Document, loginUrl: string | undefined): void {
+    if (!this.authModalOpen && !this.authPendingActive) {
+      hideAuthModal(doc);
+      return;
+    }
+
+    renderAuthModal(
+      doc,
+      {
+        loginUrl,
+        awaitingAuthRetry: this.awaitingAuthRetry,
+        pending: this.authPendingActive
+      },
+      {
+        onLogin: () => this.startAuthPending(loginUrl),
+        onDismiss: () => {
+          this.authModalOpen = false;
+          this.setAuthModalDismissed(true);
+          hideAuthModal(doc);
+        },
+        onCancelPending: () => this.cancelAuthPending(doc)
+      }
+    );
+  }
+
+  private openAuthModal(): void {
+    this.authModalOpen = true;
+    this.authModalAutoShown = true;
+    this.setAuthModalDismissed(false);
+    this.syncStatusBar(document);
+  }
+
+  private startAuthPending(loginUrl: string | undefined): void {
+    if (!loginUrl) return;
+
+    const request: OpenAuthPopupMessage = { type: "open-auth-popup", loginUrl };
+    void chrome.runtime
+      .sendMessage(request)
+      .then((response: OpenAuthPopupResponse | undefined) => {
+        if (!response || !response.ok) {
+          // Background couldn't open the tab — fall back so the user isn't stranded.
+          window.open(loginUrl, "_blank");
+        }
+      })
+      .catch(() => {
+        window.open(loginUrl, "_blank");
+      });
+
+    this.authPendingActive = true;
+    this.awaitingAuthRetry = true;
+    this.authModalOpen = true;
+    this.authModalAutoShown = true;
+    this.setAuthModalDismissed(false);
+    this.setAuthPendingPersisted(true);
+    this.syncStatusBar(document);
+  }
+
+  private cancelAuthPending(doc: Document): void {
+    this.authPendingActive = false;
+    this.awaitingAuthRetry = false;
+    this.authModalOpen = false;
+    this.setAuthModalDismissed(true);
+    this.setAuthPendingPersisted(false);
+    hideAuthModal(doc);
+  }
+
+  private completeAuthPending(): void {
+    this.authPendingActive = false;
+    this.awaitingAuthRetry = false;
+    this.setAuthPendingPersisted(false);
+  }
+
+  private setAuthPendingPersisted(value: boolean): void {
+    void chrome.storage.local.set({ [AUTH_PENDING_STORAGE_KEY]: value });
+  }
+
+  private setAuthModalDismissed(value: boolean): void {
+    this.authModalDismissed = value;
+    void chrome.storage.local.set({ [AUTH_MODAL_DISMISSED_STORAGE_KEY]: value });
   }
 
   private syncSideCard(doc: Document): void {
@@ -292,8 +513,10 @@ export class PaperCtecAugmentation implements Augmentation {
         : result;
     };
 
+    const generation = this.authGeneration;
     const job = start()
       .then((state) => {
+        if (generation !== this.authGeneration) return state;
         this.analyticsResolved.set(context.key, state);
         return state;
       })
@@ -302,6 +525,7 @@ export class PaperCtecAugmentation implements Augmentation {
           state: "error",
           message: error instanceof Error ? error.message : String(error)
         };
+        if (generation !== this.authGeneration) return state;
         this.analyticsResolved.set(context.key, state);
         return state;
       })
@@ -310,6 +534,7 @@ export class PaperCtecAugmentation implements Augmentation {
         if (!this.inFlight.has(context.key)) {
           this.loadingMessages.delete(context.key);
         }
+        if (generation !== this.authGeneration) return;
         this.syncStatusBar(document);
         this.syncSideCard(document);
       });
@@ -318,8 +543,27 @@ export class PaperCtecAugmentation implements Augmentation {
   }
 
   private retryAuthRequired(doc: Document): void {
+    this.authGeneration += 1;
+    abortPeopleSoftTasks(
+      "Aborted because Better CAESAR is retrying after auth state change.",
+      (task) => task.owner === CTEC_LINKS_REQUEST_OWNER
+    );
     clearAuthRequiredStates(this.resolved, this.analyticsResolved);
+    this.inFlight.clear();
+    this.analyticsInFlight.clear();
+    this.loadingMessages.clear();
+
+    if (this.authPendingActive) {
+      hideStatusBar(doc);
+      this.run(doc);
+      return;
+    }
+
     this.awaitingAuthRetry = false;
+    this.authModalOpen = false;
+    this.authModalAutoShown = false;
+    this.setAuthModalDismissed(false);
+    hideAuthModal(doc);
     hideStatusBar(doc);
     this.run(doc);
   }
@@ -333,7 +577,7 @@ export class PaperCtecAugmentation implements Augmentation {
     if (this.focusListenerAttached) return;
 
     const retryIfNeeded = () => {
-      if (!this.awaitingAuthRetry) return;
+      if (!this.awaitingAuthRetry && !this.authPendingActive) return;
       if (document.visibilityState === "hidden") return;
       this.retryAuthRequired(document);
     };

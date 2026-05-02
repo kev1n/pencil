@@ -30,7 +30,8 @@ export async function fetchPeopleSoftResult(
         headers: {
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
         },
-        body: params.toString()
+        body: params.toString(),
+        signal: signal ?? undefined
       });
       throwIfAborted(signal);
       return {
@@ -81,7 +82,10 @@ export async function fetchPeopleSoftGetResult(
     void options;
     if (shouldUseBackgroundFetch()) {
       throwIfAborted(signal);
-      const response = await fetchTextResultViaBackground(url, { method: "GET" });
+      const response = await fetchTextResultViaBackground(url, {
+        method: "GET",
+        signal: signal ?? undefined
+      });
       throwIfAborted(signal);
       return {
         status: response.status,
@@ -123,13 +127,15 @@ export async function fetchPeopleSoft(
   options?: RequestOptions
 ): Promise<string> {
   if (shouldUseBackgroundFetch()) {
+    const signal = getCurrentPeopleSoftTaskSignal();
     return fetchTextViaBackground(actionUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
       },
       body: params.toString(),
-      allowNonOkStatus: true
+      allowNonOkStatus: true,
+      signal: signal ?? undefined
     });
   }
 
@@ -142,7 +148,12 @@ export async function fetchPeopleSoft(
 
 export async function fetchPeopleSoftGet(url: string, options?: RequestOptions): Promise<string> {
   if (shouldUseBackgroundFetch()) {
-    return fetchTextViaBackground(url, { method: "GET", allowNonOkStatus: true });
+    const signal = getCurrentPeopleSoftTaskSignal();
+    return fetchTextViaBackground(url, {
+      method: "GET",
+      allowNonOkStatus: true,
+      signal: signal ?? undefined
+    });
   }
 
   const response = await fetchPeopleSoftGetResult(url, options);

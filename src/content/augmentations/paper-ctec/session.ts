@@ -72,6 +72,11 @@ export function buildStatusBarData(args: BuildStatusBarDataArgs): PaperCtecStatu
     };
   }
 
+  const verifiedResolvedCount = foundCount + notFoundCount + errorCount;
+  if (verifiedResolvedCount === 0 && activeCount > 0) {
+    return null;
+  }
+
   if (activeCount > 0 || resolvedCount < totalCount) {
     return {
       state: "loading",

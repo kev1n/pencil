@@ -10,6 +10,12 @@ export type FetchTextMessage = {
   method?: "GET" | "POST";
   headers?: Record<string, string>;
   body?: string;
+  requestId?: string;
+};
+
+export type AbortFetchMessage = {
+  type: "abort-fetch";
+  requestId: string;
 };
 
 export type FetchTextSuccess = {
@@ -52,3 +58,17 @@ export type LookupClassFailure = {
 };
 
 export type LookupClassResponse = LookupClassSuccess | LookupClassFailure;
+
+export type OpenAuthPopupMessage = {
+  type: "open-auth-popup";
+  loginUrl: string;
+};
+
+export type OpenAuthPopupResponse =
+  | { ok: true; tabId: number }
+  | { ok: false; error: string };
+
+export type AuthPopupClosedMessage = {
+  type: "auth-popup-closed";
+  reason: "succeeded" | "user-closed";
+};

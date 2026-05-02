@@ -9,6 +9,7 @@ import type {
   CtecReportSummary
 } from "../ctec-navigation/types";
 import { fetchTextResultViaBackground } from "../../remote-fetch";
+import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
 import { fetchCtecLinksBackground } from "./fetcher";
 import { CTEC_AUTH_URL } from "./constants";
 import { entryMatchesCourse, isAuthResponse, termToSortKey } from "./helpers";
@@ -227,7 +228,10 @@ async function ensureReportEntries(
 
     onProgress?.(`Reading evaluation ${index + 1}/${missing.length}…`);
 
-    const response = await fetchTextResultViaBackground(url, { method: "GET" });
+    const response = await fetchTextResultViaBackground(url, {
+      method: "GET",
+      signal: getCurrentPeopleSoftTaskSignal() ?? undefined
+    });
     if (isAuthResponse(response.text)) {
       return { state: "auth-required", loginUrl: response.finalUrl || url };
     }
