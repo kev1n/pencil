@@ -43,10 +43,10 @@ export function renderOverview(
 
   const kpiStrip = doc.createElement("div");
   kpiStrip.className = "bc-paper-ctec-modal-kpi-strip";
+  kpiStrip.append(renderGlobalKpiCard(doc, data, state, callbacks));
   for (const kind of [...MODAL_RATING_METRICS, "hours"] as ModalMetricKind[]) {
     kpiStrip.append(renderKpiCard(doc, kind, data, state, callbacks, showDelta));
   }
-  kpiStrip.append(renderGlobalKpiCard(doc, data, state, callbacks));
   root.append(kpiStrip);
 
   if (state.activeMetric === "global") {

@@ -504,7 +504,7 @@ export class ModalController {
 
     const fresh: AnalyticsModalState = {
       tab: "overview",
-      activeMetric: "instruction",
+      activeMetric: "global",
       selectedTermId: fallbackTermId,
       commentsQuery: "",
       commentsSentimentFilter: "all",
