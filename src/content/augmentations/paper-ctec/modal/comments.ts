@@ -37,15 +37,21 @@ function renderCommentsRail(
   const rail = doc.createElement("aside");
   rail.className = "bc-paper-ctec-modal-rail";
 
-  // Sentiment and term cross-filter each other: Sentiment counts respect
-  // the active term, Term counts respect the active sentiment. Topic isn't
-  // part of the cross-filter so its counts stay stable across selections.
+  // Sentiment, term, and topic all cross-filter each other: each rail's
+  // counts respect the *other* two active filters but ignore its own, so
+  // toggling the active selection in any rail still works.
+  const topicMatches = (c: ModalDisplayData["comments"][number]) =>
+    !state.commentsActiveTopic || c.topics.includes(state.commentsActiveTopic);
   const termFiltered = data.comments.filter(
-    (c) => state.commentsTermFilter === "all" || c.term === state.commentsTermFilter
+    (c) =>
+      (state.commentsTermFilter === "all" || c.term === state.commentsTermFilter) &&
+      topicMatches(c)
   );
   const sentimentFiltered = data.comments.filter(
     (c) =>
-      state.commentsSentimentFilter === "all" || c.tone === state.commentsSentimentFilter
+      (state.commentsSentimentFilter === "all" ||
+        c.tone === state.commentsSentimentFilter) &&
+      topicMatches(c)
   );
   const sentimentCounts: Record<ModalCommentTone, number> = { pos: 0, mix: 0, neu: 0, neg: 0 };
   for (const c of termFiltered) sentimentCounts[c.tone] += 1;
