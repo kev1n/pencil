@@ -45,11 +45,23 @@ export function renderOverview(
 
   const showDelta = data.terms.length >= 2;
 
+  // Cards that start a new gestalt grouping in the strip — a thin vertical
+  // line is drawn in the gap before each. Sections (in order):
+  // [Global] | [Inst, Course] | [Learn] | [Chal, Int] | [Hours].
+  const sectionStarts: ReadonlySet<ModalMetricKind> = new Set([
+    "instruction",
+    "learned",
+    "challenging",
+    "hours"
+  ]);
+
   const kpiStrip = doc.createElement("div");
   kpiStrip.className = "bc-paper-ctec-modal-kpi-strip";
   kpiStrip.append(renderGlobalKpiCard(doc, data, state, callbacks));
   for (const kind of [...MODAL_RATING_METRICS, "hours"] as ModalMetricKind[]) {
-    kpiStrip.append(renderKpiCard(doc, kind, data, state, callbacks, showDelta));
+    kpiStrip.append(
+      renderKpiCard(doc, kind, data, state, callbacks, showDelta, sectionStarts.has(kind))
+    );
   }
   root.append(kpiStrip);
 
@@ -189,7 +201,8 @@ function renderKpiCard(
   data: ModalDisplayData,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks,
-  showDelta: boolean
+  showDelta: boolean,
+  isSectionStart: boolean
 ): HTMLElement {
   const metric = data.metrics[kind];
   const trend = metric.trend;
@@ -201,7 +214,10 @@ function renderKpiCard(
 
   const button = doc.createElement("button");
   button.type = "button";
-  button.className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
+  const classes = ["bc-paper-ctec-modal-kpi"];
+  if (isActive) classes.push("is-active");
+  if (isSectionStart) classes.push("is-section-start");
+  button.className = classes.join(" ");
   button.addEventListener("click", (event) => {
     preventAndStop(event);
     callbacks.onMetricChange(kind);
@@ -273,7 +289,7 @@ function renderGlobalKpiCard(
 
   const button = doc.createElement("button");
   button.type = "button";
-  button.className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
+  button.className = `bc-paper-ctec-modal-kpi is-global${isActive ? " is-active" : ""}`;
   button.title = GLOBAL_KPI_TOOLTIP;
   button.addEventListener("click", (event) => {
     preventAndStop(event);

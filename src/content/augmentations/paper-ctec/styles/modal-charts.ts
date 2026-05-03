@@ -10,6 +10,7 @@ export function modalChartStyles(): string {
       margin-bottom: 20px;
     }
     .bc-paper-ctec-modal-kpi {
+      position: relative;
       border: 1px solid #e6e6ea;
       background: white;
       padding: 14px 16px;
@@ -24,6 +25,41 @@ export function modalChartStyles(): string {
     .bc-paper-ctec-modal-kpi.is-active {
       border-color: #66023c;
       box-shadow: 0 0 0 3px rgba(102, 2, 60, 0.08);
+    }
+    /* Gestalt grouping: a thin vertical line in the middle of the grid
+       gap before cards that start a new conceptual section. */
+    .bc-paper-ctec-modal-kpi.is-section-start::before {
+      content: "";
+      position: absolute;
+      left: -8px;
+      top: 14%;
+      bottom: 14%;
+      width: 1px;
+      background: #d1d5db;
+      pointer-events: none;
+    }
+    /* Global card stands out: tinted background, bigger maroon number,
+       still clickable / activatable like the others. */
+    .bc-paper-ctec-modal-kpi.is-global {
+      background: linear-gradient(135deg, #fff7fb 0%, #fdeef5 100%);
+      border-color: rgba(102, 2, 60, 0.18);
+    }
+    .bc-paper-ctec-modal-kpi.is-global.is-active {
+      border-color: #66023c;
+    }
+    .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-label {
+      color: #66023c;
+      font-weight: 800;
+    }
+    .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean {
+      font-size: 36px;
+      font-weight: 800;
+      color: #66023c;
+      letter-spacing: -0.03em;
+    }
+    .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-scale {
+      color: #9b6b81;
+      font-weight: 600;
     }
     .bc-paper-ctec-modal-kpi-top {
       display: flex;
@@ -291,6 +327,79 @@ export function modalChartStyles(): string {
     }
     .bc-paper-ctec-modal-hours-summary strong {
       color: #1f2937;
+    }
+    .dark .bc-paper-ctec-modal-kpi {
+      border-color: rgba(252, 165, 207, 0.14);
+      background: rgba(17, 24, 39, 0.4);
+      color: #f5e7ee;
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-active {
+      border-color: #fbcfe8;
+      box-shadow: 0 0 0 3px rgba(252, 165, 207, 0.18);
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-section-start::before {
+      background: rgba(252, 165, 207, 0.24);
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-global {
+      background: linear-gradient(135deg, rgba(102, 2, 60, 0.4) 0%, rgba(190, 24, 93, 0.32) 100%);
+      border-color: rgba(252, 165, 207, 0.32);
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-global.is-active {
+      border-color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-label {
+      color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean {
+      color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-scale {
+      color: #f9a8d4;
+    }
+    .dark .bc-paper-ctec-modal-kpi-label {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-kpi-mean {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-kpi-scale {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-kpi-delta.is-positive { color: #6ee7b7; }
+    .dark .bc-paper-ctec-modal-kpi-delta.is-negative { color: #fda4af; }
+    .dark .bc-paper-ctec-modal-kpi-delta.is-muted {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-kpi-delta-note {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-kpi .bc-paper-ctec-modal-sparkline polyline {
+      stroke: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-kpi .bc-paper-ctec-modal-sparkline circle {
+      fill: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-card-section {
+      border-color: rgba(252, 165, 207, 0.14);
+      background: rgba(17, 24, 39, 0.4);
+      color: #f5e7ee;
+    }
+    .dark .bc-paper-ctec-modal-card-title {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-card-meta {
+      color: #cbd5e1;
+    }
+    .dark .bc-paper-ctec-modal-card-cta {
+      color: #f5e7ee;
+      border-color: rgba(252, 165, 207, 0.18);
+      background: rgba(17, 24, 39, 0.3);
+    }
+    .dark .bc-paper-ctec-modal-card-body {
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #1f2937;
+      padding: 10px 12px;
     }
   `;
 }

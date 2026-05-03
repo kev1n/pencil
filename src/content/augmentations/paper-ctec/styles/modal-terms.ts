@@ -244,5 +244,80 @@ export function modalTermStyles(): string {
         border-bottom: 1px solid #e6e6ea;
       }
     }
+    .dark .bc-paper-ctec-modal-heatmap-header {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-heatmap-term-title {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-heatmap-term-sub {
+      color: #cbd5e1;
+    }
+    .dark .bc-paper-ctec-modal-heatmap-cell.is-empty {
+      color: #d4b9c5;
+      background: rgba(17, 24, 39, 0.5);
+    }
+    .dark .bc-paper-ctec-modal-term-block {
+      background: rgba(17, 24, 39, 0.4);
+      color: #f5e7ee;
+    }
+    .dark .bc-paper-ctec-modal-term-block-label {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-block-value {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-term-block-unit {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-block-delta.is-positive { color: #6ee7b7; }
+    .dark .bc-paper-ctec-modal-term-block-delta.is-negative { color: #fda4af; }
+    .dark .bc-paper-ctec-modal-term-block-delta.is-muted {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-block-delta-note {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-block-chart {
+      background: rgba(255, 255, 255, 0.92);
+    }
+    .dark .bc-paper-ctec-modal-term-metric {
+      background: rgba(17, 24, 39, 0.4);
+    }
+    .dark .bc-paper-ctec-modal-term-metric-label {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-metric-value {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-term-metric-unit {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-metric-delta.is-positive { color: #6ee7b7; }
+    .dark .bc-paper-ctec-modal-term-metric-delta.is-negative { color: #fda4af; }
+    .dark .bc-paper-ctec-modal-term-metric-delta.is-muted {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-metric-delta-note {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-chart-card {
+      border-color: rgba(252, 165, 207, 0.14);
+      background: rgba(17, 24, 39, 0.4);
+    }
+    .dark .bc-paper-ctec-modal-term-chart-label {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-term-chart-value {
+      color: #fff6fb;
+    }
+    .dark .bc-paper-ctec-modal-term-chart-image {
+      background: rgba(255, 255, 255, 0.92);
+    }
+    @media (max-width: 720px) {
+      .dark .bc-paper-ctec-modal-rail {
+        border-bottom-color: rgba(252, 165, 207, 0.14);
+      }
+    }
   `;
 }
