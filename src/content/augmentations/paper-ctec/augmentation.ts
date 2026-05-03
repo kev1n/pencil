@@ -1,11 +1,8 @@
 import type { Augmentation } from "../../framework";
 import { isFeatureEnabled } from "../../settings";
-import { clearCtecCacheForCourse } from "../ctec-links/fetcher";
 import {
-  fetchCtecCourseAnalytics,
   fetchCtecReportAggregate,
-  getCachedReportAggregate,
-  getCtecCourseAnalyticsSnapshot
+  getCachedReportAggregate
 } from "../ctec-links/reports";
 import { AuthFlow } from "./auth-flow";
 import { PAPER_CTEC_CONFIG } from "./config";
@@ -14,21 +11,12 @@ import {
   NO_HOVER_LIFT_CLASS,
   WIDGET_CLASS
 } from "./constants";
-import {
-  collectScheduleTargets,
-  extractSideCardContext,
-  readSideCardCommentQuery
-} from "./dom";
-import {
-  buildStatusBarData,
-  captureCommentQuery,
-  clearAuthRequiredStates,
-  resolveSelectedEntryId,
-  toggleExpandedChart
-} from "./session";
+import { collectScheduleTargets, extractSideCardContext } from "./dom";
+import { ModalController } from "./modal-controller";
+import { buildStatusBarData, clearAuthRequiredStates } from "./session";
 import type {
+  AnalyticsModalSource,
   PaperCtecAnalyticsState,
-  PaperCtecSideCardContext,
   PaperCtecTarget,
   PaperCtecWidgetData
 } from "./types";
@@ -46,38 +34,71 @@ function isPaperHost(): boolean {
   return host === "paper.nu" || host === "www.paper.nu";
 }
 
+// Top-level orchestration for the paper.nu augmentation. Owns the schedule-
+// card widget state (front-page CTEC summaries) and the side-card / status-
+// bar lifecycle. Modal lifecycle is delegated to ModalController, which
+// shares a few maps with us via the constructor: front-page widget state
+// flows into the modal as auth-required/not-found mirroring, and a
+// successful background refresh flows back into the schedule chip via
+// renderForKey.
 export class PaperCtecAugmentation implements Augmentation {
   readonly id = "paper-ctec";
 
   private readonly inFlight = new Map<string, Promise<PaperCtecWidgetData>>();
   private readonly resolved = new Map<string, PaperCtecWidgetData>();
-  private readonly analyticsInFlight = new Map<string, Promise<PaperCtecAnalyticsState>>();
   private readonly analyticsResolved = new Map<string, PaperCtecAnalyticsState>();
-  private readonly loadingMessages = new Map<string, { message: string; updatedAt: number }>();
+  // Owned here (not on the controller) because syncStatusBar needs to count
+  // active analytics fetches alongside front-page fetches. Shared by reference
+  // with the modal controller, which writes to it.
+  private readonly analyticsInFlight = new Map<string, Promise<PaperCtecAnalyticsState>>();
+  private readonly loadingMessages = new Map<
+    string,
+    { message: string; updatedAt: number }
+  >();
   // Keys the user has explicitly asked to load (clicked "Load CTEC" on the
   // schedule chip). Survives invalidateAndRerun so the fetch resumes
   // automatically after a login retry without requiring another click.
   private readonly userActivated = new Set<string>();
-  // Per-key target count for the side-card analytics. Each user click on
-  // "Load 3 more terms" bumps this by recentTerms; the next fetch uses it as
-  // the fetchLimit so we only pull the next batch.
-  private readonly analyticsTargetCount = new Map<string, number>();
 
   private visibleKeys = new Set<string>();
   private readonly selectedTabs = new Map<string, "paper" | "analytics">();
-  private readonly selectedAnalyticsEntries = new Map<string, string>();
-  private readonly expandedCharts = new Map<string, Set<string>>();
-  private readonly commentQueries = new Map<string, string>();
+
+  // Per-key snapshot of the data needed to open the modal. syncTargets
+  // populates this from currently-visible targets so renderForKey /
+  // renderLoadingForKey can wire the analytics-button callback even when
+  // they don't have direct access to a PaperCtecTarget.
+  private readonly targetSources = new Map<string, AnalyticsModalSource>();
 
   private focusListenerAttached = false;
   private syncingStatusBar = false;
   private readonly auth?: AuthFlow;
+  private readonly modal: ModalController;
 
   constructor() {
-    if (!isPaperHost()) return;
-    this.auth = new AuthFlow({
-      onInvalidate: (doc) => this.invalidateAndRerun(doc)
-    });
+    if (isPaperHost()) {
+      this.auth = new AuthFlow({
+        onInvalidate: (doc) => this.invalidateAndRerun(doc)
+      });
+    }
+
+    this.modal = new ModalController(
+      {
+        resolved: this.resolved,
+        inFlight: this.inFlight,
+        analyticsResolved: this.analyticsResolved,
+        analyticsInFlight: this.analyticsInFlight,
+        loadingMessages: this.loadingMessages
+      },
+      {
+        generation: () => this.generation(),
+        isAwaitingRetry: () => this.auth?.isAwaitingRetry() ?? false,
+        markAwaitingRetry: () => this.auth?.markAwaitingRetry(),
+        setProgress: (key, message) => this.setProgress(key, message),
+        syncStatusBar: () => this.syncStatusBar(document),
+        syncSideCard: () => this.syncSideCard(document),
+        renderForKey: (key, data) => this.renderForKey(key, data)
+      }
+    );
   }
 
   run(doc: Document = document): void {
@@ -93,6 +114,7 @@ export class PaperCtecAugmentation implements Augmentation {
     this.syncTargets(targets);
     this.syncStatusBar(doc);
     this.syncSideCard(doc);
+    this.modal.sync(doc);
   }
 
   private appliesToPage(doc: Document): boolean {
@@ -112,7 +134,7 @@ export class PaperCtecAugmentation implements Augmentation {
   private invalidateAndRerun(doc: Document): void {
     clearAuthRequiredStates(this.resolved, this.analyticsResolved);
     this.inFlight.clear();
-    this.analyticsInFlight.clear();
+    this.modal.invalidate();
     this.loadingMessages.clear();
     this.run(doc);
   }
@@ -120,23 +142,30 @@ export class PaperCtecAugmentation implements Augmentation {
   private syncTargets(targets: PaperCtecTarget[]): void {
     for (const target of targets) {
       target.widget.dataset.bcPaperCtecKey = target.key;
+      const source: AnalyticsModalSource = {
+        key: target.key,
+        params: target.params,
+        titleHint: target.titleHint
+      };
+      this.targetSources.set(target.key, source);
+      const openAnalytics = () => this.modal.openModal(source);
 
       const resolved = this.resolved.get(target.key);
       if (resolved) {
-        renderWidget(target.widget, resolved, () => this.openAuthModal());
+        renderWidget(target.widget, resolved, () => this.openAuthModal(), openAnalytics);
         continue;
       }
 
       if (this.inFlight.has(target.key)) {
         if (!target.widget.textContent?.trim()) {
-          renderLoading(target.widget);
+          renderLoading(target.widget, "CTEC…", openAnalytics);
         }
         continue;
       }
 
       // Sync cache hit: render without touching the network. This covers
-      // repeat visits where the subject index already has parsed reports for
-      // the recent terms.
+      // repeat visits where the subject index already has parsed reports
+      // for the recent terms.
       const cachedAggregate = getCachedReportAggregate(
         target.params,
         target.titleHint,
@@ -148,7 +177,7 @@ export class PaperCtecAugmentation implements Augmentation {
           aggregate: cachedAggregate
         };
         this.resolved.set(target.key, widgetData);
-        renderWidget(target.widget, widgetData, () => this.openAuthModal());
+        renderWidget(target.widget, widgetData, () => this.openAuthModal(), openAnalytics);
         continue;
       }
 
@@ -160,7 +189,7 @@ export class PaperCtecAugmentation implements Augmentation {
       }
 
       // Not cached — wait for an explicit user click before hitting CAESAR.
-      renderIdle(target.widget, () => this.kickTargetFetch(target));
+      renderIdle(target.widget, () => this.kickTargetFetch(target), openAnalytics);
     }
   }
 
@@ -178,17 +207,18 @@ export class PaperCtecAugmentation implements Augmentation {
     void job.finally(() => {
       if (jobGeneration !== this.generation()) return;
       this.inFlight.delete(target.key);
-      if (!this.analyticsInFlight.has(target.key)) {
+      if (!this.modal.hasInFlight(target.key)) {
         this.loadingMessages.delete(target.key);
       }
       this.syncStatusBar(document);
       this.syncSideCard(document);
+      this.modal.sync(document);
     });
   }
 
   private async loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData> {
     const generation = this.generation();
-    const isStale = () => generation !== (this.generation());
+    const isStale = () => generation !== this.generation();
     try {
       const data = await fetchCtecReportAggregate(
         target.params,
@@ -226,17 +256,26 @@ export class PaperCtecAugmentation implements Augmentation {
 
   private renderLoadingForKey(key: string, message: string): void {
     this.setProgress(key, message);
+    const openAnalytics = this.openAnalyticsCallbackFor(key);
     for (const widget of this.findWidgetsByKey(document, key)) {
-      renderLoading(widget, message);
+      renderLoading(widget, message, openAnalytics);
     }
   }
 
   private renderForKey(key: string, data: PaperCtecWidgetData): void {
+    const openAnalytics = this.openAnalyticsCallbackFor(key);
     for (const widget of this.findWidgetsByKey(document, key)) {
-      renderWidget(widget, data, () => this.openAuthModal());
+      renderWidget(widget, data, () => this.openAuthModal(), openAnalytics);
     }
     this.syncStatusBar(document);
     this.syncSideCard(document);
+    this.modal.sync(document);
+  }
+
+  private openAnalyticsCallbackFor(key: string): (() => void) | undefined {
+    const source = this.targetSources.get(key);
+    if (!source) return undefined;
+    return () => this.modal.openModal(source);
   }
 
   private findWidgetsByKey(doc: Document, key: string): HTMLElement[] {
@@ -247,9 +286,9 @@ export class PaperCtecAugmentation implements Augmentation {
     );
   }
 
-  // Re-entrancy guard: status-bar / modal renders mutate document.body, which
-  // can trip listeners (paper.nu's React tree, our own focus retry, third-
-  // party extensions) into firing synchronous callbacks back into the
+  // Re-entrancy guard: status-bar / modal renders mutate document.body,
+  // which can trip listeners (paper.nu's React tree, our own focus retry,
+  // third-party extensions) into firing synchronous callbacks back into the
   // augmentation. Without this guard those rare loops blow the stack.
   private syncStatusBar(doc: Document): void {
     if (this.syncingStatusBar) return;
@@ -285,223 +324,26 @@ export class PaperCtecAugmentation implements Augmentation {
     const context = extractSideCardContext(doc);
     if (!context) return;
 
-    captureCommentQuery(
-      this.commentQueries,
-      context.key,
-      readSideCardCommentQuery(context)
-    );
-    this.mirrorFrontPageStateForAnalytics(context);
-
-    // Resume an in-progress batch after a login retry: if the user previously
-    // asked for a batch and we haven't reached that target yet, kick again.
-    const previousTarget = this.analyticsTargetCount.get(context.key);
-    if (
-      previousTarget !== undefined &&
-      !this.analyticsInFlight.has(context.key) &&
-      this.analyticsResolved.get(context.key)?.state !== "auth-required" &&
-      this.analyticsResolved.get(context.key)?.state !== "not-found"
-    ) {
-      const resumeSnapshot = getCtecCourseAnalyticsSnapshot(
-        context.params,
-        context.titleHint,
-        PAPER_CTEC_CONFIG.aggregate.recentTerms
-      );
-      if (countParsedEntries(resumeSnapshot) < previousTarget) {
-        this.kickAnalyticsBatch(context, /* increment */ false);
-      }
-    }
-
-    const snapshot = getCtecCourseAnalyticsSnapshot(
-      context.params,
-      context.titleHint,
-      PAPER_CTEC_CONFIG.aggregate.recentTerms
-    );
-    const analyticsState = this.analyticsResolved.get(context.key);
-    const parsedCount = countParsedEntries(snapshot);
-    const totalEntries = snapshot?.entries.length ?? 0;
-    const loading = this.analyticsInFlight.has(context.key);
-    const canLoadMore =
-      !loading &&
-      totalEntries > parsedCount &&
-      !analyticsState?.state?.startsWith("auth") &&
-      analyticsState?.state !== "not-found";
+    this.modal.mirrorFrontPageState(context);
+    this.modal.resumeIfNeeded(context);
 
     renderSideCardAnalytics(
       context,
-      {
-        selectedTab: this.selectedTabs.get(context.key) ?? "paper",
-        selectedEntryId: resolveSelectedEntryId(
-          this.selectedAnalyticsEntries,
-          context.key,
-          snapshot
-        ),
-        recentTerms: PAPER_CTEC_CONFIG.aggregate.recentTerms,
-        snapshot,
-        loading,
-        expandedChartKeys: Array.from(this.expandedCharts.get(context.key) ?? []),
-        commentQuery: this.commentQueries.get(context.key) ?? "",
-        authUrl: analyticsState?.state === "auth-required" ? analyticsState.loginUrl : undefined,
-        awaitingAuthRetry: this.auth?.isAwaitingRetry() ?? false,
-        errorMessage: analyticsState?.state === "error" ? analyticsState.message : undefined,
-        canLoadMoreTerms: canLoadMore,
-        loadMoreBatchSize: PAPER_CTEC_CONFIG.aggregate.recentTerms,
-        remainingTerms: Math.max(0, totalEntries - parsedCount),
-        parsedTermCount: parsedCount,
-        notFound: analyticsState?.state === "not-found"
-      },
+      { selectedTab: this.selectedTabs.get(context.key) ?? "paper" },
       (tab) => {
         this.selectedTabs.set(context.key, tab);
-        this.syncSideCard(document);
-      },
-      (entryId) => {
-        this.selectedAnalyticsEntries.set(context.key, entryId);
-        this.syncSideCard(document);
-      },
-      (chartKey) => {
-        toggleExpandedChart(this.expandedCharts, context.key, chartKey);
-        this.syncSideCard(document);
-      },
-      () => {
-        this.auth?.markAwaitingRetry();
-      },
-      () => {
-        this.kickAnalyticsBatch(context);
-      },
-      () => {
-        this.kickAnalyticsRefresh(context);
-      }
-    );
-  }
-
-  // Mirror terminal front-page state (auth-required / not-found) onto the
-  // analytics state map so the side card can show the right callout without
-  // doing its own fetch. Pure derivation — no network.
-  private mirrorFrontPageStateForAnalytics(context: PaperCtecSideCardContext): void {
-    const existingState = this.analyticsResolved.get(context.key);
-    if (existingState && existingState.state !== "found") return;
-
-    const frontPageState = this.resolved.get(context.key);
-    if (frontPageState?.state === "not-found") {
-      this.analyticsResolved.set(context.key, { state: "not-found" });
-      return;
-    }
-    if (frontPageState?.state === "auth-required") {
-      this.analyticsResolved.set(context.key, {
-        state: "auth-required",
-        loginUrl: frontPageState.loginUrl
-      });
-    }
-  }
-
-  // Fetches the next batch of recentTerms-sized term reports for this course.
-  // Each user-initiated call bumps the per-key target count so the underlying
-  // fetchLimit grows by recentTerms — pulling exactly the next batch of
-  // unparsed entries. `increment=false` is used to resume an interrupted
-  // batch (e.g. after a login retry) without bumping the target.
-  private kickAnalyticsBatch(
-    context: PaperCtecSideCardContext,
-    increment = true
-  ): void {
-    if (this.analyticsInFlight.has(context.key)) return;
-
-    const batchSize = PAPER_CTEC_CONFIG.aggregate.recentTerms;
-    const snapshot = getCtecCourseAnalyticsSnapshot(
-      context.params,
-      context.titleHint,
-      batchSize
-    );
-    const parsedCount = countParsedEntries(snapshot);
-    const previousTarget = this.analyticsTargetCount.get(context.key) ?? parsedCount;
-    const nextTarget = increment
-      ? Math.max(previousTarget, parsedCount) + batchSize
-      : Math.max(previousTarget, parsedCount + batchSize);
-    this.analyticsTargetCount.set(context.key, nextTarget);
-
-    const start = async (): Promise<PaperCtecAnalyticsState> => {
-      const currentFrontPageJob = this.inFlight.get(context.key);
-      if (currentFrontPageJob) {
-        await currentFrontPageJob.catch(() => undefined);
-      }
-
-      const result = await fetchCtecCourseAnalytics(
-        context.params,
-        context.titleHint,
-        PAPER_CTEC_CONFIG.aggregate.recentTerms,
-        (message) => {
-          this.setProgress(context.key, `Loading term history… ${message}`);
-        },
-        nextTarget
-      );
-
-      return result.state === "found"
-        ? { state: "found", analytics: result.analytics }
-        : result;
-    };
-
-    const generation = this.generation();
-    const isStale = () => generation !== (this.generation());
-    const job = start()
-      .then((state) => {
-        if (isStale()) return state;
-        this.analyticsResolved.set(context.key, state);
-        return state;
-      })
-      .catch((error) => {
-        const state: PaperCtecAnalyticsState = {
-          state: "error",
-          message: error instanceof Error ? error.message : String(error)
-        };
-        if (isStale()) return state;
-        this.analyticsResolved.set(context.key, state);
-        return state;
-      })
-      .finally(() => {
-        this.analyticsInFlight.delete(context.key);
-        if (!this.inFlight.has(context.key)) {
-          this.loadingMessages.delete(context.key);
+        // Selecting the CTEC Analytics tab opens the modal. The side panel
+        // itself just hosts a launcher button now — all rich content lives
+        // in the modal.
+        if (tab === "analytics") {
+          this.modal.openModal(context);
         }
-        if (isStale()) return;
-        this.syncStatusBar(document);
         this.syncSideCard(document);
-      });
-
-    this.analyticsInFlight.set(context.key, job);
-  }
-
-  // Drops the cached entries for this course (subject + catalog + instructor)
-  // and re-fetches up to the user's previously-loaded depth. This is the only
-  // path that re-checks Northwestern for newly-published evaluations after a
-  // course has already been loaded once — useful when a recent term's CTECs
-  // become available weeks after the term ended.
-  private kickAnalyticsRefresh(context: PaperCtecSideCardContext): void {
-    if (this.analyticsInFlight.has(context.key)) return;
-
-    const previousSnapshot = getCtecCourseAnalyticsSnapshot(
-      context.params,
-      context.titleHint,
-      PAPER_CTEC_CONFIG.aggregate.recentTerms
+      },
+      () => {
+        this.modal.openModal(context);
+      }
     );
-    const previousParsed = countParsedEntries(previousSnapshot);
-    const previousTarget = this.analyticsTargetCount.get(context.key) ?? previousParsed;
-    const refreshTarget = Math.max(previousTarget, PAPER_CTEC_CONFIG.aggregate.recentTerms);
-
-    clearCtecCacheForCourse(
-      context.params.subject,
-      context.params.catalogNumber,
-      context.params.instructor
-    );
-
-    // Drop the resolved/derived state so the schedule chip and side card both
-    // re-fetch on the next sync cycle.
-    this.resolved.delete(context.key);
-    this.analyticsResolved.delete(context.key);
-    this.analyticsTargetCount.set(context.key, refreshTarget);
-
-    // Forces the schedule chip to re-fetch on its next syncTargets pass
-    // (alongside the analytics batch we kick off below).
-    this.userActivated.add(context.key);
-
-    this.kickAnalyticsBatch(context, /* increment */ false);
   }
 
   private setProgress(key: string, message: string): void {
@@ -523,11 +365,4 @@ export class PaperCtecAugmentation implements Augmentation {
     document.addEventListener("visibilitychange", retryIfNeeded);
     this.focusListenerAttached = true;
   }
-}
-
-function countParsedEntries(
-  snapshot: ReturnType<typeof getCtecCourseAnalyticsSnapshot>
-): number {
-  if (!snapshot) return 0;
-  return snapshot.entries.filter((entry) => entry.status === "ready" || entry.status === "unavailable").length;
 }
