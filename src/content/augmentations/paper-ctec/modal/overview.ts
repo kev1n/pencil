@@ -44,26 +44,7 @@ export function renderOverview(
   root.className = "bc-paper-ctec-modal-overview";
 
   const showDelta = data.terms.length >= 2;
-
-  // Cards that start a new gestalt grouping in the strip — a thin vertical
-  // line is drawn in the gap before each. Sections (in order):
-  // [Global] | [Inst, Course] | [Learn] | [Chal, Int] | [Hours].
-  const sectionStarts: ReadonlySet<ModalMetricKind> = new Set([
-    "instruction",
-    "learned",
-    "challenging",
-    "hours"
-  ]);
-
-  const kpiStrip = doc.createElement("div");
-  kpiStrip.className = "bc-paper-ctec-modal-kpi-strip";
-  kpiStrip.append(renderGlobalKpiCard(doc, data, state, callbacks));
-  for (const kind of [...MODAL_RATING_METRICS, "hours"] as ModalMetricKind[]) {
-    kpiStrip.append(
-      renderKpiCard(doc, kind, data, state, callbacks, showDelta, sectionStarts.has(kind))
-    );
-  }
-  root.append(kpiStrip);
+  root.append(renderKpiStrip(doc, data, state, callbacks, showDelta));
 
   if (state.activeMetric === "global") {
     root.append(renderGlobalSection(doc, data, state, callbacks));
@@ -195,14 +176,79 @@ function renderWorkloadCard(doc: Document, data: ModalDisplayData): HTMLElement 
   return hoursCard.root;
 }
 
+// KPI strip: each gestalt grouping is rendered as a labeled rectangle that
+// holds its KPI cards. Groups in order:
+//   [Overall: Global] [Quality: Inst, Course, Learn] [Character: Chal, Int]
+//   [Workload: Hours]
+// The outer grid sizes each group proportionally to its card count so card
+// widths stay roughly consistent across groups.
+function renderKpiStrip(
+  doc: Document,
+  data: ModalDisplayData,
+  state: AnalyticsModalState,
+  callbacks: AnalyticsModalCallbacks,
+  showDelta: boolean
+): HTMLElement {
+  const groups: Array<{
+    label: string;
+    cards: HTMLElement[];
+  }> = [
+    {
+      label: "Overall",
+      cards: [renderGlobalKpiCard(doc, data, state, callbacks)]
+    },
+    {
+      label: "Quality",
+      cards: (["instruction", "course", "learned"] as const).map((kind) =>
+        renderKpiCard(doc, kind, data, state, callbacks, showDelta)
+      )
+    },
+    {
+      label: "Character",
+      cards: (["challenging", "stimulating"] as const).map((kind) =>
+        renderKpiCard(doc, kind, data, state, callbacks, showDelta)
+      )
+    },
+    {
+      label: "Workload",
+      cards: [renderKpiCard(doc, "hours", data, state, callbacks, showDelta)]
+    }
+  ];
+
+  const strip = doc.createElement("div");
+  strip.className = "bc-paper-ctec-modal-kpi-strip";
+  strip.style.gridTemplateColumns = groups
+    .map((group) => `${group.cards.length}fr`)
+    .join(" ");
+
+  for (const group of groups) {
+    const groupEl = doc.createElement("div");
+    groupEl.className = "bc-paper-ctec-modal-kpi-group";
+
+    const label = doc.createElement("div");
+    label.className = "bc-paper-ctec-modal-kpi-group-label";
+    label.textContent = group.label;
+    groupEl.append(label);
+
+    const cardsEl = doc.createElement("div");
+    cardsEl.className = "bc-paper-ctec-modal-kpi-group-cards";
+    cardsEl.style.gridTemplateColumns = `repeat(${group.cards.length}, 1fr)`;
+    for (const card of group.cards) cardsEl.append(card);
+    groupEl.append(cardsEl);
+
+    strip.append(groupEl);
+  }
+
+  return strip;
+}
+
 function renderKpiCard(
   doc: Document,
   kind: ModalMetricKind,
   data: ModalDisplayData,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks,
-  showDelta: boolean,
-  isSectionStart: boolean
+  showDelta: boolean
 ): HTMLElement {
   const metric = data.metrics[kind];
   const trend = metric.trend;
@@ -214,10 +260,7 @@ function renderKpiCard(
 
   const button = doc.createElement("button");
   button.type = "button";
-  const classes = ["bc-paper-ctec-modal-kpi"];
-  if (isActive) classes.push("is-active");
-  if (isSectionStart) classes.push("is-section-start");
-  button.className = classes.join(" ");
+  button.className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
   button.addEventListener("click", (event) => {
     preventAndStop(event);
     callbacks.onMetricChange(kind);

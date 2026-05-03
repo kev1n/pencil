@@ -3,11 +3,38 @@
 // labels, and the multi-line ratings chart with its legend.
 export function modalChartStyles(): string {
   return `
+    /* Outer strip is one column per gestalt group; each group's column
+       width is set inline by the renderer based on card count so cards
+       end up roughly the same visual width across groups. */
     .bc-paper-ctec-modal-kpi-strip {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
       gap: 14px;
       margin-bottom: 20px;
+    }
+    .bc-paper-ctec-modal-kpi-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .bc-paper-ctec-modal-kpi-group-label {
+      padding-left: 12px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+    }
+    /* The labeled rectangle. Holds the group's KPI cards in an even grid
+       and gives the gestalt grouping an actual visible boundary. */
+    .bc-paper-ctec-modal-kpi-group-cards {
+      display: grid;
+      gap: 8px;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.025);
+      min-width: 0;
     }
     .bc-paper-ctec-modal-kpi {
       position: relative;
@@ -25,20 +52,6 @@ export function modalChartStyles(): string {
     .bc-paper-ctec-modal-kpi.is-active {
       border-color: #66023c;
       box-shadow: 0 0 0 3px rgba(102, 2, 60, 0.08);
-    }
-    /* Gestalt grouping: a vertical line in the middle of the grid gap
-       before cards that start a new conceptual section. Spans nearly the
-       full card height so the boundary reads at a glance. */
-    .bc-paper-ctec-modal-kpi.is-section-start::before {
-      content: "";
-      position: absolute;
-      left: -8px;
-      top: 2%;
-      bottom: 2%;
-      width: 2px;
-      background: #9ca3af;
-      border-radius: 2px;
-      pointer-events: none;
     }
     /* Global card stands out: tinted background, bigger maroon number,
        still clickable / activatable like the others. */
@@ -339,8 +352,12 @@ export function modalChartStyles(): string {
       border-color: #d8b4fe;
       box-shadow: 0 0 0 3px rgba(216, 180, 254, 0.18);
     }
-    .dark .bc-paper-ctec-modal-kpi.is-section-start::before {
-      background: rgba(248, 250, 252, 0.6);
+    .dark .bc-paper-ctec-modal-kpi-group-label {
+      color: #d4b9c5;
+    }
+    .dark .bc-paper-ctec-modal-kpi-group-cards {
+      border-color: rgba(248, 250, 252, 0.18);
+      background: rgba(248, 250, 252, 0.05);
     }
     .dark .bc-paper-ctec-modal-kpi.is-global {
       background: linear-gradient(135deg, rgba(168, 85, 247, 0.18) 0%, rgba(168, 85, 247, 0.08) 100%);
