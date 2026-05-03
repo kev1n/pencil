@@ -13,6 +13,31 @@ export type FetchTextMessage = {
   requestId?: string;
 };
 
+export type FetchBinaryMessage = {
+  type: "fetch-binary";
+  url: string;
+  requestId?: string;
+};
+
+export type FetchBinarySuccess = {
+  ok: true;
+  status: number;
+  // Base64-encoded body. chrome.runtime.sendMessage serializes via JSON
+  // in some Chrome versions, which mangles ArrayBuffer bytes — base64
+  // sidesteps that.
+  base64: string;
+  contentType: string;
+  finalUrl: string;
+};
+
+export type FetchBinaryFailure = {
+  ok: false;
+  error: string;
+  status?: number;
+};
+
+export type FetchBinaryResponse = FetchBinarySuccess | FetchBinaryFailure;
+
 export type AbortFetchMessage = {
   type: "abort-fetch";
   requestId: string;

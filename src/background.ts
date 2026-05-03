@@ -2,6 +2,7 @@ import { FEATURES_STORAGE_KEY } from "./content/settings";
 import type {
   AbortFetchMessage,
   AuthPopupClosedMessage,
+  FetchBinaryMessage,
   FetchTextMessage,
   OpenAuthPopupMessage,
   OpenAuthPopupResponse
@@ -78,6 +79,10 @@ async function syncCaesarRedirectRule(): Promise<void> {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "fetch-text") {
     void handleFetchText(message as FetchTextMessage, sendResponse);
+    return true;
+  }
+  if (message.type === "fetch-binary") {
+    void handleFetchBinary(message as FetchBinaryMessage, sendResponse);
     return true;
   }
   if (message.type === "open-auth-popup") {
@@ -196,6 +201,53 @@ function forgetPopup(tabId: number): void {
 function notifyOwner(ownerTabId: number, reason: AuthPopupClosedMessage["reason"]): void {
   const message: AuthPopupClosedMessage = { type: "auth-popup-closed", reason };
   void chrome.tabs.sendMessage(ownerTabId, message).catch(() => undefined);
+}
+
+async function handleFetchBinary(
+  message: FetchBinaryMessage,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  if (message.requestId) {
+    fetchControllers.set(message.requestId, controller);
+  }
+  try {
+    const res = await fetch(message.url, {
+      method: "GET",
+      credentials: "include",
+      redirect: "follow",
+      signal: controller.signal
+    });
+    const buffer = await res.arrayBuffer();
+    // Base64 encode in 32KB chunks to avoid stack overflow on large images.
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < bytes.length; i += CHUNK) {
+      binary += String.fromCharCode.apply(
+        null,
+        Array.from(bytes.subarray(i, Math.min(i + CHUNK, bytes.length)))
+      );
+    }
+    sendResponse({
+      ok: true,
+      status: res.status,
+      base64: btoa(binary),
+      contentType: res.headers.get("content-type") ?? "",
+      finalUrl: res.url
+    });
+  } catch (error) {
+    sendResponse({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  } finally {
+    clearTimeout(timeout);
+    if (message.requestId) {
+      fetchControllers.delete(message.requestId);
+    }
+  }
 }
 
 async function handleFetchText(
