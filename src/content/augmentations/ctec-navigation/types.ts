@@ -61,12 +61,23 @@ export type CtecReportSummary = {
   commentGroups: CtecReportCommentGroup[];
 };
 
+// Per-course discovery state, keyed by `${catalogNumber}|${normalizedInstructor}`
+// (see buildCourseStateKey in ctec-links/fetcher.ts). pendingRowCount is the
+// number of class rows the most recent PeopleSoft discovery saw that we
+// haven't fetched yet. Lets the UI keep "Load N more (M left)" accurate
+// across reloads without doing another discovery probe just to find out.
+export type CtecCourseDiscoveryState = {
+  pendingRowCount: number;
+  updatedAt: number;
+};
+
 export type CtecSubjectIndex = {
   subjectCode: string;
   subjectLabel: string;
   builtAt: number;
   sourceUrl: string;
   entries: CtecIndexedEntry[];
+  courseState?: Record<string, CtecCourseDiscoveryState>;
 };
 
 export type CtecIndexStore = {

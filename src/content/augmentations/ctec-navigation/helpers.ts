@@ -252,21 +252,34 @@ export function collectCourseRows(doc: Document): CtecCourseSeed[] {
   return seeds;
 }
 
+// Identity is blueraUrl when present (each CTEC has a unique URL),
+// otherwise (term, description, instructor). actionId is excluded —
+// PeopleSoft recycles `MYLINK1$N` indices per response, so including it
+// would let a stale re-fetch create a duplicate row instead of merging.
 export function dedupeEntries(entries: CtecIndexedEntry[]): CtecIndexedEntry[] {
-  const byKey = new Map<string, CtecIndexedEntry>();
+  const byUrl = new Map<string, CtecIndexedEntry>();
+  const byNatural = new Map<string, CtecIndexedEntry>();
 
   for (const entry of entries) {
-    const key = [
-      entry.actionId,
-      normalizeSearch(entry.term),
-      normalizeSearch(entry.description),
-      normalizeSearch(entry.instructor)
-    ].join("|");
-
-    if (!byKey.has(key)) {
-      byKey.set(key, entry);
+    const bucket = entry.blueraUrl ? byUrl : byNatural;
+    const key = entry.blueraUrl ?? naturalKey(entry);
+    const existing = bucket.get(key);
+    if (!existing || (!hasParsedSummary(existing) && hasParsedSummary(entry))) {
+      bucket.set(key, entry);
     }
   }
 
-  return Array.from(byKey.values());
+  return [...byUrl.values(), ...byNatural.values()];
+}
+
+function naturalKey(entry: CtecIndexedEntry): string {
+  return [
+    normalizeSearch(entry.term),
+    normalizeSearch(entry.description),
+    normalizeSearch(entry.instructor)
+  ].join("|");
+}
+
+function hasParsedSummary(entry: CtecIndexedEntry): boolean {
+  return entry.reportSummary !== undefined;
 }

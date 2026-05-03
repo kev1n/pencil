@@ -15,6 +15,11 @@ import { preventAndStop } from "./ui-shared";
 
 type SideCardAnalyticsRenderData = {
   selectedTab: "paper" | "analytics";
+  // CTEC Analytics tab only surfaces once the user has actually loaded
+  // CTECs for this class (or there's a cached aggregate to draw from).
+  // Until then the side panel hides the tabs entirely and shows the
+  // default paper.nu content.
+  analyticsAvailable: boolean;
 };
 
 export function renderSideCardAnalytics(
@@ -24,6 +29,13 @@ export function renderSideCardAnalytics(
   onOpenModal: () => void
 ): void {
   const header = ensureSideCardHeader(context.panel);
+
+  if (!data.analyticsAvailable) {
+    removeSideCardAnalyticsChrome(context.panel);
+    restoreDefaultPanelChildren(context.panel, header);
+    return;
+  }
+
   const tabsRoot = ensureSideCardTabs(context.panel, header);
   const panelRoot = ensureSideCardAnalyticsPanel(context.panel, tabsRoot);
 
@@ -43,6 +55,25 @@ export function renderSideCardAnalytics(
 
   panelRoot.append(renderLauncher(context.panel.ownerDocument, onOpenModal));
   panelRoot.dataset.bcPaperCtecSignature = signature;
+}
+
+function removeSideCardAnalyticsChrome(panel: HTMLElement): void {
+  panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
+  panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
+}
+
+function restoreDefaultPanelChildren(
+  panel: HTMLElement,
+  header: HTMLElement | null
+): void {
+  // applySideCardMode hides paper.nu's own panel content when the Analytics
+  // tab is active. When we strip Analytics back out, those children must be
+  // re-shown.
+  for (const child of Array.from(panel.children)) {
+    if (!(child instanceof HTMLElement)) continue;
+    if (child === header) continue;
+    if (child.hidden) child.hidden = false;
+  }
 }
 
 function renderLauncher(doc: Document, onOpenModal: () => void): HTMLElement {

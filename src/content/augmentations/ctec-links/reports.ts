@@ -10,7 +10,7 @@ import type {
 } from "../ctec-navigation/types";
 import { fetchTextResultViaBackground } from "../../remote-fetch";
 import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
-import { fetchCtecLinksBackground } from "./fetcher";
+import { fetchCtecLinksBackground, readCoursePendingRowCount } from "./fetcher";
 import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesCourse, isAuthResponse, termToSortKey } from "./helpers";
 import type { CtecLinkParams } from "./types";
@@ -57,6 +57,11 @@ export type CtecCourseAnalytics = {
   recentAggregate: CtecReportAggregate;
   entries: CtecCourseAnalyticsEntry[];
   allFetched: boolean;
+  // Persisted count of class rows the most recent PeopleSoft discovery saw
+  // that we haven't fetched yet. Survives reloads so the modal can keep
+  // "Load N more (M left)" accurate without doing another discovery probe
+  // just to find out.
+  pendingDiscoveryCount: number;
 };
 
 export type CtecReportAggregateResult =
@@ -117,7 +122,11 @@ export async function fetchCtecCourseAnalytics(
 
   return {
     state: "found",
-    analytics: buildCourseAnalytics(result.entries, recentAggregateLimit)
+    analytics: buildCourseAnalytics(
+      result.entries,
+      recentAggregateLimit,
+      readPendingRowCountFor(params)
+    )
   };
 }
 
@@ -128,7 +137,19 @@ export function getCtecCourseAnalyticsSnapshot(
 ): CtecCourseAnalytics | null {
   const entries = getIndexedEntriesForCourse(params, titleHint);
   if (entries.length === 0) return null;
-  return buildCourseAnalytics(entries, recentAggregateLimit);
+  return buildCourseAnalytics(
+    entries,
+    recentAggregateLimit,
+    readPendingRowCountFor(params)
+  );
+}
+
+function readPendingRowCountFor(params: CtecLinkParams): number {
+  return readCoursePendingRowCount(
+    readSubjectIndex(params.subject),
+    params.catalogNumber,
+    params.instructor
+  );
 }
 
 // Cache-only aggregate: returns a CtecReportAggregate from the subject index
@@ -148,6 +169,20 @@ export function getCachedReportAggregate(
   if (!hasAnyParsed) return null;
 
   return buildReportAggregate(entries, { aggregateLimit: recentTerms });
+}
+
+// Existence-only variant of getCachedReportAggregate. Skips the
+// buildReportAggregate cost for callers (e.g. side-card sync) that only
+// need to know whether *any* parsed report is cached for this course.
+export function hasCachedReportAggregate(
+  params: CtecLinkParams,
+  titleHint: string | undefined,
+  recentTerms: number
+): boolean {
+  const entries = sortEntries(getIndexedEntriesForCourse(params, titleHint));
+  if (entries.length === 0) return false;
+  const window = entries.slice(0, recentTerms);
+  return window.some((entry) => entry.reportSummary !== undefined);
 }
 
 export function parseCtecReportHtml(
@@ -265,7 +300,7 @@ async function ensureReportEntries(
     }
 
     const summary = parseCtecReportHtml(response.text, url);
-    cacheReportSummary(params.subject, entry.actionId, summary);
+    cacheReportSummary(params.subject, url, summary);
   }
 
   entries = sortEntries(getIndexedEntriesForCourse(params, titleHint));
@@ -297,9 +332,13 @@ function selectEntriesForTitle(
   return filtered.length > 0 ? filtered : entries;
 }
 
+// Keyed by blueraUrl (the report's stable identity), NOT actionId —
+// PeopleSoft `MYLINK1$N` indices are response-local and routinely
+// collide across course fetches, which would splatter one course's
+// summary across another's entries.
 function cacheReportSummary(
   subjectCode: string,
-  actionId: string,
+  blueraUrl: string,
   reportSummary: CtecReportSummary | null
 ): void {
   const index = readSubjectIndex(subjectCode);
@@ -307,7 +346,7 @@ function cacheReportSummary(
 
   let changed = false;
   const nextEntries = index.entries.map((entry) => {
-    if (entry.actionId !== actionId) return entry;
+    if (entry.blueraUrl !== blueraUrl) return entry;
     changed = true;
     return { ...entry, reportSummary };
   });
@@ -359,7 +398,8 @@ function buildReportAggregate(
 
 function buildCourseAnalytics(
   entries: CtecIndexedEntry[],
-  recentAggregateLimit?: number
+  recentAggregateLimit?: number,
+  pendingDiscoveryCount = 0
 ): CtecCourseAnalytics {
   const sorted = sortEntries(entries);
   const aggregateLimit =
@@ -369,6 +409,7 @@ function buildCourseAnalytics(
     recentAggregate: buildReportAggregate(sorted, {
       aggregateLimit
     }),
+    pendingDiscoveryCount,
     entries: sorted.map((entry) => ({
       term: entry.term,
       description: entry.description,

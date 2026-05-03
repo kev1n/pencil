@@ -184,31 +184,6 @@ function renderStatusBody(
       input.loadMoreBatchSize === 1 ? "" : "s"
     } from Northwestern.`;
     card.append(body);
-  } else {
-    // Idle, no data — usually means the user opened the modal without
-    // having loaded anything yet. Offer the load CTA explicitly.
-    const title = doc.createElement("h3");
-    title.className = "bc-paper-ctec-modal-status-title";
-    title.textContent = "No CTEC reports loaded yet";
-    card.append(title);
-
-    const body = doc.createElement("p");
-    body.className = "bc-paper-ctec-modal-status-text";
-    body.textContent =
-      "CTEC term reports load on demand to keep traffic on Northwestern's servers low.";
-    card.append(body);
-
-    const action = doc.createElement("button");
-    action.type = "button";
-    action.className = "bc-paper-ctec-modal-status-primary";
-    action.textContent = `Load ${input.loadMoreBatchSize} most recent term${
-      input.loadMoreBatchSize === 1 ? "" : "s"
-    }`;
-    action.addEventListener("click", (event) => {
-      preventAndStop(event);
-      callbacks.onLoadMore();
-    });
-    card.append(action);
   }
 
   wrapper.append(card);

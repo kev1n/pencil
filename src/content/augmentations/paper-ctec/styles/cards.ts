@@ -103,6 +103,22 @@ export function cardStyles(): string {
       font-size: 10px;
       line-height: 1.1;
     }
+    .${WIDGET_CLASS}-spinner {
+      width: 10px;
+      height: 10px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      border: 1.5px solid rgba(102, 2, 60, 0.24);
+      border-top-color: #66023c;
+      animation: bc-paper-ctec-widget-spin 900ms linear infinite;
+    }
+    .dark .${WIDGET_CLASS}-spinner {
+      border-color: rgba(244, 114, 182, 0.28);
+      border-top-color: #f472b6;
+    }
+    @keyframes bc-paper-ctec-widget-spin {
+      to { transform: rotate(360deg); }
+    }
     .${WIDGET_CLASS}-chip {
       display: inline-flex;
       align-items: center;

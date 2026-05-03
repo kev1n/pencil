@@ -53,3 +53,10 @@ export function buildCtecCreditToastMessage(waitMs: number): string {
   const waitMin = Math.max(1, Math.ceil(waitMs / 60_000));
   return `Limit reached: ${CTEC_CREDIT_LIMIT} CTEC loads per hour to reduce load on Northwestern's servers. Try again in ${waitMin} min.`;
 }
+
+// Shown when a CTEC fetch fails (timeout, transport error, server error).
+// Points the user at CAESAR directly so they can finish what they were doing
+// without us, and includes the cookie-clear escape hatch for the most common
+// stuck-state we've seen.
+export const CTEC_ERROR_TOAST_MESSAGE =
+  "CTEC load failed. Try opening https://caesar.ent.northwestern.edu/ yourself. If it's stuck on infinite loading, clear your cookies for the site.";

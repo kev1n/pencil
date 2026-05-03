@@ -1,9 +1,14 @@
 import type { Augmentation } from "../../framework";
 import { getRecentAggregationTerms, isFeatureEnabled } from "../../settings";
-import { buildCtecCreditToastMessage, tryConsumeCtecCredit } from "../ctec-links/rate-limit";
+import {
+  buildCtecCreditToastMessage,
+  CTEC_ERROR_TOAST_MESSAGE,
+  tryConsumeCtecCredit
+} from "../ctec-links/rate-limit";
 import {
   fetchCtecReportAggregate,
-  getCachedReportAggregate
+  getCachedReportAggregate,
+  hasCachedReportAggregate
 } from "../ctec-links/reports";
 import { showToast } from "../seats-notes/toast";
 import { AuthFlow } from "./auth-flow";
@@ -191,7 +196,8 @@ export class PaperCtecAugmentation implements Augmentation {
       }
 
       // Not cached — wait for an explicit user click before hitting CAESAR.
-      renderIdle(target.widget, () => this.kickTargetFetch(target), openAnalytics);
+      // No Analytics button until the user actually loads CTECs.
+      renderIdle(target.widget, () => this.kickTargetFetch(target));
     }
   }
 
@@ -253,6 +259,9 @@ export class PaperCtecAugmentation implements Augmentation {
       if (isStale()) return widgetData;
       this.resolved.set(target.key, widgetData);
       this.renderForKey(target.key, widgetData);
+      if (widgetData.state === "error") {
+        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+      }
       return widgetData;
     } catch (error) {
       const widgetData: PaperCtecWidgetData = {
@@ -262,6 +271,7 @@ export class PaperCtecAugmentation implements Augmentation {
       if (isStale()) return widgetData;
       this.resolved.set(target.key, widgetData);
       this.renderForKey(target.key, widgetData);
+      showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
       return widgetData;
     }
   }
@@ -339,9 +349,25 @@ export class PaperCtecAugmentation implements Augmentation {
     this.modal.mirrorFrontPageState(context);
     this.modal.resumeIfNeeded(context);
 
+    const analyticsAvailable =
+      this.userActivated.has(context.key) ||
+      this.resolved.has(context.key) ||
+      this.inFlight.has(context.key) ||
+      hasCachedReportAggregate(
+        context.params,
+        context.titleHint,
+        getRecentAggregationTerms()
+      );
+
+    // Reset the selected tab back to "paper" if Analytics is no longer
+    // surfaced — otherwise a stale "analytics" choice would leave the panel
+    // in an empty state.
+    const requestedTab = this.selectedTabs.get(context.key) ?? "paper";
+    const selectedTab = analyticsAvailable ? requestedTab : "paper";
+
     renderSideCardAnalytics(
       context,
-      { selectedTab: this.selectedTabs.get(context.key) ?? "paper" },
+      { selectedTab, analyticsAvailable },
       (tab) => {
         this.selectedTabs.set(context.key, tab);
         // Selecting the CTEC Analytics tab opens the modal. The side panel

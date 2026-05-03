@@ -5,7 +5,11 @@ import { showToast } from "../seats-notes/toast";
 import { CLASS_LINK_SELECTOR, CLASS_ROW_SELECTOR, PAGE_ID } from "./constants";
 import { fetchCtecLinks, getCtecLinksFromCache } from "./fetcher";
 import { extractInstructorFromRow, extractSubjectAndCatalog } from "./helpers";
-import { buildCtecCreditToastMessage, tryConsumeCtecCredit } from "./rate-limit";
+import {
+  buildCtecCreditToastMessage,
+  CTEC_ERROR_TOAST_MESSAGE,
+  tryConsumeCtecCredit
+} from "./rate-limit";
 import type { CtecLinkData, CtecLinkTarget } from "./types";
 import {
   ensureCtecCell,
@@ -115,6 +119,9 @@ export class CtecLinksAugmentation implements Augmentation {
         if (data.state === "found" || data.state === "not-found") {
           markCtecCellDone(target.container);
         }
+        if (data.state === "error") {
+          showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        }
       })
       .catch((err: unknown) => {
         this.inFlight.delete(key);
@@ -128,6 +135,7 @@ export class CtecLinksAugmentation implements Augmentation {
           message: err instanceof Error ? err.message : "Unknown error"
         };
         renderCtecLinksWidget(target.container, errData, () => this.kick(target, key));
+        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
       });
   }
 }

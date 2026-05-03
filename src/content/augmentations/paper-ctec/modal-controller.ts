@@ -1,4 +1,8 @@
-import { buildCtecCreditToastMessage, tryConsumeCtecCredit } from "../ctec-links/rate-limit";
+import {
+  buildCtecCreditToastMessage,
+  CTEC_ERROR_TOAST_MESSAGE,
+  tryConsumeCtecCredit
+} from "../ctec-links/rate-limit";
 import {
   fetchCtecCourseAnalytics,
   getCachedReportAggregate,
@@ -206,6 +210,13 @@ export class ModalController {
     const analyticsState = this.state.analyticsResolved.get(source.key);
     const parsedCount = countParsedEntries(snapshot);
     const totalEntries = snapshot?.entries.length ?? 0;
+    // Persisted across reloads via the subject index — gives us the actual
+    // count of un-fetched PS rows so the button can decrement "(N left)" as
+    // batches load instead of being stuck on the snapshot's pending-vs-parsed
+    // delta (which is usually 0 between batches).
+    const pendingDiscoveryCount = snapshot?.pendingDiscoveryCount ?? 0;
+    const pendingReportCount = Math.max(0, totalEntries - parsedCount);
+    const remainingTerms = pendingDiscoveryCount + pendingReportCount;
     const backgroundRefreshing = this.analyticsBackgroundRefresh.has(source.key);
     // Background refresh deliberately stays out of the modal-wide loading
     // state so the user can keep using cached data while we re-poll.
@@ -216,8 +227,7 @@ export class ModalController {
     const errorMessage =
       analyticsState?.state === "error" ? analyticsState.message : null;
     const notFound = analyticsState?.state === "not-found";
-    const canLoadMore =
-      !loading && totalEntries > parsedCount && !authUrl && !notFound;
+    const canLoadMore = !loading && remainingTerms > 0 && !authUrl && !notFound;
 
     renderAnalyticsModal(
       doc,
@@ -238,7 +248,7 @@ export class ModalController {
         canRefresh: !!data && !authUrl && !errorMessage,
         canLoadMore,
         loadMoreBatchSize: PAPER_CTEC_CONFIG.aggregate.recentTerms,
-        remainingTerms: Math.max(0, totalEntries - parsedCount),
+        remainingTerms,
         parsedTermCount: parsedCount,
         backgroundRefreshing,
         refreshFlash: this.analyticsRefreshFlash.get(source.key) ?? null
@@ -346,6 +356,9 @@ export class ModalController {
       .then((state) => {
         if (isStale()) return state;
         this.state.analyticsResolved.set(context.key, state);
+        if (state.state === "error") {
+          showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        }
         return state;
       })
       .catch((error) => {
@@ -355,6 +368,7 @@ export class ModalController {
         };
         if (isStale()) return state;
         this.state.analyticsResolved.set(context.key, state);
+        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
         return state;
       })
       .finally(() => {
@@ -475,6 +489,7 @@ export class ModalController {
             kind: "error",
             message: result.message
           });
+          showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
         } else if (result.state === "not-found") {
           // Existing data stays; flag it as up-to-date with zero added.
           this.setRefreshFlash(context.key, { kind: "success", addedCount: 0 });
@@ -485,6 +500,7 @@ export class ModalController {
           kind: "error",
           message: error instanceof Error ? error.message : String(error)
         });
+        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
       } finally {
         this.analyticsBackgroundRefresh.delete(context.key);
         if (isStale()) return;

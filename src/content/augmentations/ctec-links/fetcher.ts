@@ -12,14 +12,25 @@ import {
   serializeForm
 } from "../ctec-navigation/helpers";
 import { readSubjectIndex, writeSubjectIndex } from "../ctec-navigation/storage";
-import type { CtecIndexedEntry, CtecRowSeed, CtecSubjectIndex } from "../ctec-navigation/types";
+import type {
+  CtecCourseDiscoveryState,
+  CtecIndexedEntry,
+  CtecRowSeed,
+  CtecSubjectIndex
+} from "../ctec-navigation/types";
 import {
   fetchPeopleSoftGetResult,
   fetchPeopleSoftResult
 } from "../../peoplesoft/http";
 import { runPeopleSoftTask } from "../../peoplesoft";
 import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
-import { courseDescMatchesCatalog, entryMatchesCourse, extractLastNameTokens, isAuthResponse, termToSortKey } from "./helpers";
+import {
+  descriptionMatchesCatalog,
+  entryMatchesCourse,
+  instructorMatches,
+  isAuthResponse,
+  termToSortKey
+} from "./helpers";
 import { CTEC_BATCH_SIZE } from "./rate-limit";
 import { resolveCareerCandidates, SCHOOL_LABELS } from "./subject-careers";
 import type { CtecLinkData, CtecLinkEntry, CtecLinkParams } from "./types";
@@ -137,15 +148,27 @@ async function fetchCtecLinksInternal(
     return buildFoundResult(realCached, false);
   }
 
-  // Merge new entries into the subject index.
+  // Merge new entries into the subject index and persist this course's
+  // discovery state so callers (paper-ctec modal, ctec-links chip) can
+  // decide whether to surface "Load more" without redoing the discovery
+  // probe just to find out.
   const existingEntries = cachedIndex?.entries ?? [];
   const merged = dedupeEntries([...existingEntries, ...fetchResult.entries]);
+  const courseStateKey = buildCourseStateKey(catalogNumber, instructor);
+  const nextCourseState: Record<string, CtecCourseDiscoveryState> = {
+    ...(cachedIndex?.courseState ?? {}),
+    [courseStateKey]: {
+      pendingRowCount: fetchResult.pendingRowCount,
+      updatedAt: Date.now()
+    }
+  };
   writeSubjectIndex(subject, {
     subjectCode: subject,
     subjectLabel: cachedIndex?.subjectLabel ?? subject,
     builtAt: cachedIndex?.builtAt ?? Date.now(),
     sourceUrl: cachedIndex?.sourceUrl ?? window.location.href,
-    entries: merged
+    entries: merged,
+    courseState: nextCourseState
   });
 
   const allMatches = merged.filter((e) =>
@@ -156,7 +179,7 @@ async function fetchCtecLinksInternal(
     writeSentinel(subject, catalogNumber, instructor, readSubjectIndex(subject));
     return { state: "not-found" };
   }
-  return buildFoundResult(allMatches, fetchResult.hasMore);
+  return buildFoundResult(allMatches, fetchResult.pendingRowCount > 0);
 }
 
 // Synchronous cache-only lookup. Returns data if the subject index exists and
@@ -169,9 +192,26 @@ export function getCtecLinksFromCache(params: CtecLinkParams): CtecLinkData | nu
     entryMatchesCourse(e, subject, catalogNumber, instructor)
   );
   if (matches.length === 0) return null;
-  // Cache-only path doesn't know whether more rows exist on PeopleSoft —
-  // hasMore=false is conservative; the next live fetch resolves it.
-  return buildFoundResult(matches, false);
+  const hasMore =
+    readCoursePendingRowCount(cachedIndex, catalogNumber, instructor) > 0;
+  return buildFoundResult(matches, hasMore);
+}
+
+// Reads the persisted count of unfetched class rows for this course. Returns
+// 0 when no fetch has happened yet — callers should treat that as "unknown,
+// fall back to in-memory snapshot heuristics" rather than "definitely none."
+export function readCoursePendingRowCount(
+  index: CtecSubjectIndex | null,
+  catalogNumber: string,
+  instructor: string
+): number {
+  if (!index?.courseState) return 0;
+  const state = index.courseState[buildCourseStateKey(catalogNumber, instructor)];
+  return Math.max(0, state?.pendingRowCount ?? 0);
+}
+
+function buildCourseStateKey(catalogNumber: string, instructor: string): string {
+  return `${catalogNumber}|${normalizeSearch(instructor)}`;
 }
 
 function buildFoundResult(entries: CtecIndexedEntry[], hasMore: boolean): CtecLinkData {
@@ -232,7 +272,7 @@ function writeSentinel(
 }
 
 type FetchCourseResult =
-  | { type: "entries"; entries: CtecIndexedEntry[]; hasMore: boolean }
+  | { type: "entries"; entries: CtecIndexedEntry[]; pendingRowCount: number }
   | { type: "auth"; loginUrl: string }
   | { type: "not-found" }
   | { type: "error"; message: string };
@@ -274,7 +314,7 @@ async function fetchCourseEntries(
   onProgress?.("Finding course…");
   const courseRows = collectCourseRows(doc);
   const targetCourse = courseRows.find((c) =>
-    courseDescMatchesCatalog(c.description, catalogNumber)
+    descriptionMatchesCatalog(c.description, catalogNumber)
   );
   if (!targetCourse) return { type: "not-found" };
 
@@ -300,25 +340,27 @@ async function fetchCourseEntries(
   const allClassRows = collectClassRowsFromText(courseResponse);
   if (allClassRows.length === 0) return { type: "not-found" };
 
-  const instrLastNames = extractLastNameTokens(instructor);
-  const classRows =
-    instrLastNames.length > 0
-      ? allClassRows.filter((r) => {
-          const rParts = r.instructor.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ");
-          const rLast = rParts[rParts.length - 1] ?? "";
-          return instrLastNames.some((ln) => rLast === ln);
-        })
-      : allClassRows;
+  // Same matchers entryMatchesCourse uses on read — keeps cross-listed
+  // sections and rows from a mis-targeted course out of the index.
+  // PeopleSoft serves rows oldest-first; sort newest-first so the first
+  // batchSize-sized slice picks up recent CTECs.
+  const sortedRows = allClassRows
+    .filter(
+      (r) =>
+        descriptionMatchesCatalog(r.description, catalogNumber) &&
+        instructorMatches(r.instructor, instructor)
+    )
+    .sort((a, b) => termToSortKey(b.term) - termToSortKey(a.term));
 
   // Skip already-fetched rows; each call processes at most batchSize new ones.
-  const todoAll: CtecRowSeed[] = classRows.filter(
+  const todoAll: CtecRowSeed[] = sortedRows.filter(
     (r) => !skipKeys.has(buildRowKey(r.term, r.description, r.instructor))
   );
   const todo = todoAll.slice(0, batchSize);
-  const hasMore = todoAll.length > todo.length;
+  const pendingRowCount = Math.max(0, todoAll.length - todo.length);
 
   if (todo.length === 0) {
-    return { type: "entries", entries: [], hasMore: false };
+    return { type: "entries", entries: [], pendingRowCount: 0 };
   }
 
   const classParams = applyResponseState(baseParams, courseResponse);
@@ -370,7 +412,7 @@ async function fetchCourseEntries(
     });
   }
 
-  return { type: "entries", entries: resultEntries, hasMore };
+  return { type: "entries", entries: resultEntries, pendingRowCount };
 }
 
 function isUnauthorizedStatus(status: number): boolean {

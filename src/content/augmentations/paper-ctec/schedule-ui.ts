@@ -67,6 +67,11 @@ export function renderLoading(
 
   const summary = widget.ownerDocument.createElement("div");
   summary.className = `${WIDGET_CLASS}-summary`;
+  const spinner = widget.ownerDocument.createElement("span");
+  spinner.className = `${WIDGET_CLASS}-spinner`;
+  spinner.setAttribute("role", "status");
+  spinner.setAttribute("aria-label", "Loading CTEC");
+  summary.appendChild(spinner);
   summary.appendChild(makeChip("spark", message, "is-muted"));
   attachAnalyticsAnchor(widget, onOpenAnalytics);
   widget.appendChild(summary);
