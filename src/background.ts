@@ -19,18 +19,13 @@ const POST_AUTH_URL_PATTERNS = [
   /^https:\/\/northwestern\.bluera\.com\/northwestern\//i
 ];
 
-const POST_AUTH_SETTLE_MS = 1500;
-
 type TrackedPopup = {
   tabId: number;
   ownerTabId: number;
-  initialUrl: string;
-  hasNavigatedAway: boolean;
 };
 
 const trackedPopups = new Map<number, TrackedPopup>();
 const ownerToPopup = new Map<number, number>();
-const settleTimers = new Map<number, ReturnType<typeof setTimeout>>();
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("Better CAESAR extension installed.");
@@ -99,56 +94,23 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
   const tracked = trackedPopups.get(tabId);
   if (!tracked) return;
-
-  const currentUrl = tab.url ?? info.url ?? "";
-  if (currentUrl && currentUrl !== tracked.initialUrl) {
-    tracked.hasNavigatedAway = true;
-  }
-
-  // Any URL/status change cancels a pending settle — keeps us from closing
-  // mid-redirect when the SSO chain briefly visits a post-auth URL pattern.
-  cancelSettleTimer(tabId);
-
   if (info.status !== "complete") return;
-  if (!currentUrl) return;
-  if (!tracked.hasNavigatedAway) return;
+
+  const currentUrl = tab.url ?? "";
   if (!POST_AUTH_URL_PATTERNS.some((pattern) => pattern.test(currentUrl))) return;
 
-  scheduleSettle(tabId, tracked.ownerTabId);
+  forgetPopup(tabId);
+  void chrome.tabs.update(tracked.ownerTabId, { active: true }).catch(() => undefined);
+  void chrome.tabs.remove(tabId).catch(() => undefined);
+  notifyOwner(tracked.ownerTabId, "succeeded");
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   const tracked = trackedPopups.get(tabId);
-  cancelSettleTimer(tabId);
   if (!tracked) return;
   forgetPopup(tabId);
   notifyOwner(tracked.ownerTabId, "user-closed");
 });
-
-function scheduleSettle(tabId: number, ownerTabId: number): void {
-  const timer = setTimeout(() => {
-    settleTimers.delete(tabId);
-    void chrome.tabs
-      .get(tabId)
-      .then((latestTab) => {
-        const latestUrl = latestTab.url ?? "";
-        if (!POST_AUTH_URL_PATTERNS.some((pattern) => pattern.test(latestUrl))) return;
-        forgetPopup(tabId);
-        void chrome.tabs.update(ownerTabId, { active: true }).catch(() => undefined);
-        void chrome.tabs.remove(tabId).catch(() => undefined);
-        notifyOwner(ownerTabId, "succeeded");
-      })
-      .catch(() => undefined);
-  }, POST_AUTH_SETTLE_MS);
-  settleTimers.set(tabId, timer);
-}
-
-function cancelSettleTimer(tabId: number): void {
-  const existing = settleTimers.get(tabId);
-  if (existing === undefined) return;
-  clearTimeout(existing);
-  settleTimers.delete(tabId);
-}
 
 async function handleOpenAuthPopup(
   message: OpenAuthPopupMessage,
@@ -175,9 +137,7 @@ async function handleOpenAuthPopup(
     }
     trackedPopups.set(tab.id, {
       tabId: tab.id,
-      ownerTabId,
-      initialUrl: message.loginUrl,
-      hasNavigatedAway: false
+      ownerTabId
     });
     ownerToPopup.set(ownerTabId, tab.id);
     sendResponse({ ok: true, tabId: tab.id });
@@ -190,7 +150,6 @@ async function handleOpenAuthPopup(
 }
 
 function forgetPopup(tabId: number): void {
-  cancelSettleTimer(tabId);
   const tracked = trackedPopups.get(tabId);
   trackedPopups.delete(tabId);
   if (tracked && ownerToPopup.get(tracked.ownerTabId) === tabId) {
