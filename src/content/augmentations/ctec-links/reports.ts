@@ -108,9 +108,13 @@ export async function fetchCtecCourseAnalytics(
   titleHint?: string,
   recentAggregateLimit?: number,
   onProgress?: (message: string) => void,
-  fetchLimit?: number
+  fetchLimit?: number,
+  forceRefreshLinks?: boolean
 ): Promise<CtecCourseAnalyticsResult> {
-  const result = await ensureReportEntries(params, titleHint, onProgress, { fetchLimit });
+  const result = await ensureReportEntries(params, titleHint, onProgress, {
+    fetchLimit,
+    forceRefreshLinks
+  });
   if (result.state !== "found") return result;
 
   return {
@@ -223,9 +227,9 @@ async function ensureReportEntries(
   params: CtecLinkParams,
   titleHint?: string,
   onProgress?: (message: string) => void,
-  options: { fetchLimit?: number } = {}
+  options: { fetchLimit?: number; forceRefreshLinks?: boolean } = {}
 ): Promise<EnsureReportEntriesResult> {
-  const links = await fetchCtecLinksBackground(params, false, onProgress);
+  const links = await fetchCtecLinksBackground(params, options.forceRefreshLinks ?? false, onProgress);
   if (links.state !== "found") return links;
 
   let entries = sortEntries(getIndexedEntriesForCourse(params, titleHint));
@@ -438,6 +442,7 @@ function parseScalarMetric(block: HTMLElement): CtecReportScalarMetric | undefin
 function parseHoursMetric(block: HTMLElement): CtecReportHoursMetric | undefined {
   let weightedTotal = 0;
   let responseCount = 0;
+  const buckets: { label: string; count: number }[] = [];
 
   for (const row of Array.from(block.querySelectorAll<HTMLTableRowElement>("table.block-table tbody tr"))) {
     const option = cleanText(row.querySelector("th")?.textContent);
@@ -451,12 +456,14 @@ function parseHoursMetric(block: HTMLElement): CtecReportHoursMetric | undefined
 
     weightedTotal += representativeHours * count;
     responseCount += count;
+    buckets.push({ label: option, count });
   }
 
   if (responseCount <= 0) return undefined;
   return {
     mean: weightedTotal / responseCount,
-    responseCount
+    responseCount,
+    buckets
   };
 }
 
@@ -495,7 +502,7 @@ function parseCommentGroup(
   return { prompt, comments };
 }
 
-function classifyQuestion(
+export function classifyQuestion(
   question: string
 ): "instruction" | "course" | "learned" | "challenging" | "stimulating" | "hours" | null {
   const normalized = normalizeSearch(question);

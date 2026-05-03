@@ -107,11 +107,16 @@ async function fetchCtecLinksInternal(
 
   // 3. Merge new entries into existing subject index.
   const existingEntries = cachedIndex?.entries ?? [];
-  // On force refresh, drop old entries for this course before merging.
+  // On force refresh, drop old entries for this course before merging — but
+  // first copy any cached reportSummary onto the freshly-fetched entries so
+  // we don't have to re-pull reports for terms we've already parsed.
+  const newEntries = forceRefresh
+    ? preserveReportSummaries(fetchResult.entries, existingEntries, subject, catalogNumber, instructor)
+    : fetchResult.entries;
   const base = forceRefresh
     ? existingEntries.filter((e) => !entryMatchesCourse(e, subject, catalogNumber, instructor))
     : existingEntries;
-  const merged = dedupeEntries([...base, ...fetchResult.entries]);
+  const merged = dedupeEntries([...base, ...newEntries]);
   writeSubjectIndex(subject, {
     subjectCode: subject,
     subjectLabel: cachedIndex?.subjectLabel ?? subject,
@@ -318,4 +323,30 @@ async function fetchCourseEntries(
 
 function isUnauthorizedStatus(status: number): boolean {
   return status === 401 || status === 403;
+}
+
+// Carries cached reportSummary forward across a force-refresh so a "check for
+// new CTECs" pass only needs to fetch reports for entries we haven't seen yet.
+// Match by actionId — that's the stable identifier from PeopleSoft for a
+// specific term/section combo.
+function preserveReportSummaries(
+  newEntries: CtecIndexedEntry[],
+  existingEntries: CtecIndexedEntry[],
+  subject: string,
+  catalogNumber: string,
+  instructor: string
+): CtecIndexedEntry[] {
+  const oldByActionId = new Map<string, CtecIndexedEntry>();
+  for (const e of existingEntries) {
+    if (entryMatchesCourse(e, subject, catalogNumber, instructor)) {
+      oldByActionId.set(e.actionId, e);
+    }
+  }
+  return newEntries.map((entry) => {
+    const old = oldByActionId.get(entry.actionId);
+    if (old?.reportSummary !== undefined) {
+      return { ...entry, reportSummary: old.reportSummary };
+    }
+    return entry;
+  });
 }
