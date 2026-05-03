@@ -39,6 +39,11 @@ export type CtecReportChart = {
   question: string;
   imageUrl: string;
   alt: string | null;
+  // Pixel-extracted bar counts (length 6, top→bottom). Captured at CTEC
+  // load time so the modal can render the histogram synchronously without
+  // re-fetching the PNG. Absent on entries cached before this field was
+  // added or when extraction failed.
+  counts?: number[];
 };
 
 export type CtecReportCommentGroup = {

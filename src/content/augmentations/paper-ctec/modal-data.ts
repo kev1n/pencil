@@ -71,6 +71,11 @@ export type ModalMetricSummary = {
 export type ModalChart = {
   imageUrl: string;
   alt: string | null;
+  // Pre-extracted integer bar counts from the source PNG, captured at CTEC
+  // load time. Lets the histogram render synchronously without an on-demand
+  // image fetch. Undefined for entries cached before pre-extraction landed
+  // or when extraction failed at load time.
+  counts?: number[];
 };
 
 export type ModalHoursBucket = { label: string; count: number };
@@ -241,7 +246,11 @@ function mapChartsToMetrics(
     // Only keep the first chart per metric — reports occasionally include
     // duplicate visuals for the same question.
     if (out[kind as ModalMetricKind]) continue;
-    out[kind as ModalMetricKind] = { imageUrl: chart.imageUrl, alt: chart.alt };
+    out[kind as ModalMetricKind] = {
+      imageUrl: chart.imageUrl,
+      alt: chart.alt,
+      counts: chart.counts
+    };
   }
   return out;
 }

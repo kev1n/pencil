@@ -16,16 +16,6 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 
 const RATING_LABELS = ["1", "2", "3", "4", "5", "6"] as const;
 
-// Per-bar fill colors, matching Bluera's source charts for visual continuity.
-const ROW_FILLS = [
-  "#fcb6b6", // salmon (row 1, very low)
-  "#a3d3d3", // teal
-  "#ebbcbc", // pink
-  "#fff196", // yellow
-  "#cdebaa", // green
-  "#bdb0b9"  // lavender (row 6, very high)
-] as const;
-
 export type HistogramKind = ModalMetricKind;
 
 export type RenderHistogramOptions = {
@@ -48,6 +38,9 @@ export type RenderHistogramOptions = {
   xAxisTitle?: string;
   // Optional fallback image rendered if extraction fails.
   fallbackOnError?: boolean;
+  // Bar counts already extracted at CTEC load time. When provided the
+  // histogram renders synchronously and skips the on-demand image fetch.
+  preExtractedCounts?: number[];
   className?: string;
 };
 
@@ -59,6 +52,23 @@ export function renderChartHistogram(
   wrapper.className =
     options.className ?? "bc-paper-ctec-chart-histogram";
   wrapper.dataset.kind = kind;
+
+  if (options.preExtractedCounts && total > 0) {
+    wrapper.append(
+      renderHistogramSvg(
+        doc,
+        {
+          counts: options.preExtractedCounts,
+          percentages: options.preExtractedCounts.map((c) => (c / total) * 100),
+          widths: [],
+          span: 0,
+          total
+        },
+        options
+      )
+    );
+    return wrapper;
+  }
 
   const placeholder = doc.createElement("div");
   placeholder.className = "bc-paper-ctec-chart-histogram-loading";
@@ -230,27 +240,15 @@ function renderHistogramSvg(
   yTitle.textContent = "% OF RESPONSES";
   svg.append(yTitle);
 
-  // Bars. Drawn first so the curve sits on top.
+  // Count label above each curve point (only when there's room above).
   pcts.forEach((p, i) => {
     if (p <= 0) return;
-    const x = xMid(i) - barW / 2;
     const yTop = yPct(p);
     const h = PT + innerH - yTop;
-    const rect = doc.createElementNS(SVG_NS, "rect");
-    rect.setAttribute("x", String(x));
-    rect.setAttribute("y", String(yTop));
-    rect.setAttribute("width", String(barW));
-    rect.setAttribute("height", String(h));
-    rect.setAttribute("fill", ROW_FILLS[i] ?? "#cdebaa");
-    rect.setAttribute("rx", "2");
-    rect.setAttribute("opacity", "0.9");
-    svg.append(rect);
-
-    // Count label above the bar (only when bar tall enough to leave room).
     if (h >= 14) {
       const t = doc.createElementNS(SVG_NS, "text");
       t.setAttribute("x", String(xMid(i)));
-      t.setAttribute("y", String(yTop - 3));
+      t.setAttribute("y", String(yTop - 6));
       t.setAttribute("text-anchor", "middle");
       t.setAttribute("font-size", "9.5");
       t.setAttribute("fill", "#3a2730");

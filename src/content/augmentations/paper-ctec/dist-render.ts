@@ -61,6 +61,7 @@ export function renderMetricDistribution(
       rowValues: isHours ? HOURS_HISTOGRAM_VALUES : RATING_HISTOGRAM_VALUES,
       mean: typeof mean === "number" ? mean : undefined,
       xAxisTitle: isHours ? "HOURS PER WEEK" : "RATING",
+      preExtractedCounts: chart.counts,
       className
     });
   }

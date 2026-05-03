@@ -10,6 +10,7 @@ import type {
 } from "../ctec-navigation/types";
 import { fetchTextResultViaBackground } from "../../remote-fetch";
 import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
+import { extractChartFromImage } from "../paper-ctec/chart-extract";
 import { fetchCtecLinksBackground, readCoursePendingRowCount } from "./fetcher";
 import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesCourse, isAuthResponse, termToSortKey } from "./helpers";
@@ -300,6 +301,12 @@ async function ensureReportEntries(
     }
 
     const summary = parseCtecReportHtml(response.text, url);
+    if (summary) {
+      await extractChartCountsForSummary(
+        summary,
+        getCurrentPeopleSoftTaskSignal() ?? undefined
+      );
+    }
     cacheReportSummary(params.subject, url, summary);
   }
 
@@ -521,6 +528,32 @@ function parseHoursMetric(block: HTMLElement): CtecReportHoursMetric | undefined
     responseCount,
     buckets
   };
+}
+
+// Pre-extract integer bar counts from each Bluera chart PNG so the modal
+// can render the histogram synchronously later. Mutates summary.charts in
+// place; failures are silently dropped (the renderer still has on-demand
+// fallback for charts without counts). Charts run in parallel per report —
+// all reports remain sequential to keep traffic ordered.
+async function extractChartCountsForSummary(
+  summary: CtecReportSummary,
+  signal?: AbortSignal
+): Promise<void> {
+  await Promise.all(
+    summary.charts.map(async (chart) => {
+      if (chart.counts) return;
+      const kind = classifyQuestion(chart.question);
+      if (!kind) return;
+      const metric = summary.metrics[kind];
+      if (!metric || metric.responseCount <= 0) return;
+      const result = await extractChartFromImage(
+        chart.imageUrl,
+        metric.responseCount,
+        signal
+      );
+      if (result.ok) chart.counts = result.data.counts;
+    })
+  );
 }
 
 function parseCharts(
