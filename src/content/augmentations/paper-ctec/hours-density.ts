@@ -97,7 +97,12 @@ export function renderHoursDensity(
   for (let v = 0; v <= yMax; v += step) ticks.push(v);
   const yPct = (v: number) => PT + innerH - (v / yMax) * innerH;
 
-  const xMid = (i: number) => PL + ((i + 0.5) / numBuckets) * innerW;
+  // Distribute bucket centers edge-to-edge from PL to PL+innerW so the
+  // chart has no half-slot margin on either side.
+  const xMid = (i: number) =>
+    numBuckets > 1
+      ? PL + (i * innerW) / (numBuckets - 1)
+      : PL + innerW / 2;
 
   // Catmull-Rom → Cubic Bezier path through bucket midpoints. The area is
   // anchored to baseline at the first and last bucket centers (not the plot
