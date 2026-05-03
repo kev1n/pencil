@@ -93,8 +93,6 @@ type MountedState = {
   // Sections that share a bare catalog (e.g. "111-0" + "111-SG") come from
   // the same CAESAR search response.
   liveCache: Map<string, CourseLiveCache>;
-  // Dedupes in-flight background lookupClass prefetches.
-  detailPrefetch: Map<string, Promise<void>>;
   activeTab: TabId;
   // Last tab `applyTabVisibility` actually applied to the DOM. Without
   // this, every mutation observer tick would re-toggle the native-hider
@@ -186,7 +184,6 @@ export class ClassSearchAugmentation implements Augmentation {
         loadedTerms: new Map(),
         searchDebounce: null,
         liveCache: new Map(),
-        detailPrefetch: new Map(),
         activeTab: readActiveTab(),
         appliedTab: null
       };
@@ -956,11 +953,12 @@ export class ClassSearchAugmentation implements Augmentation {
       }
     }
 
-    // The cart-add Select-step HTML is the wizard "Confirm" page, not
-    // SSR_CLSRCH_DTL — wrong IDs for the seats-notes parser. Fire a
-    // proper lookupClass in the background to warm the shared cache.
-    if (result.ok || result.alreadyInCart) {
-      void prefetchSeatsNotes(state, classNumber);
+    // Cart chain now drives via MTG_CLASSNAME → SSR_CLSRCH_DTL, so the
+    // detail HTML it returns is already in the shape seats-notes wants.
+    // Write it straight to the shared cache instead of re-fetching.
+    if (result.seatsNotesPayload) {
+      const seatsResult = toSeatsNotesResult(result.seatsNotesPayload);
+      writeSeatsNotesCache(classNumber, { result: seatsResult, fetchedAt: Date.now() });
     }
 
     if (result.ok) {
@@ -1092,39 +1090,6 @@ function mergeLiveCache(
   const mergedGroup: CaesarCourseGroup = { ...existingMatch, sections: mergedSections };
   const mergedGroups = existingGroups.map((g) => (g === existingMatch ? mergedGroup : g));
   state.liveCache.set(key, { status: "ready", result: { groups: mergedGroups } });
-}
-
-// Best-effort: warm the shared seats-notes cache via the canonical
-// search → MTG_CLASSNAME → SSR_CLSRCH_DTL chain. Errors are swallowed;
-// the cart augmentation retries on demand if the cache is empty.
-function prefetchSeatsNotes(state: MountedState, classNumber: string): Promise<void> {
-  if (state.detailPrefetch.has(classNumber)) {
-    return state.detailPrefetch.get(classNumber)!;
-  }
-  const job = (async () => {
-    try {
-      const lookupResponse = await lookupClass(
-        {
-          type: "lookup-class",
-          classNumber,
-          careerHint: state.career === "TGS" ? "TGS" : "UGRD"
-        },
-        { priority: "background", owner: "class-search-prefetch" }
-      );
-      const result = toSeatsNotesResult(lookupResponse);
-      writeSeatsNotesCache(classNumber, { result, fetchedAt: Date.now() });
-    } catch (error) {
-      if (isRetryablePeopleSoftTaskError(error)) return;
-      // Best-effort: log and move on. We don't write a failure entry,
-      // since seats-notes treats an empty cache as "click Refresh" and
-      // that's the right user-facing affordance.
-      console.warn("[bc-class-search] seats prefetch failed", error);
-    } finally {
-      state.detailPrefetch.delete(classNumber);
-    }
-  })();
-  state.detailPrefetch.set(classNumber, job);
-  return job;
 }
 
 function buildDetailFooter(

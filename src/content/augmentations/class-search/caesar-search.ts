@@ -12,6 +12,7 @@ import {
   SEARCH_ENDPOINT,
   SEARCH_ENTRY_URL
 } from "../../peoplesoft/shared";
+import type { LookupClassSuccess } from "../../../shared/messages";
 
 import { bareCatalogNumber, formatCatalogForDisplay } from "./catalog-format";
 
@@ -64,11 +65,16 @@ export type CartFlowResult =
       classNumber: string;
       sectionLabel: string;
       courseTitle: string;
-      // Raw section-detail HTML returned by CAESAR's Select step. Includes
-      // capacity, enrollment totals, class notes, etc. Caller pipes this
-      // through seats-notes' parser to populate the shared cache so the
-      // shopping-cart augmentation sees the data without an extra fetch.
+      // Raw SSR_CLSRCH_DTL HTML from the cart chain's MTG_CLASSNAME step.
+      // Includes capacity, enrollment totals, class notes, etc. Caller
+      // pipes this through seats-notes' parser to populate the shared
+      // cache so the shopping-cart augmentation sees the data without
+      // any extra fetches.
       detailHtml: string;
+      // Same payload, pre-shaped as a LookupClassResponse so the caller
+      // can hand it straight to `toSeatsNotesResult` without rebuilding
+      // a synthetic search/detail pair.
+      seatsNotesPayload: LookupClassSuccess;
       // Parsed groups from the class-number search response. Always
       // contains the matched group with one section row carrying live
       // status / instructor / room. Caller can stamp this into its
@@ -86,6 +92,7 @@ export type CartFlowResult =
       // instead of a generic failure.
       alreadyInCart?: boolean;
       detailHtml?: string;
+      seatsNotesPayload?: LookupClassSuccess;
       searchGroups?: CaesarCourseGroup[];
     };
 
@@ -131,6 +138,7 @@ type FailExtras = {
   classNumber?: string;
   alreadyInCart?: boolean;
   detailHtml?: string;
+  seatsNotesPayload?: LookupClassSuccess;
   searchGroups?: CaesarCourseGroup[];
 };
 
@@ -165,6 +173,7 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       return { ok: false, error: "Missing CAESAR class number — load CAESAR data first." };
     }
 
+    // Step 1: GET the search entry page to seed PeopleSoft session state.
     const entryHtml = await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
     const entryDoc = parseAjaxFragment(entryHtml);
     const baseParams = serializeFormFromDoc(entryDoc);
@@ -172,6 +181,7 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       return { ok: false, error: "Missing PeopleSoft session — try refreshing the page." };
     }
 
+    // Step 2: POST class-number search → search results page.
     const searchPost = buildClassNumberSearchParams(baseParams, {
       termId: input.termId,
       career: input.career,
@@ -192,6 +202,10 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       });
     }
 
+    // CAESAR omits the Select button when the section is already in the
+    // user's cart. We use that signal as our early "already in cart" exit
+    // even though we no longer POST that button — going further would just
+    // hit a generic CAESAR error a couple of round-trips later.
     if (!match.section.selectAvailable) {
       return fail(`Class #${classNumber} is already in your shopping cart.`, {
         classNumber,
@@ -200,9 +214,16 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       });
     }
 
+    // Step 3: POST MTG_CLASSNAME$N → SSR_CLSRCH_DTL ("Class Detail").
+    // Going through the section-name link instead of the row's Select
+    // button gets us the canonical SSR_CLSRCH_DTL page in the same hop —
+    // that page carries the SSR_CLS_DTL_WRK_* fields the seats-notes
+    // parser needs, so we don't have to issue a second GET-entry +
+    // search + MTG_CLASSNAME chain to warm the cache afterward.
     const searchState = extractHiddenInputs(searchHtml);
-    const selectParams = buildActionParams(searchState, match.section.selectActionId);
-    const detailHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), selectParams);
+    const mtgActionId = `MTG_CLASSNAME$${match.section.rowIndex}`;
+    const detailParams = buildActionParams(searchState, mtgActionId);
+    const detailHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), detailParams);
     if (looksLikeError(detailHtml)) {
       return fail(extractErrorMessage(detailHtml) ?? "CAESAR rejected the section selection.", {
         classNumber: match.section.classNumber,
@@ -211,31 +232,55 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       });
     }
 
-    const nextActionId = findNextActionId(detailHtml);
-    if (!nextActionId) {
+    // Shape the detail page into the LookupClassResponse contract so the
+    // caller can pipe it straight through `toSeatsNotesResult`.
+    const seatsNotesPayload = buildSeatsNotesPayloadFromDetail(
+      match.section.classNumber,
+      detailHtml
+    );
+
+    // Steps 4+: walk the DERIVED_CLS_DTL_NEXT_PB chain until CAESAR stops
+    // offering one. Reaching SSR_CLSRCH_DTL gives us a "Select Class"
+    // (NEXT_PB) button that advances to the wizard's "Confirm Your
+    // Selection" page; that page also has a NEXT_PB button that finally
+    // commits the cart-add. Walking the chain instead of hard-coding two
+    // hops keeps us robust if CAESAR ever drops or adds an intermediate
+    // step (e.g. preferences) for some sections.
+    let currentHtml = detailHtml;
+    const MAX_NEXT_HOPS = 3;
+    let hops = 0;
+    while (hops < MAX_NEXT_HOPS) {
+      const nextActionId = findNextActionId(currentHtml);
+      if (!nextActionId) break;
+      hops += 1;
+      const state = extractHiddenInputs(currentHtml);
+      const nextParams = buildActionParams(state, nextActionId);
+      const nextHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), nextParams);
+      if (looksLikeError(nextHtml)) {
+        return fail(extractErrorMessage(nextHtml) ?? "CAESAR refused to add the class.", {
+          classNumber: match.section.classNumber,
+          detailHtml,
+          seatsNotesPayload,
+          searchGroups: groups
+        });
+      }
+      currentHtml = nextHtml;
+    }
+    if (hops === 0) {
       return fail("Section needs extra confirmation in CAESAR. Use Classic Search for this one.", {
         classNumber: match.section.classNumber,
         detailHtml,
+        seatsNotesPayload,
         searchGroups: groups
       });
     }
 
-    const detailState = extractHiddenInputs(detailHtml);
-    const nextParams = buildActionParams(detailState, nextActionId);
-    const finalHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), nextParams);
-    if (looksLikeError(finalHtml)) {
-      return fail(extractErrorMessage(finalHtml) ?? "CAESAR refused to add the class.", {
-        classNumber: match.section.classNumber,
-        detailHtml,
-        searchGroups: groups
-      });
-    }
-
-    const success = isCartLandingPage(finalHtml, match.section.classNumber);
+    const success = isCartLandingPage(currentHtml, match.section.classNumber);
     if (!success.ok) {
       return fail(success.reason, {
         classNumber: match.section.classNumber,
         detailHtml,
+        seatsNotesPayload,
         searchGroups: groups
       });
     }
@@ -246,6 +291,7 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       sectionLabel: match.section.sectionLabel,
       courseTitle: match.group.title,
       detailHtml,
+      seatsNotesPayload,
       searchGroups: groups
     };
   } catch (error) {
@@ -254,6 +300,33 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       error: error instanceof Error ? error.message : String(error)
     };
   }
+}
+
+// Re-package an SSR_CLSRCH_DTL HTML response into the LookupClassResponse
+// shape so the seats-notes parser can consume it without changes. Only
+// the fields `toSeatsNotesResult` actually reads need to be populated.
+function buildSeatsNotesPayloadFromDetail(
+  classNumber: string,
+  detailHtml: string
+): LookupClassSuccess {
+  return {
+    ok: true,
+    requestedClassNumber: classNumber,
+    criteriaClassNumber: classNumber,
+    firstResultClassNumber: classNumber,
+    firstResultCourseTitle: null,
+    firstResultSection: null,
+    firstResultInstructor: null,
+    firstResultDaysTimes: null,
+    firstResultRoom: null,
+    firstResultMeetingDates: null,
+    firstResultGrading: null,
+    firstResultStatus: null,
+    nextActionForDetails: null,
+    searchPageId: null,
+    detailPageId: "SSR_CLSRCH_DTL",
+    detailResponseText: detailHtml
+  };
 }
 
 // ────────────────────────────────────────────────────────────────────────────
