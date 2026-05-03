@@ -393,10 +393,12 @@ function renderCommentCard(
   meta.append(length);
   card.append(meta);
 
-  const prompt = doc.createElement("div");
-  prompt.className = "bc-paper-ctec-modal-comment-prompt";
-  prompt.textContent = `"${comment.prompt}"`;
-  card.append(prompt);
+  if (!isHiddenPrompt(comment.prompt)) {
+    const prompt = doc.createElement("div");
+    prompt.className = "bc-paper-ctec-modal-comment-prompt";
+    prompt.textContent = `"${comment.prompt}"`;
+    card.append(prompt);
+  }
 
   const text = doc.createElement("div");
   text.className = "bc-paper-ctec-modal-comment-text";
@@ -513,4 +515,17 @@ function sentimentLabel(filter: ModalCommentSentimentFilter): string {
   if (filter === "mix") return "Mixed";
   if (filter === "neu") return "Neutral";
   return "All";
+}
+
+const HIDDEN_PROMPTS = new Set<string>([
+  "please summarize your reaction to this course focusing on the aspects that were most important to you"
+]);
+
+function isHiddenPrompt(prompt: string): boolean {
+  const normalized = prompt
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[.!?;:,]+$/u, "")
+    .trim();
+  return HIDDEN_PROMPTS.has(normalized);
 }

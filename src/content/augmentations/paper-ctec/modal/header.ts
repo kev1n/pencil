@@ -130,9 +130,39 @@ export function renderHeader(
   }
 
   if (input.data) {
+    header.append(renderDisclaimer(doc));
     header.append(renderTabs(doc, state, callbacks, input.data));
   }
   return header;
+}
+
+// Persistent header note clarifying what trend deltas mean and the project's
+// stance on instructor comparisons. Sits between the identity row and tabs
+// so users see it on every analytics view.
+function renderDisclaimer(doc: Document): HTMLElement {
+  const note = doc.createElement("div");
+  note.className = "bc-paper-ctec-modal-disclaimer";
+
+  const icon = doc.createElement("span");
+  icon.className = "bc-paper-ctec-modal-disclaimer-icon";
+  icon.setAttribute("aria-hidden", "true");
+  icon.textContent = "i";
+  note.append(icon);
+
+  const text = doc.createElement("span");
+  text.className = "bc-paper-ctec-modal-disclaimer-text";
+  const lead = doc.createElement("strong");
+  lead.textContent =
+    "We only compare this professor to past times they taught this same class.";
+  text.append(
+    lead,
+    doc.createTextNode(
+      " Every trend and “vs prior term” number is just this professor's earlier sections of this exact course. Please don't use this to compare one professor against another — we don't support or condone that."
+    )
+  );
+  note.append(text);
+
+  return note;
 }
 
 function renderRefreshFlash(

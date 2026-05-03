@@ -99,8 +99,10 @@ export function renderHoursDensity(
 
   const xMid = (i: number) => PL + ((i + 0.5) / numBuckets) * innerW;
 
-  // Catmull-Rom → Cubic Bezier path through bucket midpoints, anchored to
-  // the baseline at both ends so the area fills cleanly.
+  // Catmull-Rom → Cubic Bezier path through bucket midpoints. The area is
+  // anchored to baseline at the first and last bucket centers (not the plot
+  // edges) so the fill doesn't sweep down to the chart's left/right padding
+  // and create misleading wings beyond the data.
   const buildPath = (
     pcts: number[]
   ): { path: string; pts: [number, number][] } => {
@@ -115,9 +117,11 @@ export function renderHoursDensity(
       ];
     });
     if (pts.length === 0) return { path: "", pts };
+    const firstX = pts[0]![0];
+    const lastX = pts[pts.length - 1]![0];
     const segs: string[] = [];
-    segs.push(`M ${PL} ${PT + innerH}`);
-    segs.push(`L ${pts[0]![0]} ${pts[0]![1]}`);
+    segs.push(`M ${firstX} ${baseline}`);
+    segs.push(`L ${firstX} ${pts[0]![1]}`);
     for (let i = 0; i < pts.length - 1; i++) {
       const p0 = pts[i - 1] ?? pts[i]!;
       const p1 = pts[i]!;
@@ -129,7 +133,7 @@ export function renderHoursDensity(
       const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
       segs.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2[0]} ${p2[1]}`);
     }
-    segs.push(`L ${PL + innerW} ${PT + innerH} Z`);
+    segs.push(`L ${lastX} ${baseline} Z`);
     return { path: segs.join(" "), pts };
   };
 

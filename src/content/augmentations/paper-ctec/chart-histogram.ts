@@ -138,9 +138,15 @@ function renderHistogramSvg(
   const yPct = (v: number) => PT + innerH - (v / yMax) * innerH;
 
   const numBars = labels.length;
-  const xMid = (i: number) => PL + ((i + 0.5) / numBars) * innerW;
+  // Bar width is sized first; bars are then distributed so the leftmost
+  // bar's left edge sits at PL and the rightmost bar's right edge at
+  // PL+innerW (no half-slot margin on either side).
   const barSlot = innerW / numBars;
   const barW = Math.max(8, barSlot * 0.62);
+  const xMid = (i: number) =>
+    numBars > 1
+      ? PL + barW / 2 + (i * (innerW - barW)) / (numBars - 1)
+      : PL + innerW / 2;
 
   // Mean indicator: interpolate the mean's x-position along the rowValues
   // anchors. Outside the range clamps to the extreme.
@@ -254,13 +260,18 @@ function renderHistogramSvg(
     }
   });
 
-  // Catmull-Rom distribution curve overlay through bar tops.
+  // Catmull-Rom distribution curve overlay through bar tops. The area is
+  // anchored to baseline at the first and last bar centers (not the plot
+  // edges) so the fill doesn't sweep down to the chart's left/right padding
+  // and create misleading wings beyond the data.
   const baseline = PT + innerH;
   const pts: [number, number][] = pcts.map((p, i) => [xMid(i), yPct(p)]);
   const segs: string[] = [];
   if (pts.length > 0) {
-    segs.push(`M ${PL} ${baseline}`);
-    segs.push(`L ${pts[0]![0]} ${pts[0]![1]}`);
+    const firstX = pts[0]![0];
+    const lastX = pts[pts.length - 1]![0];
+    segs.push(`M ${firstX} ${baseline}`);
+    segs.push(`L ${firstX} ${pts[0]![1]}`);
     for (let i = 0; i < pts.length - 1; i += 1) {
       const p0 = pts[i - 1] ?? pts[i]!;
       const p1 = pts[i]!;
@@ -272,7 +283,7 @@ function renderHistogramSvg(
       const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
       segs.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2[0]} ${p2[1]}`);
     }
-    segs.push(`L ${PL + innerW} ${baseline} Z`);
+    segs.push(`L ${lastX} ${baseline} Z`);
   }
   const curvePath = segs.join(" ");
 

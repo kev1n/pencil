@@ -88,6 +88,79 @@ export function modalChartStyles(): string {
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
+    .bc-paper-ctec-modal-kpi-label-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bc-paper-ctec-modal-kpi-info {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: 0;
+      text-transform: none;
+      opacity: 0.55;
+      cursor: help;
+    }
+    .bc-paper-ctec-modal-kpi-info:hover,
+    .bc-paper-ctec-modal-kpi-info:focus-visible {
+      opacity: 1;
+      outline: none;
+    }
+    .bc-paper-ctec-modal-kpi-tooltip {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: -8px;
+      width: 260px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #1f2937;
+      color: #f9fafb;
+      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      line-height: 1.45;
+      letter-spacing: 0;
+      text-transform: none;
+      text-align: left;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 120ms ease, visibility 120ms ease;
+      z-index: 2147483647;
+    }
+    .bc-paper-ctec-modal-kpi-tooltip::before {
+      content: "";
+      position: absolute;
+      bottom: 100%;
+      left: 14px;
+      border: 6px solid transparent;
+      border-bottom-color: #1f2937;
+    }
+    .bc-paper-ctec-modal-kpi-info:hover .bc-paper-ctec-modal-kpi-tooltip,
+    .bc-paper-ctec-modal-kpi-info:focus-visible .bc-paper-ctec-modal-kpi-tooltip {
+      opacity: 1;
+      visibility: visible;
+    }
+    .dark .bc-paper-ctec-modal-kpi-tooltip {
+      background: #525252;
+      color: #fafafa;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+    .dark .bc-paper-ctec-modal-kpi-tooltip::before {
+      border-bottom-color: #525252;
+    }
     .bc-paper-ctec-modal-kpi-value {
       display: flex;
       align-items: baseline;
@@ -127,6 +200,9 @@ export function modalChartStyles(): string {
       border-radius: 12px;
       padding: 16px 20px 18px;
       background: white;
+    }
+    .bc-paper-ctec-modal-global-section {
+      margin-bottom: 28px;
     }
     .bc-paper-ctec-modal-card-head {
       display: flex;
@@ -418,6 +494,9 @@ export function modalChartStyles(): string {
     .dark .bc-paper-ctec-chart-histogram-error {
       color: #fda4af;
       background: rgba(127, 29, 29, 0.32);
+    }
+    .dark .bc-paper-ctec-modal-dist-image {
+      background: transparent;
     }
     .dark .bc-paper-ctec-modal-dist-empty {
       background: #262626;

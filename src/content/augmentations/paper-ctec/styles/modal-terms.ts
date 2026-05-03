@@ -11,11 +11,27 @@ export function modalTermStyles(): string {
     }
     .bc-paper-ctec-modal-heatmap {
       display: grid;
-      grid-template-columns: 0.9fr repeat(6, 1fr);
       gap: 6px;
       align-items: center;
     }
     .bc-paper-ctec-modal-heatmap-spacer {}
+    /* Group label row above the metric headers — matches the KPI strip
+       categories (Overall / Quality / Character / Workload). */
+    .bc-paper-ctec-modal-heatmap-group {
+      padding: 4px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      text-align: center;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.04);
+    }
+    .bc-paper-ctec-modal-heatmap-group.is-group-overall {
+      color: #66023c;
+      background: rgba(102, 2, 60, 0.08);
+    }
     .bc-paper-ctec-modal-heatmap-header {
       font-size: 10px;
       color: #6b7280;
@@ -23,6 +39,9 @@ export function modalTermStyles(): string {
       text-align: center;
       letter-spacing: 0.06em;
       text-transform: uppercase;
+    }
+    .bc-paper-ctec-modal-heatmap-header.is-group-overall {
+      color: #66023c;
     }
     .bc-paper-ctec-modal-heatmap-term {
       padding: 8px 8px 8px 0;
@@ -247,6 +266,17 @@ export function modalTermStyles(): string {
     .dark .bc-paper-ctec-modal-heatmap-header {
       color: #a3a3a3;
     }
+    .dark .bc-paper-ctec-modal-heatmap-header.is-group-overall {
+      color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-heatmap-group {
+      color: #a3a3a3;
+      background: rgba(248, 250, 252, 0.06);
+    }
+    .dark .bc-paper-ctec-modal-heatmap-group.is-group-overall {
+      color: #fbcfe8;
+      background: rgba(252, 165, 207, 0.14);
+    }
     .dark .bc-paper-ctec-modal-heatmap-term-title {
       color: #fafafa;
     }
@@ -312,7 +342,7 @@ export function modalTermStyles(): string {
       color: #fafafa;
     }
     .dark .bc-paper-ctec-modal-term-chart-image {
-      background: #525252;
+      background: transparent;
     }
     @media (max-width: 720px) {
       .dark .bc-paper-ctec-modal-rail {

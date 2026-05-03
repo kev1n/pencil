@@ -6,9 +6,9 @@ import {
   MODAL_METRIC_LABELS,
   MODAL_METRIC_SCALES,
   MODAL_RATING_METRICS,
+  computeGlobalMean,
   type ModalDisplayData,
-  type ModalMetricKind,
-  type ModalTerm
+  type ModalMetricKind
 } from "../modal-data";
 import { preventAndStop } from "../ui-shared";
 import { renderDistChart, renderTrendChart } from "./charts";
@@ -20,11 +20,6 @@ import type {
   ModalActiveView
 } from "./types";
 
-// Three rating metrics that compose the Global KPI: instruction quality,
-// course rating, and amount learned. Excludes "challenging" and
-// "stimulating" because those are descriptive (a high challenge score
-// isn't strictly "good") and "hours" because it's on a different scale.
-const GLOBAL_KPI_METRICS = ["instruction", "course", "learned"] as const;
 const GLOBAL_KPI_TOOLTIP =
   "Global = average of the Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest because they're descriptive rather than quality signals, and excludes Hours because it's a different scale.";
 
@@ -48,11 +43,10 @@ export function renderOverview(
 
   if (state.activeMetric === "global") {
     root.append(renderGlobalSection(doc, data, state, callbacks));
+    root.append(renderWorkloadCard(doc, data));
   } else {
     root.append(renderMetricSection(doc, data, state, state.activeMetric));
   }
-
-  root.append(renderWorkloadCard(doc, data));
 
   return root;
 }
@@ -104,6 +98,7 @@ function renderGlobalSection(
   callbacks: AnalyticsModalCallbacks
 ): HTMLElement {
   const wrapper = doc.createElement("div");
+  wrapper.className = "bc-paper-ctec-modal-global-section";
 
   const heatCard = renderCard(
     doc,
@@ -325,15 +320,14 @@ function renderGlobalKpiCard(
 ): HTMLElement {
   const isActive: boolean = state.activeMetric === "global";
 
-  const overallMean = computeGlobalMean(data, /* terms */ data.terms);
+  const overallMean = computeGlobalMean(data.terms);
   const trend = data.trendTerms
-    .map((term) => computeGlobalMean(data, [term]))
+    .map((term) => computeGlobalMean([term]))
     .filter((value) => value > 0);
 
   const button = doc.createElement("button");
   button.type = "button";
   button.className = `bc-paper-ctec-modal-kpi is-global${isActive ? " is-active" : ""}`;
-  button.title = GLOBAL_KPI_TOOLTIP;
   button.addEventListener("click", (event) => {
     preventAndStop(event);
     callbacks.onMetricChange("global" satisfies ModalActiveView);
@@ -342,10 +336,29 @@ function renderGlobalKpiCard(
   const top = doc.createElement("div");
   top.className = "bc-paper-ctec-modal-kpi-top";
 
+  const labelGroup = doc.createElement("span");
+  labelGroup.className = "bc-paper-ctec-modal-kpi-label-group";
+
   const label = doc.createElement("span");
   label.className = "bc-paper-ctec-modal-kpi-label";
   label.textContent = "Global";
-  top.append(label);
+  labelGroup.append(label);
+
+  const info = doc.createElement("span");
+  info.className = "bc-paper-ctec-modal-kpi-info";
+  info.setAttribute("aria-label", GLOBAL_KPI_TOOLTIP);
+  info.tabIndex = 0;
+  info.append(doc.createTextNode("i"));
+  const tip = doc.createElement("span");
+  tip.className = "bc-paper-ctec-modal-kpi-tooltip";
+  tip.textContent = GLOBAL_KPI_TOOLTIP;
+  info.append(tip);
+  // Don't propagate clicks on the info icon — it's just a tooltip target,
+  // not a separate action.
+  info.addEventListener("click", preventAndStop);
+  labelGroup.append(info);
+
+  top.append(labelGroup);
 
   if (trend.length >= 2) {
     top.append(renderSparkline(doc, trend, 56, 18));
@@ -363,29 +376,33 @@ function renderGlobalKpiCard(
   value.append(big, unit);
   button.append(value);
 
-  const sub = doc.createElement("div");
-  sub.className = "bc-paper-ctec-modal-kpi-delta is-muted";
-  sub.textContent = "Inst + Course + Learn";
-  button.append(sub);
+  const last = trend[trend.length - 1];
+  const prev = trend.length >= 2 ? trend[trend.length - 2] : null;
+  const delta = prev != null && last != null ? last - prev : 0;
+  const positive = delta >= 0;
+  const showDelta = data.terms.length >= 2;
+
+  const deltaRow = doc.createElement("div");
+  deltaRow.className = `bc-paper-ctec-modal-kpi-delta${
+    showDelta ? (positive ? " is-positive" : " is-negative") : " is-muted"
+  }`;
+  if (!showDelta) {
+    deltaRow.textContent = "only term taught";
+  } else if (delta === 0) {
+    deltaRow.textContent = "—";
+  } else {
+    const arrow = positive ? "▲" : "▼";
+    const note = doc.createElement("span");
+    note.className = "bc-paper-ctec-modal-kpi-delta-note";
+    note.textContent = " vs prior term";
+    deltaRow.append(
+      doc.createTextNode(`${arrow} ${Math.abs(delta).toFixed(1)}`),
+      note
+    );
+  }
+  button.append(deltaRow);
 
   return button;
-}
-
-// Avg of the Instruction / Course / Learned means across the supplied
-// terms. Each metric's contribution is its mean across those terms (not a
-// per-term mean of all metrics) so a course missing one of the three on
-// some term doesn't double-penalize. Returns 0 if no relevant data exists.
-function computeGlobalMean(_data: ModalDisplayData, terms: ModalTerm[]): number {
-  const perMetricValues: number[] = [];
-  for (const kind of GLOBAL_KPI_METRICS) {
-    const values = terms
-      .map((term) => term.metrics[kind])
-      .filter((value): value is number => typeof value === "number");
-    if (values.length === 0) continue;
-    perMetricValues.push(values.reduce((sum, v) => sum + v, 0) / values.length);
-  }
-  if (perMetricValues.length === 0) return 0;
-  return perMetricValues.reduce((sum, v) => sum + v, 0) / perMetricValues.length;
 }
 
 function renderSparkline(

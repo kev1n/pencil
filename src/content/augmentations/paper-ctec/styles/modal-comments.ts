@@ -310,6 +310,39 @@ export function modalCommentStyles(): string {
       padding: 1px 2px;
       border-radius: 2px;
     }
+    .dark .bc-paper-ctec-modal-rail,
+    .dark .bc-paper-ctec-modal-comments-main,
+    .dark .bc-paper-ctec-modal-overview,
+    .dark .bc-paper-ctec-modal-terms {
+      scrollbar-color: #525252 #262626;
+    }
+    .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar,
+    .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar,
+    .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar,
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-track,
+    .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-track,
+    .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-track,
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-track {
+      background: #262626;
+    }
+    .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-thumb,
+    .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-thumb,
+    .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-thumb,
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb {
+      background: #525252;
+      border-radius: 8px;
+      border: 2px solid #262626;
+    }
+    .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-thumb:hover,
+    .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-thumb:hover,
+    .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-thumb:hover,
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb:hover {
+      background: #737373;
+    }
     .dark .bc-paper-ctec-modal-rail {
       border-right-color: #404040;
       background: #262626;

@@ -29,6 +29,30 @@ export const MODAL_METRIC_LABELS: Record<ModalMetricKind, string> = {
   hours: "Hours"
 };
 
+// The three rating metrics that compose the Global KPI: instruction
+// quality, course rating, and amount learned. Excludes "challenging" and
+// "stimulating" (descriptive, not quality signals) and "hours" (different
+// scale). Shared by the KPI card and the heatmap so both compute the
+// Global score the same way.
+export const GLOBAL_KPI_METRICS = ["instruction", "course", "learned"] as const;
+
+// Avg of the GLOBAL_KPI_METRICS means across the supplied terms. Each
+// metric's contribution is its own mean across those terms (not a per-term
+// mean of all metrics) so a course missing one of the three on some term
+// doesn't double-penalize. Returns 0 if no relevant data exists.
+export function computeGlobalMean(terms: ModalTerm[]): number {
+  const perMetricValues: number[] = [];
+  for (const kind of GLOBAL_KPI_METRICS) {
+    const values = terms
+      .map((term) => term.metrics[kind])
+      .filter((value): value is number => typeof value === "number");
+    if (values.length === 0) continue;
+    perMetricValues.push(values.reduce((sum, v) => sum + v, 0) / values.length);
+  }
+  if (perMetricValues.length === 0) return 0;
+  return perMetricValues.reduce((sum, v) => sum + v, 0) / perMetricValues.length;
+}
+
 export const MODAL_METRIC_SCALES: Record<ModalMetricKind, number> = {
   instruction: 6,
   course: 6,

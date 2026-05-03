@@ -335,6 +335,52 @@ export function modalStyles(): string {
     @keyframes bc-paper-ctec-modal-spin {
       to { transform: rotate(360deg); }
     }
+    .bc-paper-ctec-modal-disclaimer {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      margin-top: 14px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: #f7f7f8;
+      border: 1px solid #e6e6ea;
+      font-size: 11.5px;
+      line-height: 1.45;
+      color: #4b5563;
+    }
+    .bc-paper-ctec-modal-disclaimer strong {
+      color: #1f2937;
+      font-weight: 600;
+    }
+    .bc-paper-ctec-modal-disclaimer-icon {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+      margin-top: 2px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      font-family: ui-serif, Georgia, "Times New Roman", serif;
+      font-style: italic;
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1;
+      opacity: 0.7;
+    }
+    .bc-paper-ctec-modal-disclaimer-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .dark .bc-paper-ctec-modal-disclaimer {
+      background: #404040;
+      border-color: #525252;
+      color: #d4d4d4;
+    }
+    .dark .bc-paper-ctec-modal-disclaimer strong {
+      color: #fafafa;
+    }
     .bc-paper-ctec-modal-tabs {
       display: flex;
       gap: 2px;
