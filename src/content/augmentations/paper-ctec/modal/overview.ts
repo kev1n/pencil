@@ -1,4 +1,3 @@
-import { renderMultilineRatingsChart } from "../chart-multiline";
 import {
   renderHoursDensity,
   type HoursDensitySeries
@@ -8,14 +7,11 @@ import {
   MODAL_METRIC_SCALES,
   MODAL_RATING_METRICS,
   type ModalDisplayData,
-  type ModalMetricKind
+  type ModalMetricKind,
+  type ModalTerm
 } from "../modal-data";
 import { preventAndStop } from "../ui-shared";
-import {
-  renderDistChart,
-  renderStackedRatingsChart,
-  renderTrendChart
-} from "./charts";
+import { renderDistChart, renderTrendChart } from "./charts";
 import { pickSelectedTerm, renderCard } from "./common";
 import { renderHeatmap } from "./heatmap";
 import type {
@@ -23,6 +19,14 @@ import type {
   AnalyticsModalState,
   ModalActiveView
 } from "./types";
+
+// Three rating metrics that compose the Global KPI: instruction quality,
+// course rating, and amount learned. Excludes "challenging" and
+// "stimulating" because those are descriptive (a high challenge score
+// isn't strictly "good") and "hours" because it's on a different scale.
+const GLOBAL_KPI_METRICS = ["instruction", "course", "learned"] as const;
+const GLOBAL_KPI_TOOLTIP =
+  "Global = average of the Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest because they're descriptive rather than quality signals, and excludes Hours because it's a different scale.";
 
 // Overview tab. KPI strip selects a view: a specific metric (instruction,
 // course, learned, challenge, interest, hours) or "Global" — the global
@@ -96,9 +100,10 @@ function renderMetricSection(
   return charts;
 }
 
-// Global body: heatmap (also a term picker for the Terms tab drill-in),
-// stacked-ratings chart, and per-metric trend lines. These all summarize
-// the full corpus rather than a single metric.
+// Global body: just the heatmap. The cross-metric "stacked" and
+// "trend lines" charts that used to live here were dropped — the heatmap
+// already carries the per-term × per-metric shape they were trying to
+// show, in a denser form.
 function renderGlobalSection(
   doc: Document,
   data: ModalDisplayData,
@@ -110,26 +115,10 @@ function renderGlobalSection(
   const heatCard = renderCard(
     doc,
     "Term × Metric heatmap",
-    "Click a term to drill in (Terms tab) · shading scaled within these terms only"
+    "Shading scaled within these terms only"
   );
   heatCard.body.append(renderHeatmap(doc, data, state, callbacks));
   wrapper.append(heatCard.root);
-
-  const stackedCard = renderCard(
-    doc,
-    "Ratings stacked · per term",
-    "Sum of mean ratings (instruction + course + learned + challenge + interest)"
-  );
-  stackedCard.body.append(renderStackedRatingsChart(doc, data));
-  wrapper.append(stackedCard.root);
-
-  const lineCard = renderCard(
-    doc,
-    "Ratings trend lines · per metric",
-    "One line per metric across terms · 0–6 scale"
-  );
-  lineCard.body.append(renderMultilineRatingsChart(doc, data));
-  wrapper.append(lineCard.root);
 
   return wrapper;
 }
@@ -265,9 +254,10 @@ function renderKpiCard(
   return button;
 }
 
-// Renders the "Global" KPI card alongside the per-metric ones. Its value
-// is the average mean across the 5 rating metrics so it still feels like a
-// KPI; clicking switches the body to the global section.
+// Renders the "Global" KPI card alongside the per-metric ones. Value is
+// the avg of the Instruction / Course / Learned mean ratings across all
+// loaded terms, plus a sparkline of the same average per term so trend
+// is visible at a glance. Clicking switches the body to the global view.
 function renderGlobalKpiCard(
   doc: Document,
   data: ModalDisplayData,
@@ -276,18 +266,15 @@ function renderGlobalKpiCard(
 ): HTMLElement {
   const isActive: boolean = state.activeMetric === "global";
 
-  const ratingMeans = MODAL_RATING_METRICS
-    .map((kind) => data.metrics[kind].mean)
+  const overallMean = computeGlobalMean(data, /* terms */ data.terms);
+  const trend = data.trendTerms
+    .map((term) => computeGlobalMean(data, [term]))
     .filter((value) => value > 0);
-  const overallMean =
-    ratingMeans.length > 0
-      ? ratingMeans.reduce((sum, v) => sum + v, 0) / ratingMeans.length
-      : 0;
 
   const button = doc.createElement("button");
   button.type = "button";
   button.className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
-  button.title = "Cross-metric overview: heatmap + stacked + trend lines.";
+  button.title = GLOBAL_KPI_TOOLTIP;
   button.addEventListener("click", (event) => {
     preventAndStop(event);
     callbacks.onMetricChange("global" satisfies ModalActiveView);
@@ -300,6 +287,10 @@ function renderGlobalKpiCard(
   label.className = "bc-paper-ctec-modal-kpi-label";
   label.textContent = "Global";
   top.append(label);
+
+  if (trend.length >= 2) {
+    top.append(renderSparkline(doc, trend, 56, 18));
+  }
   button.append(top);
 
   const value = doc.createElement("div");
@@ -315,10 +306,27 @@ function renderGlobalKpiCard(
 
   const sub = doc.createElement("div");
   sub.className = "bc-paper-ctec-modal-kpi-delta is-muted";
-  sub.textContent = "all metrics view";
+  sub.textContent = "Inst + Course + Learn";
   button.append(sub);
 
   return button;
+}
+
+// Avg of the Instruction / Course / Learned means across the supplied
+// terms. Each metric's contribution is its mean across those terms (not a
+// per-term mean of all metrics) so a course missing one of the three on
+// some term doesn't double-penalize. Returns 0 if no relevant data exists.
+function computeGlobalMean(_data: ModalDisplayData, terms: ModalTerm[]): number {
+  const perMetricValues: number[] = [];
+  for (const kind of GLOBAL_KPI_METRICS) {
+    const values = terms
+      .map((term) => term.metrics[kind])
+      .filter((value): value is number => typeof value === "number");
+    if (values.length === 0) continue;
+    perMetricValues.push(values.reduce((sum, v) => sum + v, 0) / values.length);
+  }
+  if (perMetricValues.length === 0) return 0;
+  return perMetricValues.reduce((sum, v) => sum + v, 0) / perMetricValues.length;
 }
 
 function renderSparkline(

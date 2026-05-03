@@ -1,17 +1,22 @@
-import {
-  RATING_METRIC_COLORS,
-  abbrTerm,
-  renderRatingMetricLegend
-} from "../chart-shared";
 import { renderMetricDistribution } from "../dist-render";
 import { renderHoursDensity } from "../hours-density";
 import {
-  MODAL_METRIC_LABELS,
-  MODAL_RATING_METRICS,
   type ModalDisplayData,
   type ModalMetricKind,
   type ModalTerm
 } from "../modal-data";
+
+// Compact term label for chart x-axes ("Fall 2024" → "F'24"). Inlined
+// from the deleted chart-shared.ts — trend chart is the only caller now.
+function abbrTerm(term: string): string {
+  if (!term) return "";
+  return term
+    .replace("Fall ", "F'")
+    .replace("Winter ", "W'")
+    .replace("Spring ", "Sp'")
+    .replace("Summer ", "Su'")
+    .replace(" 20", "'");
+}
 
 // Tracks the active trend-chart ResizeObserver across renders so we can
 // disconnect a stale one when the modal re-renders (avoids leaking
@@ -202,124 +207,6 @@ export function renderDistChart(
         ])
     })
   );
-  return wrapper;
-}
-
-// Stacked bar chart of summed mean ratings (instruction + course + learned +
-// challenge + interest) per term. Y-scale snaps to the next multiple of 5
-// above the max so the axis stays readable across courses.
-export function renderStackedRatingsChart(
-  doc: Document,
-  data: ModalDisplayData
-): HTMLElement {
-  const wrapper = doc.createElement("div");
-  wrapper.className = "bc-paper-ctec-modal-multibar";
-
-  const terms = data.trendTerms;
-  if (terms.length === 0) {
-    const empty = doc.createElement("div");
-    empty.className = "bc-paper-ctec-modal-trend-empty";
-    empty.textContent = "No terms to plot.";
-    wrapper.append(empty);
-    return wrapper;
-  }
-
-  const W = 700;
-  const H = 260;
-  const PL = 40;
-  const PR = 16;
-  const PT = 16;
-  const PB = 40;
-  const innerW = W - PL - PR;
-  const innerH = H - PT - PB;
-
-  const sums = terms.map((term) =>
-    MODAL_RATING_METRICS.reduce(
-      (sum, kind) => sum + (term.metrics[kind] ?? 0),
-      0
-    )
-  );
-  const maxSum = Math.max(...sums, 1);
-  const yMax = Math.max(5, Math.ceil(maxSum / 5) * 5);
-  const yAt = (v: number) => PT + innerH - (v / yMax) * innerH;
-
-  const SVG_NS = "http://www.w3.org/2000/svg";
-  const svg = doc.createElementNS(SVG_NS, "svg");
-  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-  svg.setAttribute("class", "bc-paper-ctec-modal-multibar-svg");
-
-  const ticks = 5;
-  for (let i = 0; i <= ticks; i++) {
-    const yv = (yMax * i) / ticks;
-    const line = doc.createElementNS(SVG_NS, "line");
-    line.setAttribute("x1", String(PL));
-    line.setAttribute("x2", String(W - PR));
-    line.setAttribute("y1", String(yAt(yv)));
-    line.setAttribute("y2", String(yAt(yv)));
-    line.setAttribute("stroke", "#f1ebef");
-    svg.append(line);
-
-    const tick = doc.createElementNS(SVG_NS, "text");
-    tick.setAttribute("x", String(PL - 6));
-    tick.setAttribute("y", String(yAt(yv) + 3));
-    tick.setAttribute("fill", "#9b8290");
-    tick.setAttribute("font-size", "10");
-    tick.setAttribute("text-anchor", "end");
-    tick.textContent = yv.toFixed(0);
-    svg.append(tick);
-  }
-
-  const bandW = innerW / terms.length;
-  const barW = Math.min(56, Math.max(8, bandW * 0.55));
-
-  terms.forEach((term, i) => {
-    const cx = PL + bandW * (i + 0.5);
-    const x = cx - barW / 2;
-    let yCursor = PT + innerH;
-
-    for (const kind of MODAL_RATING_METRICS) {
-      const v = term.metrics[kind] ?? 0;
-      if (v <= 0) continue;
-      const segH = (v / yMax) * innerH;
-      const yTop = yCursor - segH;
-      const rect = doc.createElementNS(SVG_NS, "rect");
-      rect.setAttribute("x", String(x));
-      rect.setAttribute("y", String(yTop));
-      rect.setAttribute("width", String(barW));
-      rect.setAttribute("height", String(segH));
-      rect.setAttribute("fill", RATING_METRIC_COLORS[kind]);
-
-      const title = doc.createElementNS(SVG_NS, "title");
-      title.textContent = `${term.term} · ${MODAL_METRIC_LABELS[kind]}: ${v.toFixed(2)}`;
-      rect.append(title);
-      svg.append(rect);
-      yCursor = yTop;
-    }
-
-    if (sums[i]! > 0) {
-      const total = doc.createElementNS(SVG_NS, "text");
-      total.setAttribute("x", String(cx));
-      total.setAttribute("y", String(yCursor - 6));
-      total.setAttribute("fill", "#6b7280");
-      total.setAttribute("font-size", "10");
-      total.setAttribute("font-weight", "600");
-      total.setAttribute("text-anchor", "middle");
-      total.textContent = sums[i]!.toFixed(1);
-      svg.append(total);
-    }
-
-    const termLabel = doc.createElementNS(SVG_NS, "text");
-    termLabel.setAttribute("x", String(cx));
-    termLabel.setAttribute("y", String(H - 14));
-    termLabel.setAttribute("fill", "#7a596a");
-    termLabel.setAttribute("font-size", "10");
-    termLabel.setAttribute("text-anchor", "middle");
-    termLabel.textContent = abbrTerm(term.term);
-    svg.append(termLabel);
-  });
-
-  wrapper.append(svg);
-  wrapper.append(renderRatingMetricLegend(doc));
   return wrapper;
 }
 

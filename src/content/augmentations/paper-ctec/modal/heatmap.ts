@@ -4,20 +4,18 @@ import {
   type ModalDisplayData,
   type ModalMetricKind
 } from "../modal-data";
-import { preventAndStop } from "../ui-shared";
 import { spacerCell } from "./common";
 import type { AnalyticsModalCallbacks, AnalyticsModalState } from "./types";
 
-// Term × Metric heatmap. Term-cell click sets selectedTermId via the
-// onTermChange callback; the Terms tab shows the drill-in for whatever
-// term is currently selected. Rating cells share one shading scale (deep
-// maroon) and hours cells share another (purple) — different units,
-// different scales.
+// Term × Metric heatmap. Term-name cells on the left are read-only labels
+// (term picking lives in the Terms tab dropdown, not here). Rating cells
+// share one shading scale (deep maroon) and hours cells share another
+// (purple) — different units, different scales.
 export function renderHeatmap(
   doc: Document,
   data: ModalDisplayData,
-  state: AnalyticsModalState,
-  callbacks: AnalyticsModalCallbacks
+  _state: AnalyticsModalState,
+  _callbacks: AnalyticsModalCallbacks
 ): HTMLElement {
   const grid = doc.createElement("div");
   grid.className = "bc-paper-ctec-modal-heatmap";
@@ -60,10 +58,8 @@ export function renderHeatmap(
   };
 
   for (const term of data.terms) {
-    const isActive = state.selectedTermId === term.id;
-    const termCell = doc.createElement("button");
-    termCell.type = "button";
-    termCell.className = `bc-paper-ctec-modal-heatmap-term${isActive ? " is-active" : ""}`;
+    const termCell = doc.createElement("div");
+    termCell.className = "bc-paper-ctec-modal-heatmap-term";
     const termTitle = doc.createElement("div");
     termTitle.className = "bc-paper-ctec-modal-heatmap-term-title";
     termTitle.textContent = term.term;
@@ -71,10 +67,6 @@ export function renderHeatmap(
     termSub.className = "bc-paper-ctec-modal-heatmap-term-sub";
     termSub.textContent = `${term.responses} responded`;
     termCell.append(termTitle, termSub);
-    termCell.addEventListener("click", (event) => {
-      preventAndStop(event);
-      callbacks.onTermChange(term.id);
-    });
     grid.append(termCell);
 
     for (const kind of MODAL_RATING_METRICS) {

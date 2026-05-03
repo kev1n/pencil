@@ -11,7 +11,7 @@ export function modalTermStyles(): string {
     }
     .bc-paper-ctec-modal-heatmap {
       display: grid;
-      grid-template-columns: 1.6fr repeat(6, 1fr);
+      grid-template-columns: 0.9fr repeat(6, 1fr);
       gap: 6px;
       align-items: center;
     }
@@ -25,17 +25,9 @@ export function modalTermStyles(): string {
       text-transform: uppercase;
     }
     .bc-paper-ctec-modal-heatmap-term {
-      border: 0;
-      background: transparent;
-      padding: 8px 10px;
+      padding: 8px 8px 8px 0;
       text-align: left;
-      border-radius: 6px;
-      cursor: pointer;
       font-family: inherit;
-    }
-    .bc-paper-ctec-modal-heatmap-term.is-active {
-      background: #f7f7f8;
-      outline: 1px solid #cfcfd6;
     }
     .bc-paper-ctec-modal-heatmap-term-title {
       font-size: 12px;
@@ -62,6 +54,76 @@ export function modalTermStyles(): string {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 14px;
+    }
+    .bc-paper-ctec-modal-term-blocks {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+    .bc-paper-ctec-modal-term-block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      background: #f7f7f8;
+      border-radius: 10px;
+    }
+    .bc-paper-ctec-modal-term-block-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      column-gap: 10px;
+      align-items: baseline;
+    }
+    .bc-paper-ctec-modal-term-block-label {
+      font-size: 10px;
+      color: #6b7280;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .bc-paper-ctec-modal-term-block-value {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      align-self: center;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .bc-paper-ctec-modal-term-block-unit {
+      font-size: 10px;
+      color: #9ca3af;
+      font-weight: 500;
+    }
+    .bc-paper-ctec-modal-term-block-delta {
+      grid-column: 1;
+      grid-row: 2;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .bc-paper-ctec-modal-term-block-delta.is-positive { color: #15803d; }
+    .bc-paper-ctec-modal-term-block-delta.is-negative { color: #9f1239; }
+    .bc-paper-ctec-modal-term-block-delta.is-muted {
+      color: #9ca3af;
+      font-weight: 400;
+    }
+    .bc-paper-ctec-modal-term-block-delta-note {
+      color: #9ca3af;
+      font-weight: 400;
+    }
+    .bc-paper-ctec-modal-term-block-chart {
+      min-height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+      background: white;
+      border-radius: 8px;
     }
     .bc-paper-ctec-modal-term-metrics {
       display: grid;

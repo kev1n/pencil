@@ -179,9 +179,9 @@ export function cardStyles(): string {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 16px;
+      gap: 3px;
       height: 16px;
-      padding: 0;
+      padding: 0 5px;
       border: 1px solid rgba(102, 2, 60, 0.32);
       border-radius: 4px;
       background: rgba(102, 2, 60, 0.08);
@@ -189,11 +189,20 @@ export function cardStyles(): string {
       cursor: pointer;
       flex: 0 0 auto;
       margin-left: 2px;
+      font: inherit;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1;
     }
     button.${WIDGET_CLASS}-analytics-btn svg {
       width: 10px;
       height: 10px;
       stroke-width: 1.9;
+    }
+    .${WIDGET_CLASS}-analytics-btn-label {
+      white-space: nowrap;
     }
     button.${WIDGET_CLASS}-analytics-btn:hover {
       background: rgba(102, 2, 60, 0.18);

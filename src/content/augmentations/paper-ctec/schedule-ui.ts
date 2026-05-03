@@ -158,6 +158,10 @@ function makeAnalyticsButton(onClick: () => void): HTMLElement {
   button.title = "Open the full CTEC analytics view for this class.";
   button.setAttribute("aria-label", "Open CTEC analytics");
   button.append(createIcon("chart"));
+  const labelEl = document.createElement("span");
+  labelEl.className = `${WIDGET_CLASS}-analytics-btn-label`;
+  labelEl.textContent = "Analytics";
+  button.append(labelEl);
 
   const trigger = (event: Event) => {
     preventAndStop(event);
