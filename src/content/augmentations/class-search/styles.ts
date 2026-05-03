@@ -3,10 +3,7 @@ export const STYLE_ID = "better-caesar-class-search-styles";
 export function classSearchStyles(): string {
   return `
     .bc-cs-root {
-      /* CAESAR-side maroon (Tyrian) is the primary accent for this UI.
-         The variable name is kept as --bc-purple for backwards
-         compatibility with any in-flight references; semantically it
-         is now the brand maroon. */
+      /* CAESAR-side maroon palette. */
       --bc-purple: #66023c;
       --bc-purple-dark: #500030;
       --bc-purple-darker: #3f0126;

@@ -1,5 +1,7 @@
 import { runPeopleSoftTask } from "../../peoplesoft";
 import { fetchPeopleSoft, fetchPeopleSoftGet } from "../../peoplesoft/http";
+import { extractHiddenInputs } from "../../peoplesoft/params";
+import { extractErrorMessage } from "../../peoplesoft/parsers";
 import {
   DEFAULT_CAREER_FIELD,
   DEFAULT_CLASS_FIELD,
@@ -125,6 +127,17 @@ export async function addSectionToCart(input: CartFlowInput): Promise<CartFlowRe
 // ────────────────────────────────────────────────────────────────────────────
 // Implementation
 
+type FailExtras = {
+  classNumber?: string;
+  alreadyInCart?: boolean;
+  detailHtml?: string;
+  searchGroups?: CaesarCourseGroup[];
+};
+
+function fail(error: string, extras: FailExtras = {}): CartFlowResult {
+  return { ok: false, error, ...extras };
+}
+
 async function searchCaesarCatalogInternal(
   input: CaesarSearchInput
 ): Promise<CaesarSearchResult> {
@@ -159,11 +172,6 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       return { ok: false, error: "Missing PeopleSoft session — try refreshing the page." };
     }
 
-    // Class-number search: a single, exact match keyed on the 5-digit
-    // enrollment number. Way more reliable than subject+catalog (no fuzzy
-    // suffix matching, no section-letter disambiguation) and CAESAR
-    // returns the row with its Select button (or omits it if already in
-    // the user's cart).
     const searchPost = buildClassNumberSearchParams(baseParams, {
       termId: input.termId,
       career: input.career,
@@ -172,80 +180,64 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
     });
     const searchHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), searchPost);
     if (looksLikeError(searchHtml)) {
-      return {
-        ok: false,
-        error: extractErrorMessage(searchHtml) ?? "CAESAR search returned an error.",
-        classNumber
-      };
+      return fail(extractErrorMessage(searchHtml) ?? "CAESAR search returned an error.", { classNumber });
     }
 
     const groups = parseCaesarGroups(searchHtml);
     const match = locateByClassNumber(groups, classNumber);
     if (!match) {
-      return {
-        ok: false,
-        error: `Couldn't find class #${classNumber} on CAESAR for this term.`,
+      return fail(`Couldn't find class #${classNumber} on CAESAR for this term.`, {
         classNumber,
         searchGroups: groups
-      };
+      });
     }
 
     if (!match.section.selectAvailable) {
-      return {
-        ok: false,
-        error: `Class #${classNumber} is already in your shopping cart.`,
+      return fail(`Class #${classNumber} is already in your shopping cart.`, {
         classNumber,
         alreadyInCart: true,
         searchGroups: groups
-      };
+      });
     }
 
-    const searchState = parseHiddenInputs(searchHtml);
+    const searchState = extractHiddenInputs(searchHtml);
     const selectParams = buildActionParams(searchState, match.section.selectActionId);
     const detailHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), selectParams);
     if (looksLikeError(detailHtml)) {
-      return {
-        ok: false,
-        error: extractErrorMessage(detailHtml) ?? "CAESAR rejected the section selection.",
+      return fail(extractErrorMessage(detailHtml) ?? "CAESAR rejected the section selection.", {
         classNumber: match.section.classNumber,
         detailHtml,
         searchGroups: groups
-      };
+      });
     }
 
     const nextActionId = findNextActionId(detailHtml);
     if (!nextActionId) {
-      return {
-        ok: false,
-        error: "Section needs extra confirmation in CAESAR. Use Classic Search for this one.",
+      return fail("Section needs extra confirmation in CAESAR. Use Classic Search for this one.", {
         classNumber: match.section.classNumber,
         detailHtml,
         searchGroups: groups
-      };
+      });
     }
 
-    const detailState = parseHiddenInputs(detailHtml);
+    const detailState = extractHiddenInputs(detailHtml);
     const nextParams = buildActionParams(detailState, nextActionId);
     const finalHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), nextParams);
     if (looksLikeError(finalHtml)) {
-      return {
-        ok: false,
-        error: extractErrorMessage(finalHtml) ?? "CAESAR refused to add the class.",
+      return fail(extractErrorMessage(finalHtml) ?? "CAESAR refused to add the class.", {
         classNumber: match.section.classNumber,
         detailHtml,
         searchGroups: groups
-      };
+      });
     }
 
     const success = isCartLandingPage(finalHtml, match.section.classNumber);
     if (!success.ok) {
-      return {
-        ok: false,
-        error: success.reason,
+      return fail(success.reason, {
         classNumber: match.section.classNumber,
         detailHtml,
         searchGroups: groups
-      };
+      });
     }
 
     return {
@@ -449,7 +441,7 @@ export function matchCaesarSection(
 // Collapse leading zeros so "01" → "1", "001" → "1". Special-case: a value
 // that's purely zeros ("0", "00") collapses to a single "0" — never empty —
 // because section "0" is technically distinct from a missing section.
-export function normalizeSectionNumber(value: string): string {
+function normalizeSectionNumber(value: string): string {
   if (!value) return value;
   const stripped = value.replace(/^0+/, "");
   return stripped.length > 0 ? stripped : "0";
@@ -524,14 +516,10 @@ function buildClassNumberSearchParams(
   params.set("ICAddCount", "");
   params.set("ICAppClsData", "");
 
-  // CAESAR's "Additional Search Criteria" section (which contains the class
-  // number input) is collapsed by default on a fresh entry GET, so the
-  // `SSR_CLSRCH_WRK_CLASS_NBR$N` field isn't in the form HTML at all.
-  // setAllWithPrefix's discovery would find nothing and fall through to
-  // setting an unsuffixed name CAESAR ignores. Mirroring the seats-notes
-  // pipeline (peoplesoft/lookup.ts), we use explicit canonical positional
-  // suffixes from peoplesoft/shared.ts so the search works whether or not
-  // the section is rendered.
+  // The class-number input lives in PeopleSoft's "Additional Search
+  // Criteria" section, which is collapsed on a fresh entry GET — the
+  // field isn't in the form HTML, so prefix discovery finds nothing.
+  // Fall back to the canonical positional suffixes from shared.ts.
   const institutionField = findFieldNameInParams(params, "CLASS_SRCH_WRK2_INSTITUTION") ?? DEFAULT_INSTITUTION_FIELD;
   const termField = findFieldNameInParams(params, "CLASS_SRCH_WRK2_STRM") ?? DEFAULT_TERM_FIELD;
   const careerField = findFieldNameInParams(params, "SSR_CLSRCH_WRK_ACAD_CAREER") ?? DEFAULT_CAREER_FIELD;
@@ -558,8 +546,7 @@ function buildClassNumberSearchParams(
 function findFieldNameInParams(params: URLSearchParams, prefix: string): string | null {
   let found: string | null = null;
   params.forEach((_value, key) => {
-    if (found) return;
-    if (key.startsWith(prefix)) found = key;
+    if (found === null && key.startsWith(prefix)) found = key;
   });
   return found;
 }
@@ -599,7 +586,7 @@ function serializeFormFromDoc(doc: Document): URLSearchParams {
   const params = new URLSearchParams();
   const form = doc.forms.namedItem("win0");
   if (!(form instanceof HTMLFormElement)) {
-    return parseHiddenInputs(doc.body?.innerHTML ?? "");
+    return extractHiddenInputs(doc.body?.innerHTML ?? "");
   }
   for (const element of Array.from(form.elements)) {
     if (
@@ -630,19 +617,6 @@ function serializeFormFromDoc(doc: Document): URLSearchParams {
   return params;
 }
 
-function parseHiddenInputs(payload: string): URLSearchParams {
-  const params = new URLSearchParams();
-  const hiddenInput =
-    /<input[^>]*type=['"]hidden['"][^>]*name=['"]([^'"]+)['"][^>]*value=['"]([^'"]*)['"][^>]*>/gi;
-  let match: RegExpExecArray | null;
-  while ((match = hiddenInput.exec(payload)) !== null) {
-    const name = decodeEntities(match[1] ?? "");
-    const value = decodeEntities(match[2] ?? "");
-    if (name) params.set(name, value);
-  }
-  return params;
-}
-
 function findNextActionId(html: string): string | null {
   // Preferred: the inline submitAction call wired to the Next button. This is
   // the canonical action id, including any positional `$N$` suffix.
@@ -663,18 +637,13 @@ function looksLikeError(html: string): boolean {
   return false;
 }
 
-// Treat the post-Next response as success unless we see an explicit failure
-// signal. Earlier we required a positive `<PAGE id='SSR_SSENRL_CART'>`
-// match, but CAESAR's response shape varies by campus and PeopleSoft
-// version — the actual cart updates even when we don't see that exact id,
-// producing confusing "did not confirm" errors on real successes.
+// Default to success unless we see an intermediate-page id that means the
+// wizard stopped early (preferences, related component, bounced back to
+// detail). GENMSG/term-status are handled upstream by `looksLikeError`.
 function isCartLandingPage(
   html: string,
   classNumber: string
 ): { ok: true } | { ok: false; reason: string } {
-  // GENMSG / term-status are caught by `looksLikeError` upstream; these
-  // are the workflow-specific intermediate pages that mean the chain
-  // stopped early (the section isn't in the cart yet).
   if (/<PAGE id='SSR_SSENRL_PREFS/i.test(html)) {
     return {
       ok: false,
@@ -688,21 +657,10 @@ function isCartLandingPage(
     };
   }
   if (/<PAGE id='SSR_CLSRCH_DTL/i.test(html)) {
-    // Bouncing back to the section detail page means the Next button didn't
-    // actually advance us. Distinct from preferences/related-component
-    // because those have their own page ids.
     return {
       ok: false,
       reason: `CAESAR returned the section detail page instead of confirming the add for #${classNumber}. Use Classic Search to finish.`
     };
   }
   return { ok: true };
-}
-
-function extractErrorMessage(html: string): string | null {
-  const raw = /<GENMSG[^>]*><!\[CDATA\[(.*?)\]\]><\/GENMSG>/is.exec(html)?.[1];
-  if (!raw) return null;
-  const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  if (!text) return null;
-  return decodeEntities(text);
 }

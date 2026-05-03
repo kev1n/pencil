@@ -63,10 +63,9 @@ export function writeCachedEntry(classNumber: string, entry: SeatsNotesCacheEntr
   void chrome.storage.local.set({ [CACHE_STORAGE_KEY]: memoryCache });
 }
 
-// Garbage-collect "success but all-null" cache entries — the shape an
-// earlier class-search build wrote when it mistakenly piped CAESAR's
-// "Confirm Your Selection" wizard HTML through the SSR_CLSRCH_DTL parser.
-// Those rows would otherwise show "Seat counts unavailable" forever.
+// GC "ok with all-null" entries (a poisoned shape that earlier code paths
+// could write); they'd otherwise persist as permanent "Seat counts
+// unavailable" rows.
 export function pruneEmptySeatsCache(): void {
   let removed = 0;
   for (const key of Object.keys(memoryCache.entries)) {

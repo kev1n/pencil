@@ -17,8 +17,3 @@ export function bareCatalogNumber(catalog: string): string {
   const dash = catalog.indexOf("-");
   return dash === -1 ? catalog : catalog.slice(0, dash);
 }
-
-export function catalogSuffix(catalog: string): string {
-  const dash = catalog.indexOf("-");
-  return dash === -1 ? "" : catalog.slice(dash + 1);
-}

@@ -55,7 +55,7 @@ export function buildDetailParams(searchResponseText: string, actionId: string):
   return params;
 }
 
-function extractHiddenInputs(responseText: string): URLSearchParams {
+export function extractHiddenInputs(responseText: string): URLSearchParams {
   const params = new URLSearchParams();
   const hiddenInputRegex =
     /<input[^>]*type=['"]hidden['"][^>]*name=['"]([^'"]+)['"][^>]*value=['"]([^'"]*)['"][^>]*>/gi;

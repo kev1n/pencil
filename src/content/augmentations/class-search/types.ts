@@ -1,4 +1,4 @@
-import type { PaperSection, PaperTermCourse, SubjectInfo, TermSummary } from "./paper-data";
+import type { PaperSection, PaperTermCourse } from "./paper-data";
 
 export type SearchFilters = {
   termId: string;
@@ -8,20 +8,11 @@ export type SearchFilters = {
   query: string;
   distros: Set<string>;
   disciplines: Set<string>;
-  schools: Set<string>;
-  components: Set<string>;
 };
 
 export type ResultRow = {
   course: PaperTermCourse;
   sections: PaperSection[];
-};
-
-export type CatalogContext = {
-  termId: string;
-  subjects: Record<string, SubjectInfo>;
-  terms: TermSummary[];
-  termCourses: PaperTermCourse[];
 };
 
 export const PAPER_DISTRO_LABELS: Record<string, string> = {

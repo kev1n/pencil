@@ -8,35 +8,23 @@ export function applyFilters(
   filters: SearchFilters
 ): ResultRow[] {
   const tokens = tokenizeQuery(filters.query);
+  const tokenRegexes = tokens.map(tokenRegex);
   const wantedDistros = filters.distros;
   const wantedDisciplines = filters.disciplines;
-  const wantedSchools = filters.schools;
-  const wantedComponents = filters.components;
 
   type Scored = { row: ResultRow; rank: number };
   const scored: Scored[] = [];
 
   for (const course of termCourses) {
-    if (wantedSchools.size > 0 && (!course.school || !wantedSchools.has(course.school))) continue;
-
     const planEntry = catalogIndex.get(`${course.subject} ${course.catalog}`);
 
-    if (wantedDistros.size > 0) {
-      const distroCodes = (planEntry?.distros ?? "").split("");
-      if (!distroCodes.some((c) => wantedDistros.has(c))) continue;
-    }
-    if (wantedDisciplines.size > 0) {
-      const disciplineCodes = (planEntry?.disciplines ?? "").split("");
-      if (!disciplineCodes.some((c) => wantedDisciplines.has(c))) continue;
-    }
+    if (wantedDistros.size > 0 && !anyCharIn(planEntry?.distros, wantedDistros)) continue;
+    if (wantedDisciplines.size > 0 && !anyCharIn(planEntry?.disciplines, wantedDisciplines)) continue;
 
-    const sections = course.sections.filter((section) => {
-      if (wantedComponents.size > 0 && !wantedComponents.has(section.component)) return false;
-      return true;
-    });
+    const sections = course.sections;
     if (sections.length === 0) continue;
 
-    if (tokens.length > 0) {
+    if (tokenRegexes.length > 0) {
       const subjectName = subjects[course.subject]?.display ?? "";
       const idHaystack = normalize(
         `${subjectName} ${course.subject} ${course.catalog}`
@@ -46,8 +34,7 @@ export function applyFilters(
 
       let matchedAllOnId = true;
       let matchedAllOnAny = true;
-      for (const token of tokens) {
-        const re = tokenRegex(token);
+      for (const re of tokenRegexes) {
         const idHit = re.test(idHaystack);
         const titleHit = re.test(titleHaystack);
         const descHit = descHaystack.length > 0 && re.test(descHaystack);
@@ -59,7 +46,7 @@ export function applyFilters(
       }
       if (!matchedAllOnAny) continue;
 
-      // Rank: pure id matches win over title/description matches.
+      // id-only matches outrank id+title or title-only matches.
       scored.push({ row: { course, sections }, rank: matchedAllOnId ? 0 : 1 });
     } else {
       scored.push({ row: { course, sections }, rank: 0 });
@@ -131,18 +118,22 @@ function normalize(value: string): string {
 }
 
 function tokenRegex(token: string): RegExp {
-  // Mirrors paper.nu's behavior: escape regex specials, then treat literal
-  // `x` as a digit wildcard so queries like "31x" match "311".
-  // We also relax `_` to whitespace because the haystack normalizes
-  // `_` → " " (so "COMP_SCI" lives there as "comp sci"); without this,
-  // typing the literal subject code `comp_sci` would never match.
+  // paper.nu-style: `x` is a digit wildcard ("31x" matches "311"), and
+  // `_` is treated as whitespace so "comp_sci" matches "comp sci" (the
+  // haystack normalizes underscores to spaces). `\s+` not `\s*` so
+  // "compsci" doesn't accidentally match "comp sci".
   const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const wildcarded = escaped.replace(/x/g, "[\\dx]");
-  // Use \s+ (one or more whitespace) so `comp_sci` requires a separator,
-  // i.e. matches "comp sci" but not "compsci" — codex flagged \s* as too
-  // permissive (would let "compsci" match "comp sci" too).
   const underscoresRelaxed = wildcarded.replace(/_/g, "\\s+");
   return new RegExp(underscoresRelaxed, "i");
+}
+
+function anyCharIn(value: string | undefined, set: Set<string>): boolean {
+  if (!value) return false;
+  for (const c of value) {
+    if (set.has(c)) return true;
+  }
+  return false;
 }
 
 function formatTime(time: { h: number; m: number }): string {

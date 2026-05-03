@@ -79,7 +79,7 @@ function extractPageId(responseText: string): string | null {
   return responseText.match(/<PAGE id='([^']+)'/i)?.[1] ?? null;
 }
 
-function extractErrorMessage(responseText: string): string | null {
+export function extractErrorMessage(responseText: string): string | null {
   const raw = responseText.match(/<GENMSG[^>]*><!\[CDATA\[(.*?)\]\]><\/GENMSG>/is)?.[1];
   if (!raw) return null;
   const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();

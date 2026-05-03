@@ -9,11 +9,12 @@ const STORAGE_PREFIX = "better-caesar:paper:";
 const META_KEY = `${STORAGE_PREFIX}meta:v1`;
 const SUBJECTS_KEY = `${STORAGE_PREFIX}subjects:v1`;
 const PLAN_KEY = `${STORAGE_PREFIX}plan:v1`;
-// v2: course-level catalog now comes from `n` (user-facing, e.g. "111-3")
-// instead of `i` (CAESAR's padded internal id, e.g. "002333"). Old v1 caches
-// would surface the internal id in the UI and search haystack — bumping the
-// version so users get re-fetched data on the next load.
-const TERM_KEY = (termId: string) => `${STORAGE_PREFIX}term:v2:${termId}`;
+// v2: catalog now comes from per-term `n` (user-facing "111-3") instead of
+// `i` (CAESAR's internal padded id "002333").
+const CURRENT_TERM_CACHE_VERSION = 2;
+const TERM_KEY = (termId: string) =>
+  `${STORAGE_PREFIX}term:v${CURRENT_TERM_CACHE_VERSION}:${termId}`;
+const PRUNE_VERSION_KEY = `${STORAGE_PREFIX}pruned:v1`;
 
 export type TermSummary = {
   id: string;
@@ -321,33 +322,24 @@ export async function getTermCourses(termId: string): Promise<PaperTermCourse[]>
   return job;
 }
 
+// Gated behind a sentinel so we don't pay `chrome.storage.local.get(null)`
+// (which returns the full ~5MB plan blob) on every page load.
 export async function pruneStalePaperCaches(): Promise<void> {
   try {
+    const sentinel = (await chrome.storage.local.get(PRUNE_VERSION_KEY)) as Record<string, unknown>;
+    if (sentinel[PRUNE_VERSION_KEY] === CURRENT_TERM_CACHE_VERSION) return;
+
     const all = await chrome.storage.local.get(null);
     const stale = Object.keys(all).filter((k) => {
       if (!k.startsWith(STORAGE_PREFIX)) return false;
-      // Match any `*:term:v<digits>:*` whose version isn't the current one.
       const m = /:term:v(\d+):/.exec(k);
-      if (!m) return false;
-      return Number(m[1]) < CURRENT_TERM_CACHE_VERSION;
+      return m ? Number(m[1]) < CURRENT_TERM_CACHE_VERSION : false;
     });
     if (stale.length > 0) await chrome.storage.local.remove(stale);
+    await chrome.storage.local.set({ [PRUNE_VERSION_KEY]: CURRENT_TERM_CACHE_VERSION });
   } catch {
-    // ignore — pruning is opportunistic
+    // opportunistic
   }
-}
-
-const CURRENT_TERM_CACHE_VERSION = 2;
-
-export async function clearPaperCaches(): Promise<void> {
-  const all = await chrome.storage.local.get(null);
-  const keys = Object.keys(all).filter((k) => k.startsWith(STORAGE_PREFIX));
-  if (keys.length === 0) return;
-  await chrome.storage.local.remove(keys);
-  infoPromise = null;
-  subjectsPromise = null;
-  planPromise = null;
-  termPromises.clear();
 }
 
 export function listTerms(info: DataMapInfo): TermSummary[] {

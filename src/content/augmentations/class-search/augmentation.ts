@@ -66,6 +66,9 @@ type TabId = "better" | "classic";
 
 const INSTITUTION_DEFAULT = "NWUNV";
 
+const CART_URL =
+  "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A";
+
 type CourseLiveCache = {
   status: "loading" | "ready" | "error";
   result?: CaesarSearchResult;
@@ -85,19 +88,18 @@ type MountedState = {
   career: string;
   institution: string;
   loadedTerms: Map<string, PaperTermCourse[]>;
-  termFetchTokens: Map<string, number>;
-  renderToken: number;
   searchDebounce: number | null;
   // Per-course CAESAR live data, keyed by `${termId}|${subject}|${bareCatalog}`.
-  // Multiple paper.nu courses sharing a bare number (e.g. "111-0" + "111-SG")
-  // come from the same CAESAR search response.
+  // Sections that share a bare catalog (e.g. "111-0" + "111-SG") come from
+  // the same CAESAR search response.
   liveCache: Map<string, CourseLiveCache>;
-  // Per-section detail row state (seats/notes via lookupClass).
-  detailCache: Map<string, { state: "loading" | "ready" | "error"; result?: SeatsNotesResult; error?: string }>;
-  // In-flight cart-add prefetch jobs, keyed on classNumber. Dedupes the
-  // background lookupClass call that fires after a successful add.
+  // Dedupes in-flight background lookupClass prefetches.
   detailPrefetch: Map<string, Promise<void>>;
   activeTab: TabId;
+  // Last tab `applyTabVisibility` actually applied to the DOM. Without
+  // this, every mutation observer tick would re-toggle the native-hider
+  // style and panel display.
+  appliedTab: TabId | null;
 };
 
 export class ClassSearchAugmentation implements Augmentation {
@@ -174,9 +176,7 @@ export class ClassSearchAugmentation implements Augmentation {
           termId: initialTerm,
           query: "",
           distros: new Set(),
-          disciplines: new Set(),
-          schools: new Set(),
-          components: new Set()
+          disciplines: new Set()
         },
         info,
         subjects,
@@ -184,13 +184,11 @@ export class ClassSearchAugmentation implements Augmentation {
         career,
         institution,
         loadedTerms: new Map(),
-        termFetchTokens: new Map(),
-        renderToken: 0,
         searchDebounce: null,
         liveCache: new Map(),
-        detailCache: new Map(),
         detailPrefetch: new Map(),
-        activeTab: readActiveTab()
+        activeTab: readActiveTab(),
+        appliedTab: null
       };
       this.mounted = state;
 
@@ -209,6 +207,9 @@ export class ClassSearchAugmentation implements Augmentation {
   }
 
   private unmount(doc: Document): void {
+    if (this.mounted?.searchDebounce !== null && this.mounted?.searchDebounce !== undefined) {
+      window.clearTimeout(this.mounted.searchDebounce);
+    }
     const root = doc.getElementById(ROOT_ID);
     if (root) root.remove();
     const hider = doc.getElementById(HIDE_NATIVE_STYLE_ID);
@@ -339,7 +340,7 @@ export class ClassSearchAugmentation implements Augmentation {
     for (const term of terms) {
       const option = doc.createElement("option");
       option.value = term.id;
-      option.textContent = formatTermLabel(term);
+      option.textContent = term.name;
       if (term.id === state.filters.termId) option.selected = true;
       select.appendChild(option);
     }
@@ -393,8 +394,6 @@ export class ClassSearchAugmentation implements Augmentation {
     state.filters.query = "";
     state.filters.distros = new Set();
     state.filters.disciplines = new Set();
-    state.filters.schools = new Set();
-    state.filters.components = new Set();
     const queryInput = state.doc.getElementById("bc-cs-query") as HTMLInputElement | null;
     if (queryInput) queryInput.value = "";
     const checkboxes = state.root.querySelectorAll<HTMLInputElement>(".bc-cs-checkbox input");
@@ -422,17 +421,16 @@ export class ClassSearchAugmentation implements Augmentation {
       return;
     }
 
-    const token = (state.termFetchTokens.get(termId) ?? 0) + 1;
-    state.termFetchTokens.set(termId, token);
     this.setStatus(state, "loading", `Loading ${state.info.terms[termId]?.name ?? termId} sections…`);
     try {
       const courses = await getTermCourses(termId);
-      if (state.termFetchTokens.get(termId) !== token) return;
+      // User may have switched terms while the fetch was in flight.
+      if (state.filters.termId !== termId) return;
       state.loadedTerms.set(termId, courses);
       this.setStatus(state, "ok", "");
       this.runSearch(state);
     } catch (error) {
-      if (state.termFetchTokens.get(termId) !== token) return;
+      if (state.filters.termId !== termId) return;
       const msg = error instanceof Error ? error.message : String(error);
       this.setStatus(state, "error", `Couldn't load term data: ${msg}`);
     }
@@ -441,12 +439,7 @@ export class ClassSearchAugmentation implements Augmentation {
   private runSearch(state: MountedState): void {
     const courses = state.loadedTerms.get(state.filters.termId);
     if (!courses) return;
-    state.renderToken += 1;
-    const renderId = state.renderToken;
-
     const rows = applyFilters(courses, state.catalogIndex, state.subjects, state.filters);
-
-    if (state.renderToken !== renderId) return;
     this.renderResults(state, rows);
   }
 
@@ -708,7 +701,6 @@ export class ClassSearchAugmentation implements Augmentation {
     card: HTMLElement,
     result: CaesarSearchResult
   ): void {
-    void state;
     const matchingGroup = matchCaesarGroup(result.groups, row.course.catalog);
     const sectionLis = card.querySelectorAll<HTMLLIElement>("li.bc-cs-section");
 
@@ -786,13 +778,10 @@ export class ClassSearchAugmentation implements Augmentation {
     detailRow.className = "bc-cs-detail-row";
     li.parentElement?.insertBefore(detailRow, li.nextSibling);
 
-    const detailKey = caesar.classNumber;
-    const cachedDisk = readSeatsNotesCache(detailKey);
-
+    const cachedDisk = readSeatsNotesCache(caesar.classNumber);
     if (cachedDisk?.result) {
-      state.detailCache.set(detailKey, { state: "ready", result: cachedDisk.result });
       this.renderDetailRow(state, detailRow, caesar, cachedDisk.result, cachedDisk.fetchedAt, () =>
-        this.refreshDetailRow(state, detailRow, caesar)
+        this.fetchAndRenderDetail(state, detailRow, caesar)
       );
     } else {
       await this.fetchAndRenderDetail(state, detailRow, caesar);
@@ -802,20 +791,12 @@ export class ClassSearchAugmentation implements Augmentation {
     button.textContent = "Hide";
   }
 
-  private async refreshDetailRow(
-    state: MountedState,
-    detailRow: HTMLLIElement,
-    caesar: CaesarSection
-  ): Promise<void> {
-    if (!detailRow.isConnected) return;
-    await this.fetchAndRenderDetail(state, detailRow, caesar);
-  }
-
   private async fetchAndRenderDetail(
     state: MountedState,
     detailRow: HTMLLIElement,
     caesar: CaesarSection
   ): Promise<void> {
+    if (!detailRow.isConnected) return;
     this.renderDetailLoading(state, detailRow);
     try {
       const lookupResponse = await lookupClass(
@@ -828,20 +809,18 @@ export class ClassSearchAugmentation implements Augmentation {
       );
       const result = toSeatsNotesResult(lookupResponse);
       const fetchedAt = Date.now();
-      state.detailCache.set(caesar.classNumber, { state: "ready", result });
       writeSeatsNotesCache(caesar.classNumber, { result, fetchedAt });
       if (detailRow.isConnected) {
         this.renderDetailRow(state, detailRow, caesar, result, fetchedAt, () =>
-          this.refreshDetailRow(state, detailRow, caesar)
+          this.fetchAndRenderDetail(state, detailRow, caesar)
         );
       }
     } catch (error) {
       if (isRetryablePeopleSoftTaskError(error)) return;
       const failure = seatsNotesFailure(error);
-      state.detailCache.set(caesar.classNumber, { state: "ready", result: failure });
       if (detailRow.isConnected) {
         this.renderDetailRow(state, detailRow, caesar, failure, Date.now(), () =>
-          this.refreshDetailRow(state, detailRow, caesar)
+          this.fetchAndRenderDetail(state, detailRow, caesar)
         );
       }
     }
@@ -965,10 +944,8 @@ export class ClassSearchAugmentation implements Augmentation {
       institution: state.institution
     });
 
-    // The class-number search response we ran as part of the chain
-    // already has fresh status / instructor / room for this row — fold
-    // it into the live-status cache so the badge appears without a
-    // separate "Load CAESAR data" round-trip.
+    // Side effect: fold the class-number search response into the live
+    // cache so the row's status badge paints without a Load CAESAR call.
     const searchGroups = "searchGroups" in result ? result.searchGroups : undefined;
     if (searchGroups && searchGroups.length > 0) {
       mergeLiveCache(state, row, searchGroups);
@@ -979,14 +956,9 @@ export class ClassSearchAugmentation implements Augmentation {
       }
     }
 
-    // Background-prefetch real seat/notes data so the shopping-cart
-    // augmentation has a warm cache when the user gets there. We can't
-    // reuse the cart-add chain's response — that's CAESAR's "Confirm
-    // Your Selection" wizard page, which doesn't carry the
-    // `SSR_CLS_DTL_WRK_*` field IDs the seats-notes parser needs.
-    // `lookupClass` runs the proper search → MTG_CLASSNAME chain that
-    // hits `SSR_CLSRCH_DTL`. Fire-and-forget; user sees the toast now,
-    // cache fills in within a couple seconds.
+    // The cart-add Select-step HTML is the wizard "Confirm" page, not
+    // SSR_CLSRCH_DTL — wrong IDs for the seats-notes parser. Fire a
+    // proper lookupClass in the background to warm the shared cache.
     if (result.ok || result.alreadyInCart) {
       void prefetchSeatsNotes(state, classNumber);
     }
@@ -1003,9 +975,7 @@ export class ClassSearchAugmentation implements Augmentation {
           action: {
             label: "View cart",
             run: () => {
-              window.location.assign(
-                "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A"
-              );
+              window.location.assign(CART_URL);
             }
           }
         }
@@ -1024,9 +994,7 @@ export class ClassSearchAugmentation implements Augmentation {
           action: {
             label: "View cart",
             run: () => {
-              window.location.assign(
-                "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A"
-              );
+              window.location.assign(CART_URL);
             }
           }
         }
@@ -1079,12 +1047,9 @@ function liveCacheKey(state: MountedState, row: ResultRow): string {
   return `${state.filters.termId}|${row.course.subject}|${bareCatalogNumber(row.course.catalog)}`;
 }
 
-// Fold a partial CaesarSearchResult (typically from a class-number search,
-// which returns a single section) into the live-status cache. If the cache
-// already has data from a wider subject search, we replace just the
-// matching section so other sections' status badges aren't lost. If
-// nothing is cached yet, we seed it with whatever the partial response
-// gave us — better than a blank.
+// Merge a partial search response (e.g. a single-row class-number search)
+// into the live cache. Replaces matching sections by classNumber so a
+// wider subject search's data isn't clobbered.
 function mergeLiveCache(
   state: MountedState,
   row: ResultRow,
@@ -1129,11 +1094,9 @@ function mergeLiveCache(
   state.liveCache.set(key, { status: "ready", result: { groups: mergedGroups } });
 }
 
-// Run the proper class-detail lookup (search → click MTG_CLASSNAME → parse
-// SSR_CLSRCH_DTL) in the background and write the result to the shared
-// seats-notes cache. Fire-and-forget. Errors are swallowed because this is
-// a best-effort prefetch — the cart augmentation will retry on demand if
-// the cache is empty when the user lands there.
+// Best-effort: warm the shared seats-notes cache via the canonical
+// search → MTG_CLASSNAME → SSR_CLSRCH_DTL chain. Errors are swallowed;
+// the cart augmentation retries on demand if the cache is empty.
 function prefetchSeatsNotes(state: MountedState, classNumber: string): Promise<void> {
   if (state.detailPrefetch.has(classNumber)) {
     return state.detailPrefetch.get(classNumber)!;
@@ -1149,9 +1112,7 @@ function prefetchSeatsNotes(state: MountedState, classNumber: string): Promise<v
         { priority: "background", owner: "class-search-prefetch" }
       );
       const result = toSeatsNotesResult(lookupResponse);
-      const fetchedAt = Date.now();
-      writeSeatsNotesCache(classNumber, { result, fetchedAt });
-      state.detailCache.set(classNumber, { state: "ready", result });
+      writeSeatsNotesCache(classNumber, { result, fetchedAt: Date.now() });
     } catch (error) {
       if (isRetryablePeopleSoftTaskError(error)) return;
       // Best-effort: log and move on. We don't write a failure entry,
@@ -1258,47 +1219,37 @@ function hasNoEnrichedFields(result: SeatsNotesSuccess): boolean {
 function isSearchEntryPage(doc: Document): boolean {
   const pageInfo = doc.getElementById("pt_pageinfo_win0");
   if (!pageInfo) return false;
-  const page = pageInfo.getAttribute("Page");
-  const component = pageInfo.getAttribute("Component");
-  if (component !== SEARCH_COMPONENT) return false;
-  if (page === SEARCH_PAGE_ID) return true;
-  if (page === RESULTS_PAGE_ID || page === CART_PAGE_ID) return false;
-  return false;
+  return (
+    pageInfo.getAttribute("Component") === SEARCH_COMPONENT &&
+    pageInfo.getAttribute("Page") === SEARCH_PAGE_ID
+  );
 }
 
 function ensureRoot(doc: Document): HTMLDivElement {
-  let root = doc.getElementById(ROOT_ID) as HTMLDivElement | null;
-  if (root) {
-    // Defensive: the class drives every style variable. If a previous
-    // build left the element without the class, restore it.
-    if (!root.classList.contains("bc-cs-root")) root.classList.add("bc-cs-root");
-    return root;
-  }
-  root = doc.createElement("div");
+  const existing = doc.getElementById(ROOT_ID) as HTMLDivElement | null;
+  if (existing) return existing;
+  const root = doc.createElement("div");
   root.id = ROOT_ID;
-  // CSS custom properties (--bc-purple, etc.) and the root reset live on
-  // `.bc-cs-root`. Without this class every nested selector that calls
-  // `var(--bc-purple)` resolves to the empty string and the UI renders
-  // unstyled — found by codex consult.
+  // .bc-cs-root carries every CSS custom property; nothing renders without it.
   root.className = "bc-cs-root";
   const anchor =
     doc.getElementById("win0divPAGECONTAINER") ??
     doc.querySelector(".PSPAGECONTAINER")?.closest("td") ??
     doc.body;
-  anchor?.parentElement
-    ? anchor.parentElement.insertBefore(root, anchor)
-    : doc.body.appendChild(root);
+  const parent = anchor.parentElement ?? doc.body;
+  parent.insertBefore(root, anchor);
   return root;
 }
 
 function applyTabVisibility(state: MountedState): void {
-  const { doc, panelEl } = state;
+  if (state.appliedTab === state.activeTab) return;
+  state.appliedTab = state.activeTab;
   if (state.activeTab === "better") {
-    ensureNativeHider(doc);
-    panelEl.style.display = "";
+    ensureNativeHider(state.doc);
+    state.panelEl.style.display = "";
   } else {
-    removeNativeHider(doc);
-    panelEl.style.display = "none";
+    removeNativeHider(state.doc);
+    state.panelEl.style.display = "none";
   }
 }
 
@@ -1402,18 +1353,11 @@ function buildLoadingShell(doc: Document): HTMLElement {
   return wrap;
 }
 
-function formatTermLabel(term: TermSummary): string {
-  void term.start;
-  void term.end;
-  return term.name;
-}
-
 function hasAnyFilter(filters: SearchFilters): boolean {
-  if (filters.query.trim()) return true;
-  if (filters.distros.size > 0) return true;
-  if (filters.disciplines.size > 0) return true;
-  if (filters.schools.size > 0) return true;
-  if (filters.components.size > 0) return true;
-  return false;
+  return (
+    filters.query.trim().length > 0 ||
+    filters.distros.size > 0 ||
+    filters.disciplines.size > 0
+  );
 }
 
