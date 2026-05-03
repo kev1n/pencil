@@ -1,9 +1,11 @@
 import type { Augmentation } from "../../framework";
-import { isFeatureEnabled } from "../../settings";
+import { getRecentAggregationTerms, isFeatureEnabled } from "../../settings";
+import { buildCtecCreditToastMessage, tryConsumeCtecCredit } from "../ctec-links/rate-limit";
 import {
   fetchCtecReportAggregate,
   getCachedReportAggregate
 } from "../ctec-links/reports";
+import { showToast } from "../seats-notes/toast";
 import { AuthFlow } from "./auth-flow";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
@@ -169,7 +171,7 @@ export class PaperCtecAugmentation implements Augmentation {
       const cachedAggregate = getCachedReportAggregate(
         target.params,
         target.titleHint,
-        PAPER_CTEC_CONFIG.aggregate.recentTerms
+        getRecentAggregationTerms()
       );
       if (cachedAggregate) {
         const widgetData: PaperCtecWidgetData = {
@@ -196,6 +198,16 @@ export class PaperCtecAugmentation implements Augmentation {
   private kickTargetFetch(target: PaperCtecTarget): void {
     if (this.inFlight.has(target.key)) return;
     if (this.resolved.has(target.key)) return;
+
+    const credit = tryConsumeCtecCredit(Date.now());
+    if (!credit.ok) {
+      showToast(buildCtecCreditToastMessage(credit.waitMs), {
+        tone: "warn",
+        durationMs: 6000
+      });
+      return;
+    }
+
     this.userActivated.add(target.key);
 
     this.setProgress(target.key, "Connecting to Northwestern CTEC…");
@@ -229,7 +241,7 @@ export class PaperCtecAugmentation implements Augmentation {
         },
         {
           fetchLimit: PAPER_CTEC_CONFIG.aggregate.recentTerms,
-          aggregateLimit: PAPER_CTEC_CONFIG.aggregate.recentTerms
+          aggregateLimit: getRecentAggregationTerms()
         }
       );
 

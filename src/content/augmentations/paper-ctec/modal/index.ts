@@ -250,6 +250,7 @@ function buildSignature(
     state.commentsActiveTopic ?? "",
     state.commentsTermFilter,
     state.commentsSortBy,
+    state.heatmapExpanded ? "1" : "0",
     input.identity.subject,
     input.identity.catalog,
     input.identity.title,

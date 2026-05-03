@@ -26,6 +26,10 @@ export type AnalyticsModalState = {
   commentsActiveTopic: string | null;
   commentsTermFilter: string;
   commentsSortBy: ModalCommentSort;
+  // When false, the global-view heatmap shows only the most recent N terms
+  // (where N is the user's "recent terms aggregation" setting). The toggle
+  // is only meaningful when more terms are loaded than that window.
+  heatmapExpanded: boolean;
 };
 
 export type AnalyticsModalCallbacks = {
@@ -41,6 +45,7 @@ export type AnalyticsModalCallbacks = {
   onLoadMore: () => void;
   onLogin: () => void;
   onDismissRefreshFlash: () => void;
+  onToggleHeatmapExpanded: () => void;
 };
 
 export type AnalyticsModalInput = {

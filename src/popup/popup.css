@@ -269,6 +269,95 @@ h1 {
   left: 3px;
 }
 
+/* Radio variant: re-uses .toggle sizing but reads as a circular checkmark
+   indicator rather than a sliding switch. The same row layout already
+   highlights the selected option via .feature-row.is-selected. */
+.toggle.radio {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid #d1d5db;
+  background: #ffffff;
+}
+
+.toggle.radio::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+  transform: translate(-50%, -50%);
+  transition: background 0.15s;
+}
+
+.toggle.radio.on {
+  background: #ffffff;
+  border-color: #66023c;
+}
+
+.toggle.radio.on::after {
+  background: #66023c;
+}
+
+.feature-row.is-selected {
+  background: #fdf2f8;
+  border-color: #f9a8d4;
+}
+
+.ctec-school-row {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ctec-school-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ctec-school-label-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.ctec-school-label-help {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #6b7280;
+}
+
+.ctec-school-select {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  max-width: 220px;
+}
+
+.ctec-school-select:focus {
+  outline: 2px solid #66023c;
+  outline-offset: 1px;
+  border-color: #66023c;
+}
+
 .actions {
   margin-top: 12px;
 }

@@ -9,6 +9,37 @@ export function modalTermStyles(): string {
       flex-direction: column;
       gap: 14px;
     }
+    .bc-paper-ctec-modal-heatmap-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .bc-paper-ctec-modal-heatmap-toggle {
+      align-self: center;
+      appearance: none;
+      border: 1px solid rgba(102, 2, 60, 0.32);
+      background: rgba(102, 2, 60, 0.06);
+      color: #66023c;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .bc-paper-ctec-modal-heatmap-toggle:hover {
+      background: rgba(102, 2, 60, 0.12);
+    }
+    .dark .bc-paper-ctec-modal-heatmap-toggle {
+      border-color: rgba(252, 165, 207, 0.36);
+      background: rgba(252, 165, 207, 0.12);
+      color: #fbcfe8;
+    }
+    .dark .bc-paper-ctec-modal-heatmap-toggle:hover {
+      background: rgba(252, 165, 207, 0.22);
+    }
     .bc-paper-ctec-modal-heatmap {
       display: grid;
       gap: 6px;

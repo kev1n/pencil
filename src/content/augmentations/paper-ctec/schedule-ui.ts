@@ -1,9 +1,12 @@
 import { isFeatureEnabled } from "../../settings";
+import { PAPER_CTEC_CONFIG } from "./config";
 import { COMPACT_CARD_STARS_FEATURE_ID, WIDGET_CLASS } from "./constants";
 import { ratingPercentSignature } from "./rating-format";
 import type { PaperCtecWidgetData } from "./types";
 import { createIcon, preventAndStop } from "./ui-shared";
 import { buildTooltip, makeChip, metricChip } from "./widget-chips";
+
+const ANALYTICS_ANCHOR_CLASS = `${WIDGET_CLASS}-analytics-anchor`;
 
 // Card-state renderers (idle / loading / data) for the per-class summary
 // widget that paper.nu schedule cards inherit. Status-bar logic lives in
@@ -44,7 +47,7 @@ export function renderIdle(
   });
 
   summary.appendChild(chip);
-  if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+  attachAnalyticsAnchor(widget, onOpenAnalytics);
   widget.appendChild(summary);
   widget.dataset.bcPaperCtecSignature = signature;
 }
@@ -65,7 +68,7 @@ export function renderLoading(
   const summary = widget.ownerDocument.createElement("div");
   summary.className = `${WIDGET_CLASS}-summary`;
   summary.appendChild(makeChip("spark", message, "is-muted"));
-  if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+  attachAnalyticsAnchor(widget, onOpenAnalytics);
   widget.appendChild(summary);
   widget.dataset.bcPaperCtecSignature = signature;
 }
@@ -90,7 +93,7 @@ export function renderWidget(
 
   if (data.state === "not-found") {
     summary.appendChild(makeChip("spark", "No CTEC", "is-muted"));
-    if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+    attachAnalyticsAnchor(widget, onOpenAnalytics);
     widget.dataset.bcPaperCtecSignature = signature;
     return;
   }
@@ -98,7 +101,7 @@ export function renderWidget(
   if (data.state === "auth-required") {
     widget.title = "Click to open the Northwestern login prompt for Better CAESAR.";
     summary.appendChild(makeAuthChip(onAuthChipClick));
-    if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+    attachAnalyticsAnchor(widget, onOpenAnalytics);
     widget.dataset.bcPaperCtecSignature = signature;
     return;
   }
@@ -106,7 +109,7 @@ export function renderWidget(
   if (data.state === "error") {
     widget.title = data.message;
     summary.appendChild(makeChip("spark", "CTEC unavailable", "is-muted"));
-    if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+    attachAnalyticsAnchor(widget, onOpenAnalytics);
     widget.dataset.bcPaperCtecSignature = signature;
     return;
   }
@@ -145,11 +148,38 @@ export function renderWidget(
   } else {
     chips.forEach((chip) => summary.appendChild(chip));
   }
-  if (onOpenAnalytics) summary.appendChild(makeAnalyticsButton(onOpenAnalytics));
+  attachAnalyticsAnchor(widget, onOpenAnalytics);
   widget.dataset.bcPaperCtecSignature = signature;
 }
 
 export { hideStatusBar, renderStatusBar } from "./status-bar-ui";
+
+// Mounts (or refreshes) the analytics button as a direct child of the
+// outer schedule card so it can visually hang below the card edge instead
+// of crowding the chip row. Lives outside the dense-card content area so
+// it's not clipped by `overflow: hidden` on the dense-card host. Idempotent:
+// always replaces the previous anchor, so the click handler closure stays
+// in sync with the latest render.
+function attachAnalyticsAnchor(
+  widget: HTMLElement,
+  onOpenAnalytics?: () => void
+): void {
+  const card = widget.closest<HTMLElement>(
+    PAPER_CTEC_CONFIG.selectors.scheduleCard
+  );
+  if (!card) return;
+
+  const existing = card.querySelector<HTMLElement>(
+    `:scope > .${ANALYTICS_ANCHOR_CLASS}`
+  );
+  existing?.remove();
+
+  if (!onOpenAnalytics) return;
+
+  const button = makeAnalyticsButton(onOpenAnalytics);
+  button.classList.add(ANALYTICS_ANCHOR_CLASS);
+  card.appendChild(button);
+}
 
 function makeAnalyticsButton(onClick: () => void): HTMLElement {
   const button = document.createElement("button");

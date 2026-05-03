@@ -72,8 +72,7 @@ export function extractSideCardContext(doc: Document): PaperCtecSideCardContext 
     classNumber: "",
     subject: parsed.subject,
     catalogNumber: parsed.catalogNumber,
-    instructor,
-    career: parseInt(parsed.catalogNumber, 10) >= 500 ? "TGS" : "UGRD"
+    instructor
   } as const;
 
   return {
@@ -122,8 +121,7 @@ function parseTarget(card: HTMLElement): PaperCtecCandidate | null {
     classNumber: "",
     subject: parsed.subject,
     catalogNumber,
-    instructor,
-    career: parseInt(catalogNumber, 10) >= 500 ? "TGS" : "UGRD"
+    instructor
   } as const;
 
   return {
@@ -210,6 +208,13 @@ function ensureWidget(content: HTMLElement): HTMLElement {
 }
 
 function cleanupCardWidget(card: HTMLElement): void {
+  // Analytics anchor button lives as a direct child of the outer card
+  // (outside the .${WIDGET_CLASS} content) so it can hang below the card
+  // edge — clean it up too whenever the widget itself is removed.
+  card.querySelector<HTMLElement>(
+    `:scope > .${WIDGET_CLASS}-analytics-anchor`
+  )?.remove();
+
   const content = findCardContent(card);
   if (!content) return;
 

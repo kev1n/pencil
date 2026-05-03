@@ -37,6 +37,19 @@ function renderCommentsRail(
   const rail = doc.createElement("aside");
   rail.className = "bc-paper-ctec-modal-rail";
 
+  // Sentiment and term cross-filter each other: Sentiment counts respect
+  // the active term, Term counts respect the active sentiment. Topic isn't
+  // part of the cross-filter so its counts stay stable across selections.
+  const termFiltered = data.comments.filter(
+    (c) => state.commentsTermFilter === "all" || c.term === state.commentsTermFilter
+  );
+  const sentimentFiltered = data.comments.filter(
+    (c) =>
+      state.commentsSentimentFilter === "all" || c.tone === state.commentsSentimentFilter
+  );
+  const sentimentCounts: Record<ModalCommentTone, number> = { pos: 0, mix: 0, neu: 0, neg: 0 };
+  for (const c of termFiltered) sentimentCounts[c.tone] += 1;
+
   rail.append(railHeader(doc, "Sentiment"));
   const sentimentRows: Array<{
     key: ModalCommentSentimentFilter;
@@ -44,11 +57,11 @@ function renderCommentsRail(
     count: number;
     dot: string;
   }> = [
-    { key: "all", label: "All", count: data.comments.length, dot: "#d8b6c8" },
-    { key: "pos", label: "Positive", count: data.sentimentCounts.pos, dot: "#15803d" },
-    { key: "mix", label: "Mixed", count: data.sentimentCounts.mix, dot: "#a16207" },
-    { key: "neu", label: "Neutral", count: data.sentimentCounts.neu, dot: "#7a596a" },
-    { key: "neg", label: "Critical", count: data.sentimentCounts.neg, dot: "#9f1239" }
+    { key: "all", label: "All", count: termFiltered.length, dot: "#d8b6c8" },
+    { key: "pos", label: "Positive", count: sentimentCounts.pos, dot: "#15803d" },
+    { key: "mix", label: "Mixed", count: sentimentCounts.mix, dot: "#a16207" },
+    { key: "neu", label: "Neutral", count: sentimentCounts.neu, dot: "#7a596a" },
+    { key: "neg", label: "Critical", count: sentimentCounts.neg, dot: "#9f1239" }
   ];
   for (const row of sentimentRows) {
     const active = state.commentsSentimentFilter === row.key;
@@ -92,13 +105,13 @@ function renderCommentsRail(
     railButton(
       doc,
       "All terms",
-      data.comments.length,
+      sentimentFiltered.length,
       state.commentsTermFilter === "all",
       () => callbacks.onCommentsTermFilterChange("all")
     )
   );
   for (const termLabel of allTerms) {
-    const count = data.comments.filter((c) => c.term === termLabel).length;
+    const count = sentimentFiltered.filter((c) => c.term === termLabel).length;
     const active = state.commentsTermFilter === termLabel;
     rail.append(
       railButton(doc, termLabel, count, active, () =>

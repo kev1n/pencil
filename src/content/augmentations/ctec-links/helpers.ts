@@ -1,6 +1,6 @@
 import { normalizeSearch } from "../ctec-navigation/helpers";
 import type { CtecIndexedEntry } from "../ctec-navigation/types";
-import { INSTRUCTOR_SELECTOR } from "./constants";
+import { INSTRUCTOR_SELECTOR, NOT_FOUND_ACTION_ID } from "./constants";
 
 export function termToSortKey(term: string): number {
   // Handles both "Fall 2023" and "2023 Fall" (CTEC uses year-first format).
@@ -39,9 +39,18 @@ export function extractLastNameTokens(instructor: string): string[] {
 
 // Regex matching catalog number as a standalone token in normalized text.
 // e.g. catalog "395" matches "comm st 395 0 21" but NOT "comm st 3950".
+// Used only for sentinel entries; real entries use the stricter section-
+// prefix check below.
 function catalogTokenRegex(catalogNumber: string): RegExp {
   return new RegExp(`(?:^|\\s)${catalogNumber}(?:\\s|$)`);
 }
+
+// Matches the FIRST section identifier in a CTEC description — the
+// "<catalog>-<part>(-<sub>)?" pattern that appears at the head of every
+// real CTEC row (e.g. "PSYCH 110-0-25" → captures "110"; "Spring 2024
+// 211-0-21 Title" → captures "211"). The leading `(?:^|[^0-9])` guard
+// ensures we don't pick up a digit group glued to other digits.
+const SECTION_ID_PATTERN = /(?:^|[^0-9])(\d+)-\d+(?:-\d+)?/;
 
 export function entryMatchesCourse(
   entry: CtecIndexedEntry,
@@ -55,16 +64,35 @@ export function entryMatchesCourse(
   // so a subject check against searchText would produce false negatives.
   void subject;
 
-  // Catalog number must appear as a standalone token in the pre-normalized searchText.
-  // e.g. "395" matches "fall 2023 395 0 21 topics..." but not "fall 2023 3950 ..."
-  if (!catalogTokenRegex(catalogNumber).test(entry.searchText)) return false;
+  if (entry.actionId === NOT_FOUND_ACTION_ID) {
+    // Sentinel: synthetic entry whose description is "<subject> <catalog>"
+    // (no section identifier). Match against the normalized searchText
+    // since there's nothing else to check.
+    if (!catalogTokenRegex(catalogNumber).test(entry.searchText)) return false;
+  } else {
+    // Real entries: the catalog must appear as the leading digit group of
+    // the SECTION identifier in the raw description. This avoids the
+    // leak where a catalog substring shows up elsewhere — e.g. a 211 entry
+    // whose title mentions "111" (a year, room, related course number, or
+    // a section number like "211-0-111") would otherwise match a catalog
+    // 111 lookup. The section identifier is structurally stable across
+    // CTEC rows; substrings in titles/years are not.
+    const sectionMatch = entry.description.match(SECTION_ID_PATTERN);
+    if (!sectionMatch || sectionMatch[1] !== catalogNumber) return false;
+  }
 
   if (!instructor) return true;
   const lastNames = extractLastNameTokens(instructor);
   if (lastNames.length === 0) return true;
-  const entryParts = normalizeInstructor(entry.instructor).split(" ");
-  const entryLast = entryParts[entryParts.length - 1] ?? "";
-  return lastNames.some((ln) => entryLast === ln);
+  // Compare against EVERY last-name token in the entry's instructor field
+  // (CTEC sometimes lists co-instructors comma-separated, in unstable
+  // order). Previously we only checked the trailing token, which both
+  // missed legitimate co-taught matches AND let multi-instructor entries
+  // for the wrong course slip through when the co-instructor's surname
+  // happened to match.
+  const entryLastNames = extractLastNameTokens(entry.instructor);
+  if (entryLastNames.length === 0) return false;
+  return lastNames.some((ln) => entryLastNames.includes(ln));
 }
 
 // Used by fetcher to find the matching course row in the CTEC subject page.

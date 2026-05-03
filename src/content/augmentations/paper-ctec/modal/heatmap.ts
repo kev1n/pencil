@@ -1,3 +1,4 @@
+import { getRecentAggregationTerms } from "../../../settings";
 import {
   MODAL_METRIC_LABELS,
   MODAL_RATING_METRICS,
@@ -38,9 +39,18 @@ const HEATMAP_GROUPS: HeatmapGroup[] = [
 export function renderHeatmap(
   doc: Document,
   data: ModalDisplayData,
-  _state: AnalyticsModalState,
-  _callbacks: AnalyticsModalCallbacks
+  state: AnalyticsModalState,
+  callbacks: AnalyticsModalCallbacks
 ): HTMLElement {
+  const wrapper = doc.createElement("div");
+  wrapper.className = "bc-paper-ctec-modal-heatmap-wrap";
+
+  const recent = getRecentAggregationTerms();
+  const totalTerms = data.terms.length;
+  const collapsedCount = Math.min(recent, totalTerms);
+  const expanded = state.heatmapExpanded || totalTerms <= collapsedCount;
+  const visibleTerms = expanded ? data.terms : data.terms.slice(0, collapsedCount);
+
   const grid = doc.createElement("div");
   grid.className = "bc-paper-ctec-modal-heatmap";
 
@@ -54,14 +64,34 @@ export function renderHeatmap(
   appendGroupLabelRow(doc, grid);
   appendMetricHeaderRow(doc, grid);
 
-  const ratingShade = buildRatingShader(data);
-  const hoursShade = buildHoursShader(data);
+  // Shading scale uses only the visible rows so the on-screen contrast
+  // doesn't shift dramatically when expanding/collapsing.
+  const ratingShade = buildRatingShader(visibleTerms);
+  const hoursShade = buildHoursShader(visibleTerms);
 
-  for (const term of data.terms) {
+  for (const term of visibleTerms) {
     appendTermRow(doc, grid, term, ratingShade, hoursShade);
   }
 
-  return grid;
+  wrapper.append(grid);
+
+  if (totalTerms > collapsedCount) {
+    const toggle = doc.createElement("button");
+    toggle.type = "button";
+    toggle.className = "bc-paper-ctec-modal-heatmap-toggle";
+    const hiddenCount = totalTerms - collapsedCount;
+    toggle.textContent = expanded
+      ? `Show recent ${collapsedCount} only`
+      : `Show all ${totalTerms} terms (${hiddenCount} more)`;
+    toggle.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      callbacks.onToggleHeatmapExpanded();
+    });
+    wrapper.append(toggle);
+  }
+
+  return wrapper;
 }
 
 function appendGroupLabelRow(doc: Document, grid: HTMLElement): void {
@@ -159,12 +189,14 @@ function renderDataCell(
   return cell;
 }
 
-// Shading scale spans every rating-style value across all loaded terms —
-// the five rating metrics and the synthetic Global column. Sharing a scale
-// keeps the Global cell visually comparable to its components.
-function buildRatingShader(data: ModalDisplayData): (value: number) => string {
+// Shading scale spans every rating-style value across the supplied terms
+// — the five rating metrics and the synthetic Global column. Sharing a
+// scale keeps the Global cell visually comparable to its components.
+// Caller passes the *visible* rows so the scale matches the on-screen
+// data range (collapsed or expanded).
+function buildRatingShader(terms: ModalTerm[]): (value: number) => string {
   const ratings: number[] = [];
-  data.terms.forEach((term) => {
+  terms.forEach((term) => {
     MODAL_RATING_METRICS.forEach((kind) => {
       const value = term.metrics[kind];
       if (typeof value === "number") ratings.push(value);
@@ -176,14 +208,14 @@ function buildRatingShader(data: ModalDisplayData): (value: number) => string {
   const max = ratings.length ? Math.max(...ratings) : 0;
   const span = max - min;
   return (value: number) => {
-    if (span < 0.05) return "rgba(102,2,60,0.45)";
-    return `rgba(102,2,60,${0.18 + ((value - min) / span) * 0.72})`;
+    if (span < 0.05) return "rgba(102,2,60,0.6)";
+    return `rgba(102,2,60,${0.45 + ((value - min) / span) * 0.5})`;
   };
 }
 
-function buildHoursShader(data: ModalDisplayData): (value: number) => string {
+function buildHoursShader(terms: ModalTerm[]): (value: number) => string {
   const hours: number[] = [];
-  data.terms.forEach((term) => {
+  terms.forEach((term) => {
     const value = term.metrics.hours;
     if (typeof value === "number") hours.push(value);
   });
@@ -191,7 +223,7 @@ function buildHoursShader(data: ModalDisplayData): (value: number) => string {
   const max = hours.length ? Math.max(...hours) : 0;
   const span = max - min;
   return (value: number) => {
-    if (span < 0.05) return "rgba(162,28,175,0.45)";
-    return `rgba(162,28,175,${0.18 + ((value - min) / span) * 0.72})`;
+    if (span < 0.05) return "rgba(162,28,175,0.6)";
+    return `rgba(162,28,175,${0.45 + ((value - min) / span) * 0.5})`;
   };
 }

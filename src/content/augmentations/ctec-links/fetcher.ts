@@ -12,17 +12,17 @@ import {
   serializeForm
 } from "../ctec-navigation/helpers";
 import { readSubjectIndex, writeSubjectIndex } from "../ctec-navigation/storage";
-import type { CtecIndexedEntry, CtecSubjectIndex } from "../ctec-navigation/types";
+import type { CtecIndexedEntry, CtecRowSeed, CtecSubjectIndex } from "../ctec-navigation/types";
 import {
   fetchPeopleSoftGetResult,
   fetchPeopleSoftResult
 } from "../../peoplesoft/http";
 import { runPeopleSoftTask } from "../../peoplesoft";
-import { CTEC_AUTH_URL, REQUEST_OWNER } from "./constants";
+import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
 import { courseDescMatchesCatalog, entryMatchesCourse, extractLastNameTokens, isAuthResponse, termToSortKey } from "./helpers";
+import { CTEC_BATCH_SIZE } from "./rate-limit";
+import { resolveCareerCandidates, SCHOOL_LABELS } from "./subject-careers";
 import type { CtecLinkData, CtecLinkEntry, CtecLinkParams } from "./types";
-
-const NOT_FOUND_ACTION_ID = "BC_NOT_FOUND";
 
 export async function fetchCtecLinks(
   params: CtecLinkParams,
@@ -70,28 +70,55 @@ async function fetchCtecLinksInternal(
   forceRefresh: boolean,
   onProgress?: (msg: string) => void
 ): Promise<CtecLinkData> {
-  const { subject, catalogNumber, instructor, career } = params;
+  const { subject, catalogNumber, instructor } = params;
 
-  // 1. Check cache (skip on force refresh).
+  // Sentinel-only short-circuit: previously confirmed not-found in the CTEC
+  // catalog. forceRefresh bypasses to allow re-checking.
   const cachedIndex = readSubjectIndex(subject);
-  if (!forceRefresh && cachedIndex) {
-    const cached = cachedIndex.entries.filter((e) =>
-      entryMatchesCourse(e, subject, catalogNumber, instructor)
-    );
-    if (cached.length > 0) {
-      return buildFoundResult(cached);
-    }
+  const cachedCourseEntries = cachedIndex
+    ? cachedIndex.entries.filter((e) =>
+        entryMatchesCourse(e, subject, catalogNumber, instructor)
+      )
+    : [];
+  const realCached = cachedCourseEntries.filter(
+    (e) => e.actionId !== NOT_FOUND_ACTION_ID
+  );
+  if (
+    !forceRefresh &&
+    cachedCourseEntries.length > 0 &&
+    realCached.length === 0
+  ) {
+    return { state: "not-found" };
   }
 
-  // 2. Fetch the course's class entries from PeopleSoft.
-  onProgress?.("Connecting to CTEC\u2026");
-  let fetchResult = await fetchCourseEntries(subject, catalogNumber, career, instructor, onProgress);
+  // Skip rows already fetched (excluding transient "Fetch failed" so they
+  // get retried). Each call fetches the next CTEC_BATCH_SIZE uncached rows;
+  // callers re-invoke to load more.
+  const skipKeys = new Set<string>(
+    realCached
+      .filter((e) => e.error !== "Fetch failed")
+      .map((e) => buildRowKey(e.term, e.description, e.instructor))
+  );
 
-  // Career fallback: 400–499 courses start as UGRD but may also live in TGS.
-  const catalogNum = parseInt(catalogNumber, 10);
-  if (fetchResult.type === "not-found" && career === "UGRD" && catalogNum >= 400 && catalogNum < 500) {
-    onProgress?.("Trying graduate section\u2026");
-    fetchResult = await fetchCourseEntries(subject, catalogNumber, "TGS", instructor, onProgress);
+  // Try the careers that actually catalogue this subject (ordered by catalog-
+  // number lean) and stop on the first hit.
+  const candidates = resolveCareerCandidates(subject, catalogNumber);
+
+  let fetchResult: FetchCourseResult = { type: "not-found" };
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]!;
+    const label = SCHOOL_LABELS[candidate] ?? candidate;
+    onProgress?.(i === 0 ? `Searching ${label}…` : `Trying ${label}…`);
+    fetchResult = await fetchCourseEntries(
+      subject,
+      catalogNumber,
+      candidate,
+      instructor,
+      skipKeys,
+      CTEC_BATCH_SIZE,
+      onProgress
+    );
+    if (fetchResult.type !== "not-found") break;
   }
 
   if (fetchResult.type === "auth") {
@@ -101,22 +128,18 @@ async function fetchCtecLinksInternal(
     return { state: "error", message: fetchResult.message };
   }
   if (fetchResult.type === "not-found") {
-    writeSentinel(subject, catalogNumber, instructor, readSubjectIndex(subject));
-    return { state: "not-found" };
+    if (realCached.length === 0) {
+      writeSentinel(subject, catalogNumber, instructor, readSubjectIndex(subject));
+      return { state: "not-found" };
+    }
+    // Discovery failed in every career we tried, but earlier runs cached real
+    // entries — surface those rather than overwriting them with not-found.
+    return buildFoundResult(realCached, false);
   }
 
-  // 3. Merge new entries into existing subject index.
+  // Merge new entries into the subject index.
   const existingEntries = cachedIndex?.entries ?? [];
-  // On force refresh, drop old entries for this course before merging — but
-  // first copy any cached reportSummary onto the freshly-fetched entries so
-  // we don't have to re-pull reports for terms we've already parsed.
-  const newEntries = forceRefresh
-    ? preserveReportSummaries(fetchResult.entries, existingEntries, subject, catalogNumber, instructor)
-    : fetchResult.entries;
-  const base = forceRefresh
-    ? existingEntries.filter((e) => !entryMatchesCourse(e, subject, catalogNumber, instructor))
-    : existingEntries;
-  const merged = dedupeEntries([...base, ...newEntries]);
+  const merged = dedupeEntries([...existingEntries, ...fetchResult.entries]);
   writeSubjectIndex(subject, {
     subjectCode: subject,
     subjectLabel: cachedIndex?.subjectLabel ?? subject,
@@ -125,15 +148,15 @@ async function fetchCtecLinksInternal(
     entries: merged
   });
 
-  // 4. Filter for this course+instructor.
-  const matches = fetchResult.entries.filter((e) =>
+  const allMatches = merged.filter((e) =>
     entryMatchesCourse(e, subject, catalogNumber, instructor)
   );
-  if (matches.length === 0) {
+  const allReal = allMatches.filter((e) => e.actionId !== NOT_FOUND_ACTION_ID);
+  if (allReal.length === 0) {
     writeSentinel(subject, catalogNumber, instructor, readSubjectIndex(subject));
     return { state: "not-found" };
   }
-  return buildFoundResult(matches);
+  return buildFoundResult(allMatches, fetchResult.hasMore);
 }
 
 // Synchronous cache-only lookup. Returns data if the subject index exists and
@@ -146,10 +169,12 @@ export function getCtecLinksFromCache(params: CtecLinkParams): CtecLinkData | nu
     entryMatchesCourse(e, subject, catalogNumber, instructor)
   );
   if (matches.length === 0) return null;
-  return buildFoundResult(matches);
+  // Cache-only path doesn't know whether more rows exist on PeopleSoft —
+  // hasMore=false is conservative; the next live fetch resolves it.
+  return buildFoundResult(matches, false);
 }
 
-function buildFoundResult(entries: CtecIndexedEntry[]): CtecLinkData {
+function buildFoundResult(entries: CtecIndexedEntry[], hasMore: boolean): CtecLinkData {
   // Exclude sentinel entries from display and count.
   const real = entries.filter((e) => e.actionId !== NOT_FOUND_ACTION_ID);
   const sorted = [...real].sort((a, b) => termToSortKey(b.term) - termToSortKey(a.term));
@@ -163,7 +188,21 @@ function buildFoundResult(entries: CtecIndexedEntry[]): CtecLinkData {
   // Mark incomplete if any entries failed to fetch (cancelled mid-run).
   const incomplete = real.some((e) => e.error === "Fetch failed");
 
-  return { state: "found", entries: withUrls, totalCount: real.length, incomplete };
+  return {
+    state: "found",
+    entries: withUrls,
+    totalCount: real.length,
+    incomplete,
+    hasMore
+  };
+}
+
+function buildRowKey(term: string, description: string, instructor: string): string {
+  return [
+    normalizeSearch(term),
+    normalizeSearch(description),
+    normalizeSearch(instructor)
+  ].join("|");
 }
 
 function writeSentinel(
@@ -193,7 +232,7 @@ function writeSentinel(
 }
 
 type FetchCourseResult =
-  | { type: "entries"; entries: CtecIndexedEntry[] }
+  | { type: "entries"; entries: CtecIndexedEntry[]; hasMore: boolean }
   | { type: "auth"; loginUrl: string }
   | { type: "not-found" }
   | { type: "error"; message: string };
@@ -203,6 +242,8 @@ async function fetchCourseEntries(
   catalogNumber: string,
   career: string,
   instructor: string,
+  skipKeys: Set<string>,
+  batchSize: number,
   onProgress?: (msg: string) => void
 ): Promise<FetchCourseResult> {
   const resultsUrl = buildSubjectResultsUrl(subject, career);
@@ -230,7 +271,7 @@ async function fetchCourseEntries(
   const actionUrl = resolveActionUrl(form.action);
   const baseParams = serializeForm(form);
 
-  onProgress?.("Finding course\u2026");
+  onProgress?.("Finding course…");
   const courseRows = collectCourseRows(doc);
   const targetCourse = courseRows.find((c) =>
     courseDescMatchesCatalog(c.description, catalogNumber)
@@ -269,14 +310,25 @@ async function fetchCourseEntries(
         })
       : allClassRows;
 
+  // Skip already-fetched rows; each call processes at most batchSize new ones.
+  const todoAll: CtecRowSeed[] = classRows.filter(
+    (r) => !skipKeys.has(buildRowKey(r.term, r.description, r.instructor))
+  );
+  const todo = todoAll.slice(0, batchSize);
+  const hasMore = todoAll.length > todo.length;
+
+  if (todo.length === 0) {
+    return { type: "entries", entries: [], hasMore: false };
+  }
+
   const classParams = applyResponseState(baseParams, courseResponse);
   const classActionUrl = extractPostUrl(courseResponse) ?? actionUrl;
 
-  const total = classRows.length;
+  const total = todo.length;
   const resultEntries: CtecIndexedEntry[] = [];
-  for (let i = 0; i < classRows.length; i++) {
-    const row = classRows[i]!;
-    onProgress?.(`Loading evaluation ${i + 1}/${total}\u2026`);
+  for (let i = 0; i < todo.length; i++) {
+    const row = todo[i]!;
+    onProgress?.(`Loading evaluation ${i + 1}/${total}…`);
 
     let classResponse: string;
     let classLoginUrl = CTEC_AUTH_URL;
@@ -318,35 +370,9 @@ async function fetchCourseEntries(
     });
   }
 
-  return { type: "entries", entries: resultEntries };
+  return { type: "entries", entries: resultEntries, hasMore };
 }
 
 function isUnauthorizedStatus(status: number): boolean {
   return status === 401 || status === 403;
-}
-
-// Carries cached reportSummary forward across a force-refresh so a "check for
-// new CTECs" pass only needs to fetch reports for entries we haven't seen yet.
-// Match by actionId — that's the stable identifier from PeopleSoft for a
-// specific term/section combo.
-function preserveReportSummaries(
-  newEntries: CtecIndexedEntry[],
-  existingEntries: CtecIndexedEntry[],
-  subject: string,
-  catalogNumber: string,
-  instructor: string
-): CtecIndexedEntry[] {
-  const oldByActionId = new Map<string, CtecIndexedEntry>();
-  for (const e of existingEntries) {
-    if (entryMatchesCourse(e, subject, catalogNumber, instructor)) {
-      oldByActionId.set(e.actionId, e);
-    }
-  }
-  return newEntries.map((entry) => {
-    const old = oldByActionId.get(entry.actionId);
-    if (old?.reportSummary !== undefined) {
-      return { ...entry, reportSummary: old.reportSummary };
-    }
-    return entry;
-  });
 }

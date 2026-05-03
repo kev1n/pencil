@@ -68,9 +68,10 @@ export function modalChartStyles(): string {
     }
     .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean {
       font-size: 36px;
-      font-weight: 800;
-      color: #66023c;
       letter-spacing: -0.03em;
+    }
+    .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean.is-empty {
+      color: #66023c;
     }
     .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-scale {
       color: #9b6b81;
@@ -93,8 +94,8 @@ export function modalChartStyles(): string {
       align-items: center;
       gap: 6px;
     }
-    .bc-paper-ctec-modal-kpi-info {
-      position: relative;
+    .bc-paper-ctec-modal-kpi-info,
+    .bc-paper-ctec-modal-info-icon {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -111,13 +112,23 @@ export function modalChartStyles(): string {
       text-transform: none;
       opacity: 0.55;
       cursor: help;
+      vertical-align: middle;
     }
     .bc-paper-ctec-modal-kpi-info:hover,
-    .bc-paper-ctec-modal-kpi-info:focus-visible {
+    .bc-paper-ctec-modal-kpi-info:focus-visible,
+    .bc-paper-ctec-modal-tip-host:hover .bc-paper-ctec-modal-info-icon,
+    .bc-paper-ctec-modal-tip-host:focus-visible .bc-paper-ctec-modal-info-icon {
       opacity: 1;
       outline: none;
     }
-    .bc-paper-ctec-modal-kpi-tooltip {
+    /* Generic tooltip component. Apply .bc-paper-ctec-modal-tip-host to the
+       trigger element and append a child <span class="bc-paper-ctec-modal-tip">.
+       Add .is-right when the host sits near the right edge of its container
+       so the popup hugs the right side instead of overflowing. */
+    .bc-paper-ctec-modal-tip-host {
+      position: relative;
+    }
+    .bc-paper-ctec-modal-tip {
       position: absolute;
       top: calc(100% + 8px);
       left: -8px;
@@ -129,10 +140,14 @@ export function modalChartStyles(): string {
       font-family: ui-sans-serif, system-ui, sans-serif;
       font-size: 11px;
       font-weight: 500;
+      font-style: normal;
       line-height: 1.45;
       letter-spacing: 0;
       text-transform: none;
       text-align: left;
+      white-space: normal;
+      word-break: normal;
+      overflow-wrap: anywhere;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
       opacity: 0;
       visibility: hidden;
@@ -140,7 +155,11 @@ export function modalChartStyles(): string {
       transition: opacity 120ms ease, visibility 120ms ease;
       z-index: 2147483647;
     }
-    .bc-paper-ctec-modal-kpi-tooltip::before {
+    .bc-paper-ctec-modal-tip.is-right {
+      left: auto;
+      right: 0;
+    }
+    .bc-paper-ctec-modal-tip::before {
       content: "";
       position: absolute;
       bottom: 100%;
@@ -148,17 +167,22 @@ export function modalChartStyles(): string {
       border: 6px solid transparent;
       border-bottom-color: #1f2937;
     }
-    .bc-paper-ctec-modal-kpi-info:hover .bc-paper-ctec-modal-kpi-tooltip,
-    .bc-paper-ctec-modal-kpi-info:focus-visible .bc-paper-ctec-modal-kpi-tooltip {
+    .bc-paper-ctec-modal-tip.is-right::before {
+      left: auto;
+      right: 14px;
+    }
+    .bc-paper-ctec-modal-tip-host:hover .bc-paper-ctec-modal-tip,
+    .bc-paper-ctec-modal-tip-host:focus-visible .bc-paper-ctec-modal-tip,
+    .bc-paper-ctec-modal-tip-host:focus-within .bc-paper-ctec-modal-tip {
       opacity: 1;
       visibility: visible;
     }
-    .dark .bc-paper-ctec-modal-kpi-tooltip {
+    .dark .bc-paper-ctec-modal-tip {
       background: #525252;
       color: #fafafa;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
     }
-    .dark .bc-paper-ctec-modal-kpi-tooltip::before {
+    .dark .bc-paper-ctec-modal-tip::before {
       border-bottom-color: #525252;
     }
     .bc-paper-ctec-modal-kpi-value {
@@ -166,10 +190,48 @@ export function modalChartStyles(): string {
       align-items: baseline;
       gap: 4px;
     }
+    /* Value pill — mirrors the schedule-card chip style (see styles/cards.ts
+       .bc-paper-ctec-chip + .bc-paper-ctec-chip-value): pill border-radius,
+       same hue-driven bg/border/fg vars set per-card in renderKpiPill. The
+       font-size is the only intentional departure: the chip uses 10px, but
+       this is a KPI strip so we keep it ~24px (36px for Global). */
     .bc-paper-ctec-modal-kpi-mean {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--bc-paper-ctec-kpi-border, transparent);
+      background: var(--bc-paper-ctec-kpi-bg, transparent);
+      color: var(--bc-paper-ctec-kpi-fg, inherit);
       font-size: 24px;
-      font-weight: 600;
+      font-weight: 800;
       letter-spacing: -0.02em;
+      line-height: 1.1;
+    }
+    .bc-paper-ctec-modal-kpi-mean.is-empty {
+      background: transparent;
+      border-color: transparent;
+      font-weight: 600;
+      color: #9ca3af;
+    }
+    .bc-paper-ctec-modal-kpi-mean.is-stars {
+      padding: 4px 6px;
+      background: transparent;
+      border-color: transparent;
+    }
+    .bc-paper-ctec-modal-kpi-scope {
+      margin: -8px 0 12px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.04);
+      color: #6b7280;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    .dark .bc-paper-ctec-modal-kpi-scope {
+      background: rgba(248, 250, 252, 0.06);
+      color: #cbd5e1;
     }
     .bc-paper-ctec-modal-kpi-scale {
       font-size: 11px;
@@ -445,7 +507,7 @@ export function modalChartStyles(): string {
     .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-label {
       color: #d8b4fe;
     }
-    .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean {
+    .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-mean.is-empty {
       color: #d8b4fe;
     }
     .dark .bc-paper-ctec-modal-kpi.is-global .bc-paper-ctec-modal-kpi-scale {
@@ -455,7 +517,14 @@ export function modalChartStyles(): string {
       color: #a3a3a3;
     }
     .dark .bc-paper-ctec-modal-kpi-mean {
-      color: #fafafa;
+      border-color: var(--bc-paper-ctec-kpi-border-dark, transparent);
+      background: var(--bc-paper-ctec-kpi-bg-dark, transparent);
+      color: var(--bc-paper-ctec-kpi-fg-dark, #fafafa);
+    }
+    .dark .bc-paper-ctec-modal-kpi-mean.is-empty {
+      background: transparent;
+      border-color: transparent;
+      color: #737373;
     }
     .dark .bc-paper-ctec-modal-kpi-scale {
       color: #a3a3a3;

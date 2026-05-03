@@ -11,11 +11,9 @@ import type {
 import { fetchTextResultViaBackground } from "../../remote-fetch";
 import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
 import { fetchCtecLinksBackground } from "./fetcher";
-import { CTEC_AUTH_URL } from "./constants";
+import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesCourse, isAuthResponse, termToSortKey } from "./helpers";
 import type { CtecLinkParams } from "./types";
-
-const NOT_FOUND_ACTION_ID = "BC_NOT_FOUND";
 
 export type CtecAggregateMetric = {
   mean: number;
@@ -390,29 +388,46 @@ function buildCourseAnalytics(
   };
 }
 
+// Response-count-weighted mean over an arbitrary collection. Used by both
+// the schedule-card chip aggregation here and the analytics-modal KPI
+// strip (modal/overview.ts:recentMean) so the two surfaces are guaranteed
+// to land on the exact same number for the same window of terms. Single
+// source of truth for the aggregation formula.
+export type WeightedSample = { mean: number; responseCount: number };
+
+export function weightedMean<T>(
+  samples: Iterable<T>,
+  pick: (sample: T) => WeightedSample | undefined
+): { mean: number; totalResponses: number; evaluationCount: number } {
+  let weightedTotal = 0;
+  let totalResponses = 0;
+  let evaluationCount = 0;
+  for (const sample of samples) {
+    const metric = pick(sample);
+    if (!metric) continue;
+    weightedTotal += metric.mean * metric.responseCount;
+    totalResponses += metric.responseCount;
+    evaluationCount += 1;
+  }
+  return {
+    mean: totalResponses > 0 ? weightedTotal / totalResponses : 0,
+    totalResponses,
+    evaluationCount
+  };
+}
+
 function aggregateMetric(
   summaries: CtecReportSummary[],
   pick: (
     summary: CtecReportSummary
   ) => CtecReportScalarMetric | CtecReportHoursMetric | undefined
 ): CtecAggregateMetric | undefined {
-  let weightedTotal = 0;
-  let totalResponses = 0;
-  let evaluationCount = 0;
-
-  for (const summary of summaries) {
-    const metric = pick(summary);
-    if (!metric) continue;
-    weightedTotal += metric.mean * metric.responseCount;
-    totalResponses += metric.responseCount;
-    evaluationCount += 1;
-  }
-
-  if (totalResponses <= 0 || evaluationCount <= 0) return undefined;
+  const result = weightedMean(summaries, (summary) => pick(summary));
+  if (result.totalResponses <= 0 || result.evaluationCount <= 0) return undefined;
   return {
-    mean: weightedTotal / totalResponses,
-    totalResponses,
-    evaluationCount
+    mean: result.mean,
+    totalResponses: result.totalResponses,
+    evaluationCount: result.evaluationCount
   };
 }
 

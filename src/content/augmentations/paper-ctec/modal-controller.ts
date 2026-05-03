@@ -1,8 +1,10 @@
+import { buildCtecCreditToastMessage, tryConsumeCtecCredit } from "../ctec-links/rate-limit";
 import {
   fetchCtecCourseAnalytics,
   getCachedReportAggregate,
   getCtecCourseAnalyticsSnapshot
 } from "../ctec-links/reports";
+import { showToast } from "../seats-notes/toast";
 import { PAPER_CTEC_CONFIG } from "./config";
 import { buildModalDisplayData } from "./modal-data";
 import type {
@@ -278,6 +280,10 @@ export class ModalController {
         onDismissRefreshFlash: () => {
           this.clearRefreshFlash(source.key);
           this.sync(document);
+        },
+        onToggleHeatmapExpanded: () => {
+          modalState.heatmapExpanded = !modalState.heatmapExpanded;
+          this.sync(document);
         }
       }
     );
@@ -290,6 +296,15 @@ export class ModalController {
   // batch (e.g. after a login retry) without bumping the target.
   kickBatch(context: AnalyticsModalSource, increment = true): void {
     if (this.state.analyticsInFlight.has(context.key)) return;
+
+    const credit = tryConsumeCtecCredit(Date.now());
+    if (!credit.ok) {
+      showToast(buildCtecCreditToastMessage(credit.waitMs), {
+        tone: "warn",
+        durationMs: 6000
+      });
+      return;
+    }
 
     const batchSize = PAPER_CTEC_CONFIG.aggregate.recentTerms;
     const snapshot = getCtecCourseAnalyticsSnapshot(
@@ -367,6 +382,15 @@ export class ModalController {
   private kickRefresh(context: AnalyticsModalSource): void {
     if (this.analyticsBackgroundRefresh.has(context.key)) return;
     if (this.state.analyticsInFlight.has(context.key)) return;
+
+    const credit = tryConsumeCtecCredit(Date.now());
+    if (!credit.ok) {
+      showToast(buildCtecCreditToastMessage(credit.waitMs), {
+        tone: "warn",
+        durationMs: 6000
+      });
+      return;
+    }
 
     this.analyticsBackgroundRefresh.add(context.key);
     // Clear any prior flash so the user doesn't see stale success/error
@@ -510,7 +534,8 @@ export class ModalController {
       commentsSentimentFilter: "all",
       commentsActiveTopic: null,
       commentsTermFilter: "all",
-      commentsSortBy: "recent"
+      commentsSortBy: "recent",
+      heatmapExpanded: false
     };
     this.modalStates.set(key, fresh);
     return fresh;

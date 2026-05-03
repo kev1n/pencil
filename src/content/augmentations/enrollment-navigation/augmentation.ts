@@ -385,7 +385,8 @@ function isEnrollmentWorkflowPage(doc: Document, pageId: string | null): boolean
     value === "SSR_SSENRL_DROP" ||
     value === "SSR_SSENRL_SWAP" ||
     value === "SSR_SSENRL_EDIT" ||
-    value === "SSR_SSENRL_UPDT"
+    value === "SSR_SSENRL_UPDT" ||
+    value === "SSR_SSENRL_APPT"
   );
 }
 

@@ -7,7 +7,14 @@ import {
   readStoredName,
   writeStoredCode
 } from "../content/access-gate/storage";
-import { FEATURES_STORAGE_KEY, getDefaultFeatureEnabled } from "../content/settings";
+import {
+  DEFAULT_RECENT_AGGREGATION_TERMS,
+  FEATURES_STORAGE_KEY,
+  MAX_RECENT_AGGREGATION_TERMS,
+  MIN_RECENT_AGGREGATION_TERMS,
+  RECENT_AGGREGATION_TERMS_STORAGE_KEY,
+  getDefaultFeatureEnabled
+} from "../content/settings";
 
 const CTEC_INDEX_KEY = "better-caesar:ctec-index:v1";
 
@@ -17,11 +24,32 @@ type FeatureItem = {
   description: string;
 };
 
-type FeatureSection = {
-  title: string;
-  blurb: string;
-  features: FeatureItem[];
+// Single-select option group. Each option owns a list of feature IDs to
+// turn on; every other option's IDs get turned off when this one is
+// chosen. Lets us expose mutually-exclusive choices ("Stars vs Percent vs
+// Default /6") that share the same boolean storage as the regular toggles
+// without inventing a new storage key.
+type RadioOption = {
+  id: string;
+  label: string;
+  description: string;
+  enables: string[];
 };
+
+type FeatureSection =
+  | {
+      kind?: "toggles";
+      title: string;
+      blurb: string;
+      features: FeatureItem[];
+    }
+  | {
+      kind: "radio";
+      title: string;
+      blurb: string;
+      options: RadioOption[];
+      defaultOptionId: string;
+    };
 
 const FEATURE_SECTIONS: FeatureSection[] = [
   {
@@ -70,23 +98,44 @@ const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Compresses the schedule card header to make more room for the compact CTEC row."
       },
       {
-        id: "paper-ctec-compact-card-stars",
-        label: "Dense Card Stars",
-        description: "Uses stars instead of numeric values in dense schedule cards."
-      },
-      {
-        id: "paper-ctec-rating-percent",
-        label: "Percent Ratings",
-        description: "Shows CTEC ratings as a /100 percentage instead of the native /6 score."
-      },
-      {
         id: "paper-card-border-on-hover",
         label: "Card Border on Hover",
         description: "Disables Paper's hover-lift animation on schedule cards and shows a static border outline instead."
       }
     ]
+  },
+  {
+    kind: "radio",
+    title: "Rating display",
+    blurb: "How CTEC scores are formatted in schedule cards and the analytics KPI strip.",
+    defaultOptionId: "default",
+    options: [
+      {
+        id: "default",
+        label: "Numeric (/6)",
+        description: "Shows the raw mean rating on Northwestern's native 0–6 scale.",
+        enables: []
+      },
+      {
+        id: "percent",
+        label: "Percent (/100)",
+        description: "Converts the rating to a percentage of the 6-point scale (e.g. 5.4 → 90%).",
+        enables: ["paper-ctec-rating-percent"]
+      },
+      {
+        id: "stars",
+        label: "Stars",
+        description: "Renders the rating as filled stars instead of a number.",
+        enables: ["paper-ctec-compact-card-stars"]
+      }
+    ]
   }
 ];
+
+const RATING_DISPLAY_FEATURE_IDS = [
+  "paper-ctec-rating-percent",
+  "paper-ctec-compact-card-stars"
+] as const;
 
 async function loadSettings(): Promise<Record<string, boolean>> {
   const result = await chrome.storage.local.get(FEATURES_STORAGE_KEY) as Record<string, unknown>;
@@ -122,49 +171,197 @@ async function init(): Promise<void> {
     header.append(title, blurb);
     sectionEl.append(header);
 
-    const list = document.createElement("ul");
-    list.className = "feature-list";
-
-    for (const feature of section.features) {
-      const enabled = settings[feature.id] ?? getDefaultFeatureEnabled(feature.id);
-
-      const li = document.createElement("li");
-      li.className = "feature-row";
-
-      const copy = document.createElement("div");
-      copy.className = "feature-copy";
-
-      const label = document.createElement("span");
-      label.className = "feature-label";
-      label.textContent = feature.label;
-
-      const description = document.createElement("span");
-      description.className = "feature-description";
-      description.textContent = feature.description;
-
-      copy.append(label, description);
-
-      const toggle = document.createElement("button");
-      toggle.className = `toggle ${enabled ? "on" : "off"}`;
-      toggle.setAttribute("aria-pressed", String(enabled));
-      toggle.setAttribute("aria-label", `Toggle ${feature.label}`);
-
-      toggle.addEventListener("click", async () => {
-        const next = toggle.getAttribute("aria-pressed") !== "true";
-        toggle.setAttribute("aria-pressed", String(next));
-        toggle.className = `toggle ${next ? "on" : "off"}`;
-        const current = await loadSettings();
-        current[feature.id] = next;
-        await saveSettings(current);
-      });
-
-      li.append(copy, toggle);
-      list.append(li);
+    if (section.kind === "radio") {
+      sectionEl.append(renderRadioGroup(section, settings));
+    } else {
+      sectionEl.append(renderToggleList(section.features, settings));
     }
 
-    sectionEl.append(list);
     sectionsRoot.append(sectionEl);
   }
+}
+
+function renderToggleList(
+  features: FeatureItem[],
+  settings: Record<string, boolean>
+): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "feature-list";
+
+  for (const feature of features) {
+    const enabled = settings[feature.id] ?? getDefaultFeatureEnabled(feature.id);
+
+    const li = document.createElement("li");
+    li.className = "feature-row";
+
+    const copy = document.createElement("div");
+    copy.className = "feature-copy";
+
+    const label = document.createElement("span");
+    label.className = "feature-label";
+    label.textContent = feature.label;
+
+    const description = document.createElement("span");
+    description.className = "feature-description";
+    description.textContent = feature.description;
+
+    copy.append(label, description);
+
+    const toggle = document.createElement("button");
+    toggle.className = `toggle ${enabled ? "on" : "off"}`;
+    toggle.setAttribute("aria-pressed", String(enabled));
+    toggle.setAttribute("aria-label", `Toggle ${feature.label}`);
+
+    toggle.addEventListener("click", async () => {
+      const next = toggle.getAttribute("aria-pressed") !== "true";
+      toggle.setAttribute("aria-pressed", String(next));
+      toggle.className = `toggle ${next ? "on" : "off"}`;
+      const current = await loadSettings();
+      current[feature.id] = next;
+      await saveSettings(current);
+    });
+
+    li.append(copy, toggle);
+    list.append(li);
+  }
+
+  return list;
+}
+
+function renderRadioGroup(
+  section: Extract<FeatureSection, { kind: "radio" }>,
+  settings: Record<string, boolean>
+): HTMLElement {
+  const list = document.createElement("ul");
+  list.className = "feature-list";
+  list.setAttribute("role", "radiogroup");
+  list.setAttribute("aria-label", section.title);
+
+  // Resolve the currently-selected option from the boolean storage.
+  // Earlier-listed options win on conflict; falls back to the section's
+  // declared default when nothing matches.
+  const initialId =
+    section.options.find((option) =>
+      option.enables.length > 0 &&
+      option.enables.every(
+        (id) => settings[id] ?? getDefaultFeatureEnabled(id)
+      )
+    )?.id ?? section.defaultOptionId;
+
+  const rows: Array<{
+    option: RadioOption;
+    li: HTMLElement;
+    radio: HTMLButtonElement;
+  }> = [];
+
+  const setSelection = (selectedId: string): void => {
+    for (const row of rows) {
+      const isSelected = row.option.id === selectedId;
+      row.radio.classList.toggle("on", isSelected);
+      row.radio.classList.toggle("off", !isSelected);
+      row.radio.setAttribute("aria-checked", String(isSelected));
+      row.li.classList.toggle("is-selected", isSelected);
+    }
+  };
+
+  for (const option of section.options) {
+    const li = document.createElement("li");
+    li.className = "feature-row";
+
+    const copy = document.createElement("div");
+    copy.className = "feature-copy";
+
+    const label = document.createElement("span");
+    label.className = "feature-label";
+    label.textContent = option.label;
+
+    const description = document.createElement("span");
+    description.className = "feature-description";
+    description.textContent = option.description;
+
+    copy.append(label, description);
+
+    const radio = document.createElement("button");
+    radio.type = "button";
+    radio.className = "toggle radio off";
+    radio.setAttribute("role", "radio");
+    radio.setAttribute("aria-checked", "false");
+    radio.setAttribute("aria-label", option.label);
+
+    radio.addEventListener("click", async () => {
+      setSelection(option.id);
+      const current = await loadSettings();
+      // Clear every flag this section owns, then enable just the ones the
+      // chosen option declares. Keeps storage consistent with the radio
+      // contract even if multiple flags were on previously.
+      for (const id of RATING_DISPLAY_FEATURE_IDS) current[id] = false;
+      for (const id of option.enables) current[id] = true;
+      await saveSettings(current);
+    });
+
+    li.append(copy, radio);
+    list.append(li);
+    rows.push({ option, li, radio });
+  }
+
+  setSelection(initialId);
+  return list;
+}
+
+async function initRecentTermsInput(): Promise<void> {
+  const root = document.getElementById("recent-terms-row");
+  if (!root) return;
+
+  const stored = await chrome.storage.local.get(
+    RECENT_AGGREGATION_TERMS_STORAGE_KEY
+  ) as Record<string, unknown>;
+  const raw = stored[RECENT_AGGREGATION_TERMS_STORAGE_KEY];
+  const initial = clampRecent(typeof raw === "number" ? raw : DEFAULT_RECENT_AGGREGATION_TERMS);
+
+  const label = document.createElement("label");
+  label.className = "ctec-school-label";
+  label.htmlFor = "recent-terms-input";
+
+  const labelTitle = document.createElement("span");
+  labelTitle.className = "ctec-school-label-title";
+  labelTitle.textContent = "Recent terms aggregation";
+
+  const labelHelp = document.createElement("span");
+  labelHelp.className = "ctec-school-label-help";
+  labelHelp.textContent =
+    "How many of a course's most recent terms get averaged into the schedule-card chips and the analytics KPIs.";
+
+  label.append(labelTitle, labelHelp);
+
+  const input = document.createElement("input");
+  input.id = "recent-terms-input";
+  input.type = "number";
+  input.className = "ctec-school-select";
+  input.min = String(MIN_RECENT_AGGREGATION_TERMS);
+  input.max = String(MAX_RECENT_AGGREGATION_TERMS);
+  input.step = "1";
+  input.value = String(initial);
+  input.style.maxWidth = "80px";
+
+  const persist = async (): Promise<void> => {
+    const next = clampRecent(Number.parseInt(input.value, 10));
+    input.value = String(next);
+    await chrome.storage.local.set({
+      [RECENT_AGGREGATION_TERMS_STORAGE_KEY]: next
+    });
+  };
+  input.addEventListener("change", () => void persist());
+  input.addEventListener("blur", () => void persist());
+
+  root.append(label, input);
+}
+
+function clampRecent(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_RECENT_AGGREGATION_TERMS;
+  return Math.max(
+    MIN_RECENT_AGGREGATION_TERMS,
+    Math.min(MAX_RECENT_AGGREGATION_TERMS, Math.floor(value))
+  );
 }
 
 function initClearCacheButton(): void {
@@ -183,6 +380,7 @@ function initClearCacheButton(): void {
 
 void init();
 initClearCacheButton();
+void initRecentTermsInput();
 void renderGate();
 
 chrome.storage.onChanged.addListener((changes, areaName) => {

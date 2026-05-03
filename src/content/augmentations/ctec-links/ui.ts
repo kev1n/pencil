@@ -204,6 +204,15 @@ export function renderCtecLinksWidget(
         warn.appendChild(reloadLink);
         root.appendChild(warn);
       }
+
+      if (data.hasMore) {
+        const loadMore = document.createElement("button");
+        loadMore.type = "button";
+        loadMore.className = "bc-ctec-expand";
+        loadMore.textContent = "Load more terms";
+        loadMore.addEventListener("click", onRetry);
+        root.appendChild(loadMore);
+      }
       break;
     }
     case "not-found": {

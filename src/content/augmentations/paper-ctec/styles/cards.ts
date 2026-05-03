@@ -40,7 +40,6 @@ export function cardStyles(): string {
       gap: 2px;
       overflow: hidden !important;
       min-height: 0;
-      padding-bottom: 18px;
     }
     .bc-paper-ctec-dense-card > .${WIDGET_CLASS} {
       margin-top: auto;
@@ -174,27 +173,53 @@ export function cardStyles(): string {
       font: inherit;
       padding: 1px 6px;
     }
+    /* Analytics anchor: hangs from the bottom edge of the schedule card.
+       Mounted as a direct child of the outer .absolute card host so it
+       escapes the dense-card .overflow:hidden, and translateY(50%) pushes
+       half the pill below the card edge. The card is position:absolute
+       (paper.nu's own layout) so this is positioned relative to it. */
     button.${WIDGET_CLASS}-analytics-btn {
       appearance: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 3px;
-      height: 16px;
-      padding: 0 5px;
-      border: 1px solid rgba(102, 2, 60, 0.32);
-      border-radius: 4px;
-      background: rgba(102, 2, 60, 0.08);
-      color: #66023c;
+      gap: 4px;
+      height: 18px;
+      padding: 0 9px;
+      border: 1px solid rgba(102, 2, 60, 0.45);
+      border-radius: 999px;
+      background: #66023c;
+      color: #fdf2f8;
       cursor: pointer;
-      flex: 0 0 auto;
-      margin-left: 2px;
       font: inherit;
       font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.04em;
       text-transform: uppercase;
       line-height: 1;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.18);
+    }
+    button.${WIDGET_CLASS}-analytics-anchor {
+      position: absolute;
+      bottom: 0;
+      right: 12px;
+      transform: translateY(80%);
+      transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+      z-index: 12;
+    }
+    button.${WIDGET_CLASS}-analytics-anchor:hover {
+      transform: translateY(70%);
+    }
+    /* Suppress paper.nu's card-hover effect while the cursor is on the
+       analytics anchor — the anchor visually overlaps the card so users
+       are aiming at the pill, not the card itself. Uses :has() (Chrome
+       105+; we target current Chromium) to scope the override. */
+    ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-analytics-anchor:hover) {
+      transform: none !important;
+      box-shadow: none !important;
+    }
+    .${NO_HOVER_LIFT_CLASS} ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-analytics-anchor:hover) {
+      outline-color: transparent !important;
     }
     button.${WIDGET_CLASS}-analytics-btn svg {
       width: 10px;
@@ -205,15 +230,9 @@ export function cardStyles(): string {
       white-space: nowrap;
     }
     button.${WIDGET_CLASS}-analytics-btn:hover {
-      background: rgba(102, 2, 60, 0.18);
-    }
-    .dark button.${WIDGET_CLASS}-analytics-btn {
-      border-color: rgba(252, 165, 207, 0.36);
-      background: rgba(252, 165, 207, 0.12);
-      color: #fbcfe8;
-    }
-    .dark button.${WIDGET_CLASS}-analytics-btn:hover {
-      background: rgba(252, 165, 207, 0.22);
+      background: #4d0230;
+      border-color: rgba(102, 2, 60, 0.7);
+      box-shadow: 0 3px 8px rgba(15, 23, 42, 0.22);
     }
     button.${WIDGET_CLASS}-chip-button:hover {
       background: rgba(190, 24, 93, 0.2);

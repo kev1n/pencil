@@ -131,25 +131,30 @@ function applyCompactChipTone(chip: HTMLElement, tone: CompactChipTone): void {
   chip.style.setProperty("--bc-paper-ctec-chip-fg-dark", tone.darkText);
 }
 
-// Picks a tone (HSL hue) for the chip based on metric value within scale.
-// `invert` flips the score so high hours map to "bad" tones. Tone scales
-// (the actual hue list) come from PAPER_CTEC_CONFIG.ui.{ratingChipTones,
-// hoursChipTones} so designers can adjust the palette without touching
-// this code.
-function buildCompactChipTone(
-  value: number,
-  max: number,
-  invert: boolean
-): CompactChipTone {
+// Picks an HSL hue for a metric value within its scale. Shared by the
+// compact card chips and the analytics-modal KPI numbers so both surfaces
+// use the same color palette. `invert` flips the score so high hours map
+// to "bad" tones. Tone scales come from PAPER_CTEC_CONFIG.ui so designers
+// can adjust the palette in one place.
+export function pickMetricHue(value: number, max: number, invert: boolean): number {
   const normalized = Math.max(0, Math.min(1, max > 0 ? value / max : 0));
   const score = invert ? 1 - normalized : normalized;
   const scale = invert
     ? PAPER_CTEC_CONFIG.ui.hoursChipTones
     : PAPER_CTEC_CONFIG.ui.ratingChipTones;
-  const hue =
+  return (
     scale.find((step) => score >= step.minScore)?.hue ??
     scale[scale.length - 1]?.hue ??
-    4;
+    4
+  );
+}
+
+function buildCompactChipTone(
+  value: number,
+  max: number,
+  invert: boolean
+): CompactChipTone {
+  const hue = pickMetricHue(value, max, invert);
 
   return {
     lightBackground: `hsla(${hue}, 96%, 68%, 0.98)`,

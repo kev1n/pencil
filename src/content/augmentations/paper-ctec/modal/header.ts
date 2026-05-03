@@ -1,5 +1,5 @@
 import type { ModalDisplayData } from "../modal-data";
-import { preventAndStop, stopPropagation } from "../ui-shared";
+import { attachTooltip, preventAndStop, stopPropagation } from "../ui-shared";
 import type {
   AnalyticsModalCallbacks,
   AnalyticsModalInput,
@@ -68,24 +68,6 @@ export function renderHeader(
   const actions = doc.createElement("div");
   actions.className = "bc-paper-ctec-modal-actions";
 
-  if (input.canRefresh) {
-    const refresh = doc.createElement("button");
-    refresh.type = "button";
-    refresh.className = "bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-refresh";
-    refresh.disabled = input.backgroundRefreshing;
-    refresh.textContent = input.backgroundRefreshing
-      ? "Checking Northwestern…"
-      : "↻ Check for new CTECs";
-    refresh.title =
-      "Asks Northwestern for any newly-published evaluations for this course and adds them to your view. Runs in the background — your existing data and analytics stay visible the entire time. Useful when CTECs from a recent term should be available but haven't appeared yet (they often arrive weeks after the term ends).";
-    refresh.addEventListener("click", (event) => {
-      preventAndStop(event);
-      if (refresh.disabled) return;
-      callbacks.onRefresh();
-    });
-    actions.append(refresh);
-  }
-
   if (input.canLoadMore || input.loading) {
     const loadMore = doc.createElement("button");
     loadMore.type = "button";
@@ -96,8 +78,8 @@ export function renderHeader(
         ? Math.min(input.loadMoreBatchSize, input.remainingTerms)
         : input.loadMoreBatchSize;
     loadMore.textContent = input.loading
-      ? `Loading +${batch}…`
-      : `+ ${batch} more term${batch === 1 ? "" : "s"}${
+      ? `Loading ${batch}…`
+      : `Load ${batch} more term${batch === 1 ? "" : "s"}${
           input.remainingTerms > 0 ? ` (${input.remainingTerms} left)` : ""
         }`;
     loadMore.title = `${input.parsedTermCount} loaded · ${input.remainingTerms} remaining. CTEC term reports load on demand to keep traffic on Northwestern's servers low.`;
@@ -107,6 +89,35 @@ export function renderHeader(
       callbacks.onLoadMore();
     });
     actions.append(loadMore);
+  }
+
+  if (input.canRefresh) {
+    const refresh = doc.createElement("button");
+    refresh.type = "button";
+    refresh.className = "bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-refresh";
+    refresh.disabled = input.backgroundRefreshing;
+    const refreshLabel = doc.createElement("span");
+    refreshLabel.textContent = input.backgroundRefreshing
+      ? "Checking Northwestern…"
+      : "↻ Check for new CTECs";
+    refresh.append(refreshLabel);
+    const refreshInfo = doc.createElement("span");
+    refreshInfo.className = "bc-paper-ctec-modal-info-icon";
+    refreshInfo.setAttribute("aria-hidden", "true");
+    refreshInfo.append(doc.createTextNode("i"));
+    refresh.append(doc.createTextNode(" "), refreshInfo);
+    attachTooltip(
+      doc,
+      refresh,
+      "Use this when a new round of CTECs comes out each quarter. Asks Northwestern for any newly-published evaluations for this course and adds them to your view. Runs in the background — your existing data stays visible the whole time.",
+      { align: "right" }
+    );
+    refresh.addEventListener("click", (event) => {
+      preventAndStop(event);
+      if (refresh.disabled) return;
+      callbacks.onRefresh();
+    });
+    actions.append(refresh);
   }
 
   if (input.data?.course.reportUrl) {
@@ -157,7 +168,7 @@ function renderDisclaimer(doc: Document): HTMLElement {
   text.append(
     lead,
     doc.createTextNode(
-      " Every trend and “vs prior term” number is just this professor's earlier sections of this exact course. Please don't use this to compare one professor against another — we don't support or condone that."
+      " Every trend and “vs recent term” number is just this professor's earlier sections of this exact course. Please don't use this to compare one professor against another — we don't support or condone that."
     )
   );
   note.append(text);

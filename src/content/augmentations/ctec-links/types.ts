@@ -3,7 +3,6 @@ export type CtecLinkParams = {
   subject: string;
   catalogNumber: string;
   instructor: string;
-  career: "UGRD" | "TGS";
 };
 
 export type CtecLinkEntry = {
@@ -14,7 +13,7 @@ export type CtecLinkEntry = {
 };
 
 export type CtecLinkData =
-  | { state: "found"; entries: CtecLinkEntry[]; totalCount: number; incomplete: boolean }
+  | { state: "found"; entries: CtecLinkEntry[]; totalCount: number; incomplete: boolean; hasMore: boolean }
   | { state: "auth-required"; loginUrl: string }
   | { state: "not-found" }
   | { state: "error"; message: string };

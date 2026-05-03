@@ -26,6 +26,26 @@ export function guardNestedInteraction(element: HTMLElement): void {
   element.addEventListener("keydown", stopPropagation);
 }
 
+// Attaches a hover/focus tooltip to `host`. Styling lives in the shared
+// `.bc-paper-ctec-modal-tip` rule so every callsite gets the same popup.
+// `align: "right"` anchors the tooltip's right edge to the host (use when
+// the host sits on the right side of its container so the tooltip doesn't
+// overflow off-screen).
+export function attachTooltip(
+  doc: Document,
+  host: HTMLElement,
+  text: string,
+  options?: { align?: "left" | "right" }
+): void {
+  host.classList.add("bc-paper-ctec-modal-tip-host");
+  const tip = doc.createElement("span");
+  tip.className = `bc-paper-ctec-modal-tip${
+    options?.align === "right" ? " is-right" : ""
+  }`;
+  tip.textContent = text;
+  host.append(tip);
+}
+
 export function createRatingStars(doc: Document, value: number): HTMLElement {
   const stars = doc.createElement("div");
   stars.className = "bc-paper-ctec-stars";
