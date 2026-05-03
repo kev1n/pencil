@@ -39,11 +39,6 @@ const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Adds inline professor evaluation history and links to matching CTEC reports."
       },
       {
-        id: "ctec-navigation",
-        label: "CTEC Navigator",
-        description: "Indexes CTEC subject results so courses and evaluations are easier to search."
-      },
-      {
         id: "enrollment-navigation",
         label: "Enrollment Terms",
         description: "Improves navigation across enrollment terms and related registration screens."

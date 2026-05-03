@@ -1,21 +1,8 @@
 import { decodeEntities } from "../../peoplesoft/shared";
-import { DEFAULT_CAREER_CODE, DEFAULT_SUBJECT_CODE, PAGE_ID } from "./constants";
-import type {
-  CtecCourseSeed,
-  CtecIndexedEntry,
-  CtecRowSeed,
-  CtecSubjectContext,
-  IndexVisualState
-} from "./types";
+import { DEFAULT_CAREER_CODE, PAGE_ID } from "./constants";
+import type { CtecCourseSeed, CtecIndexedEntry, CtecRowSeed } from "./types";
 
 const CAESAR_ORIGIN = "https://caesar.ent.northwestern.edu";
-
-export function normalizeSubjectCode(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const normalized = value.trim().toUpperCase();
-  if (!normalized) return null;
-  return normalized;
-}
 
 export function normalizeCareerCode(value: string | null | undefined): string {
   const normalized = (value ?? "").trim().toUpperCase();
@@ -33,44 +20,6 @@ export function normalizeSearch(value: string): string {
 export function cleanText(value: string | null | undefined): string {
   if (!value) return "";
   return decodeEntities(value).replace(/\s+/g, " ").trim();
-}
-
-export function readCareerFromUrl(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl, CAESAR_ORIGIN);
-    const career = url.searchParams.get("ACAD_CAREER");
-    if (!career) return null;
-    return normalizeCareerCode(career);
-  } catch {
-    return null;
-  }
-}
-
-export function readSubjectCodeFromUrl(rawUrl: string): string | null {
-  try {
-    const url = new URL(rawUrl, CAESAR_ORIGIN);
-    const subject = url.searchParams.get("SUBJECT");
-    return normalizeSubjectCode(subject);
-  } catch {
-    return null;
-  }
-}
-
-export function readSubjectContext(doc: Document, sourceUrl: string): CtecSubjectContext {
-  const urlCode = readSubjectCodeFromUrl(sourceUrl);
-
-  const subjectText = cleanText(doc.querySelector<HTMLElement>("#NW_CT_SUBJECT_V_DESCR50")?.textContent);
-  if (subjectText) {
-    const [left, right] = subjectText.split(/\s+-\s+/, 2);
-    const code = normalizeSubjectCode(left) || urlCode || DEFAULT_SUBJECT_CODE;
-    const label = right?.trim() || left.trim() || code;
-    return { code, label };
-  }
-
-  return {
-    code: urlCode || DEFAULT_SUBJECT_CODE,
-    label: urlCode || DEFAULT_SUBJECT_CODE
-  };
 }
 
 export function buildSubjectResultsUrl(subjectCode: string, careerCode: string): string {
@@ -266,27 +215,6 @@ export function serializeForm(form: HTMLFormElement): URLSearchParams {
   return params;
 }
 
-export function collectClassRows(doc: Document): CtecRowSeed[] {
-  const rows = doc.querySelectorAll<HTMLTableRowElement>("tr.ps_grid-row[id^='NW_CT_PV4_DRV$0_row_']");
-  const seeds: CtecRowSeed[] = [];
-
-  for (const row of Array.from(rows)) {
-    const link = row.querySelector<HTMLAnchorElement>("a[id^='MYLINK1$']");
-    if (!link) continue;
-
-    const actionId = extractActionId(link);
-    if (!actionId) continue;
-
-    const term = cleanText(row.querySelector<HTMLElement>("[id^='MYDESCR2$']")?.textContent);
-    const description = cleanText(row.querySelector<HTMLElement>("[id^='MYDESCR$']")?.textContent);
-    const instructor = cleanText(row.querySelector<HTMLElement>("[id^='CTEC_INSTRUCTOR$']")?.textContent);
-
-    seeds.push({ actionId, term, description, instructor });
-  }
-
-  return seeds;
-}
-
 export function collectClassRowsFromText(responseText: string): CtecRowSeed[] {
   const actionIds = extractActionIds(responseText, "MYLINK1");
   const rows: CtecRowSeed[] = [];
@@ -341,45 +269,4 @@ export function dedupeEntries(entries: CtecIndexedEntry[]): CtecIndexedEntry[] {
   }
 
   return Array.from(byKey.values());
-}
-
-export function createInitialVisualState(subjectCode: string | null = null): IndexVisualState {
-  return {
-    subjectCode,
-    startedAtMs: Date.now(),
-    coursesTotal: 0,
-    coursesStarted: 0,
-    coursesCompleted: 0,
-    classesTotal: 0,
-    classesStarted: 0,
-    classesCompleted: 0,
-    inFlightCourses: 0,
-    inFlightClasses: 0,
-    linksFound: 0,
-    linksMissing: 0,
-    courses: []
-  };
-}
-
-export async function mapWithConcurrency<T, U>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T, index: number) => Promise<U>
-): Promise<U[]> {
-  if (items.length === 0) return [];
-
-  const workerCount = Math.max(1, Math.min(concurrency, items.length));
-  const results: U[] = new Array(items.length);
-  let cursor = 0;
-
-  const workers = Array.from({ length: workerCount }, async () => {
-    while (cursor < items.length) {
-      const index = cursor;
-      cursor += 1;
-      results[index] = await mapper(items[index], index);
-    }
-  });
-
-  await Promise.all(workers);
-  return results;
 }

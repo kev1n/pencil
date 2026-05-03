@@ -10,7 +10,7 @@ This file is a living document. Update it as the repo evolves — when adding/re
 
 A Manifest V3 Chrome/Firefox extension that augments two sites for Northwestern students:
 
-- **CAESAR** (`caesar.ent.northwestern.edu`) — course registration. Adds seat/notes details, CTEC evaluation links, CTEC navigation indexing, and enrollment-term navigation.
+- **CAESAR** (`caesar.ent.northwestern.edu`) — course registration. Adds seat/notes details, CTEC evaluation links, and enrollment-term navigation.
 - **Paper.nu** (`paper.nu`, `www.paper.nu`) — schedule planner. Overlays CTEC summaries and analytics onto schedule cards and the section detail panel.
 
 It also reaches `northwestern.bluera.com` and Northwestern SSO hosts to fetch CTEC reports.
@@ -56,13 +56,12 @@ To add a new augmentation:
 
 - `seats-notes` — CAESAR shopping cart: loads class notes, attributes, requirements, seat counts.
 - `ctec-links` — CAESAR shopping cart: per-class CTEC evaluation history widget. Fetches via Bluera and writes a shared CTEC index.
-- `ctec-navigation` — CAESAR CTEC pages: indexes subject results so future lookups can hit cache.
 - `enrollment-navigation` — CAESAR: smoother navigation across enrollment terms / registration screens.
 - `paper-ctec` — Paper.nu: overlays CTEC summaries on schedule cards and analytics in the section side panel. Has its own sub-toggles (single summary card, dense cards, dense card stars).
 
 ## Shared CTEC index
 
-`ctec-navigation/storage.ts` owns a `chrome.storage.local`-backed CTEC index with an in-memory write-through cache. Both `ctec-navigation` and `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write it. The popup's "Clear CTEC cache" button wipes it.
+`ctec-navigation/` is no longer a registered augmentation, but its `storage.ts`, `helpers.ts`, and `types.ts` remain as the home of the shared CTEC index module. `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write the `chrome.storage.local`-backed index through `readSubjectIndex`/`writeSubjectIndex`. The popup's "Clear CTEC cache" button wipes it.
 
 ## User preferences
 
