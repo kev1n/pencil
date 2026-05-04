@@ -39,17 +39,6 @@ export function classSearchStyles(): string {
     }
     .bc-cs-subtitle a { color: var(--bc-color-text); text-decoration: underline; text-decoration-color: var(--bc-color-border-strong); }
     .bc-cs-subtitle a:hover { text-decoration-color: var(--bc-color-text); }
-    .bc-cs-disclaimer {
-      flex: 1 0 100%;
-      margin-top: 4px;
-      padding: 8px 12px;
-      border: 1px dashed var(--bc-color-warn-border, var(--bc-color-border-strong));
-      border-radius: 6px;
-      background: var(--bc-color-warn-surface, rgba(255, 196, 0, 0.08));
-      color: var(--bc-color-warn-text, var(--bc-color-text));
-      font-size: var(--bc-font-12);
-      line-height: 1.4;
-    }
 
     /* ── Tabs ───────────────────────────────────────────────────────────── */
     /* Sit flush with the top edge of the card below: only the active tab
@@ -92,6 +81,7 @@ export function classSearchStyles(): string {
     .bc-cs-tab[data-active="true"]:hover {
       background: var(--bc-color-bg);
     }
+    #better-caesar-class-search-panel { margin-top: 24px; }
 
     /* ── Card / form ────────────────────────────────────────────────────── */
     .bc-cs-card {
@@ -237,6 +227,103 @@ export function classSearchStyles(): string {
       background: var(--bc-color-surface-soft);
     }
 
+    /* "Your classes" cards: shown only when the search box is empty so
+       the user lands on a useful at-a-glance summary of cart + enrolled.
+       The search-results path (renderResults) reuses .bc-cs-results, so
+       these elements are removed automatically as soon as a query types. */
+    .bc-cs-myclasses { display: flex; flex-direction: column; gap: 8px; }
+    .bc-cs-myclasses-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 4px;
+    }
+    .bc-cs-myclasses-label {
+      font-family: var(--bc-font-display);
+      font-size: var(--bc-font-15);
+      font-weight: var(--bc-fw-regular);
+      color: var(--bc-color-text);
+    }
+    .bc-cs-myclasses-count {
+      font-size: var(--bc-font-11);
+      letter-spacing: var(--bc-ls-wide);
+      color: var(--bc-color-text-muted);
+    }
+    .bc-cs-myclasses-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+    .bc-cs-myclass-card {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px 12px;
+      background: var(--bc-color-bg);
+      border: 1px solid var(--bc-color-border-divider);
+      border-radius: var(--bc-radius-lg);
+      box-shadow: var(--bc-shadow-card-soft);
+    }
+    .bc-cs-myclass-card[data-status="enrolled"] {
+      border-left: 3px solid var(--bc-color-success, var(--bc-color-border-strong));
+    }
+    .bc-cs-myclass-card[data-status="in-cart"] {
+      border-left: 3px solid var(--bc-color-paper, var(--bc-color-border-strong));
+    }
+    .bc-cs-myclass-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .bc-cs-myclass-id {
+      font-family: var(--bc-font-mono, monospace);
+      font-size: var(--bc-font-13);
+      font-weight: var(--bc-fw-bold);
+      color: var(--bc-color-text);
+    }
+    .bc-cs-myclass-section {
+      font-size: var(--bc-font-11);
+      letter-spacing: var(--bc-ls-wide);
+      color: var(--bc-color-text-muted);
+    }
+    .bc-cs-myclass-title {
+      font-size: var(--bc-font-12);
+      color: var(--bc-color-text);
+      line-height: 1.35;
+    }
+    .bc-cs-myclass-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .bc-cs-myclass-badge {
+      display: inline-flex;
+      align-items: center;
+      height: 20px;
+      padding: 0 8px;
+      border-radius: var(--bc-radius-pill);
+      font-size: var(--bc-font-10);
+      font-weight: var(--bc-fw-bold);
+      letter-spacing: var(--bc-ls-wider);
+      box-sizing: border-box;
+      line-height: 1;
+    }
+    .bc-cs-myclass-badge[data-status="enrolled"] {
+      background: var(--bc-color-success-bg);
+      color: var(--bc-color-success);
+    }
+    .bc-cs-myclass-badge[data-status="in-cart"] {
+      background: var(--bc-color-paper-soft);
+      color: var(--bc-color-paper);
+    }
+    .bc-cs-myclass-detail {
+      font-size: var(--bc-font-11);
+      color: var(--bc-color-text-muted);
+      line-height: 1.4;
+    }
+
     .bc-cs-course {
       background: var(--bc-color-bg);
       border: 1px solid var(--bc-color-border-divider);
@@ -288,7 +375,7 @@ export function classSearchStyles(): string {
       flex-wrap: wrap;
       align-items: center;
       gap: 6px;
-      padding: 10px 16px 0;
+      padding: 10px 16px;
     }
     .bc-cs-tag {
       font-size: var(--bc-font-10);
@@ -310,53 +397,46 @@ export function classSearchStyles(): string {
     .bc-cs-tag[data-kind="closed"]     { background: var(--bc-color-danger-bg); color: var(--bc-color-danger); }
     .bc-cs-tag[data-kind="wait"]       { background: var(--bc-color-warn-bg); color: var(--bc-color-warn); }
 
+    /* Refresh button: small icon-only at the right end of the tags row.
+       Hidden by inline display:none until live data first paints, so a
+       cold card stays uncluttered. */
+    .bc-cs-refresh-btn {
+      margin-left: auto;
+      width: 24px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid var(--bc-color-border-divider);
+      border-radius: 50%;
+      background: transparent;
+      color: var(--bc-color-text-muted);
+      font-size: 13px;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--bc-tx-fast), border-color var(--bc-tx-fast), background-color var(--bc-tx-fast), transform var(--bc-tx-fast);
+    }
+    .bc-cs-refresh-btn:hover {
+      color: var(--bc-color-text);
+      border-color: var(--bc-color-border-strong);
+      background: var(--bc-color-surface-hover);
+    }
+    .bc-cs-refresh-btn[data-state="loading"],
+    .bc-cs-refresh-btn.is-spinning {
+      cursor: progress;
+      animation: bc-cs-spin 0.9s linear infinite;
+    }
+    @keyframes bc-cs-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
     .bc-cs-course-desc {
       font-size: var(--bc-font-12);
       color: var(--bc-color-text-muted);
       padding: 6px 16px 12px;
       line-height: 1.5;
-      max-height: 4.5em;
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-    }
-    .bc-cs-course-desc.bc-cs-expanded { max-height: none; }
-
-    /* "Load CAESAR data" button — secondary CAESAR-toned action */
-    .bc-cs-live-btn {
-      margin-left: auto;
-      background: transparent;
-      border: 1px solid var(--bc-color-border-strong);
-      border-radius: var(--bc-radius-lg);
-      padding: 4px 10px;
-      font: inherit;
-      font-size: var(--bc-font-11);
-      font-weight: var(--bc-fw-semibold);
-      color: var(--bc-color-text-muted);
-      cursor: pointer;
-      letter-spacing: var(--bc-ls-wide);
-      transition: color var(--bc-tx-fast), border-color var(--bc-tx-fast), background-color var(--bc-tx-fast);
-    }
-    .bc-cs-live-btn:hover {
-      color: var(--bc-color-text);
-      border-color: var(--bc-color-border-strong);
-      background: var(--bc-color-surface-hover);
-    }
-    .bc-cs-live-btn[data-state="loading"] {
-      color: var(--bc-color-text);
-      border-color: var(--bc-color-border-strong);
-      background: var(--bc-color-surface-hover);
-      cursor: progress;
-    }
-    .bc-cs-live-btn[data-state="ready"] {
-      color: var(--bc-color-text);
-      border-color: var(--bc-color-border-strong);
-      background: var(--bc-color-surface-hover-strong);
-    }
-    .bc-cs-live-btn[data-state="error"] {
-      color: var(--bc-color-danger);
-      border-color: var(--bc-color-danger);
-      background: var(--bc-color-danger-bg);
     }
 
     /* ── Section rows ───────────────────────────────────────────────────── */
@@ -427,13 +507,6 @@ export function classSearchStyles(): string {
     .bc-cs-status-pill[data-status="Open"]      { background: var(--bc-color-success-bg); color: var(--bc-color-success); border-color: transparent; }
     .bc-cs-status-pill[data-status="Closed"]    { background: var(--bc-color-danger-bg);  color: var(--bc-color-danger);  border-color: transparent; }
     .bc-cs-status-pill[data-status="Wait List"] { background: var(--bc-color-warn-bg);    color: var(--bc-color-warn);    border-color: transparent; }
-
-    .bc-cs-class-num {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: var(--bc-font-11);
-      color: var(--bc-color-text-muted);
-      font-variant-numeric: tabular-nums;
-    }
 
     .bc-cs-section-actions {
       display: flex;
@@ -589,11 +662,6 @@ export function classSearchStyles(): string {
     .bc-cs-related-option-section {
       font-weight: var(--bc-fw-bold);
       color: var(--bc-color-accent);
-    }
-    .bc-cs-related-option-num {
-      font-size: var(--bc-font-11);
-      color: var(--bc-color-text-muted);
-      font-variant-numeric: tabular-nums;
     }
     .bc-cs-related-option-mid {
       display: flex;
