@@ -107,9 +107,27 @@ export function startAccessGate(): Promise<GateStatus> {
     const status = await refreshGate();
     // Kick off background name fetch from CAESAR even if we have a status —
     // this populates the cache on first CAESAR load and refreshes stale data.
-    void ensureNameLoaded();
+    //
+    // Only do the fetch from the top frame. The manifest sets all_frames:true
+    // and CAESAR renders its app inside #ptifrmtgtframe (and other helper
+    // iframes), so without this gate every CAESAR pageload would fan out
+    // multiple concurrent profile-page GETs from sibling content scripts.
+    // Iframes still attach the storage listener above, so a successful
+    // top-frame fetch propagates to every frame's gate via storage.onChanged.
+    if (isTopFrame()) {
+      void ensureNameLoaded();
+    }
     return status;
   })();
 
   return initialEvaluation;
+}
+
+function isTopFrame(): boolean {
+  try {
+    return window.top === window.self;
+  } catch {
+    // Cross-origin top access can throw — assume not top.
+    return false;
+  }
 }

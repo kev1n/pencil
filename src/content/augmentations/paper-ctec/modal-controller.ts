@@ -125,12 +125,17 @@ export class ModalController {
 
   // Resume an in-progress batch after a login retry: if the user previously
   // asked for a batch and we haven't reached that target yet, kick again.
+  // Only fires when `analyticsResolved` has been cleared (the post-login
+  // `clearAuthRequiredStates` path). Any other resolved state — found,
+  // not-found, error — is terminal until the user takes an explicit action.
+  // Without that guard the side-card sync runs on every paper.nu mutation
+  // tick and would spin kickBatch on error/found states, fanning CAESAR
+  // traffic out to the per-hour rate limit.
   resumeIfNeeded(context: PaperCtecSideCardContext): void {
     const previousTarget = this.analyticsTargetCount.get(context.key);
     if (previousTarget === undefined) return;
     if (this.state.analyticsInFlight.has(context.key)) return;
-    const existing = this.state.analyticsResolved.get(context.key);
-    if (existing?.state === "auth-required" || existing?.state === "not-found") return;
+    if (this.state.analyticsResolved.has(context.key)) return;
 
     const resumeSnapshot = getCtecCourseAnalyticsSnapshot(
       context.params,
@@ -245,7 +250,11 @@ export class ModalController {
         awaitingAuth: this.callbacks.isAwaitingRetry(),
         errorMessage,
         notFound,
-        canRefresh: !!data && !authUrl && !errorMessage,
+        // Refresh is the user's recovery path when the resumeIfNeeded
+        // auto-retry was disabled (see commit 0391fd7). Allow it on error
+        // even with no data, otherwise an errored fetch with no parsed
+        // entries leaves the modal as a dead end.
+        canRefresh: !authUrl && (!!data || !!errorMessage),
         canLoadMore,
         loadMoreBatchSize: PAPER_CTEC_CONFIG.aggregate.recentTerms,
         remainingTerms,
