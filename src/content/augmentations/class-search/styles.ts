@@ -39,6 +39,17 @@ export function classSearchStyles(): string {
     }
     .bc-cs-subtitle a { color: var(--bc-color-text); text-decoration: underline; text-decoration-color: var(--bc-color-border-strong); }
     .bc-cs-subtitle a:hover { text-decoration-color: var(--bc-color-text); }
+    .bc-cs-disclaimer {
+      flex: 1 0 100%;
+      margin-top: 4px;
+      padding: 8px 12px;
+      border: 1px dashed var(--bc-color-warn-border, var(--bc-color-border-strong));
+      border-radius: 6px;
+      background: var(--bc-color-warn-surface, rgba(255, 196, 0, 0.08));
+      color: var(--bc-color-warn-text, var(--bc-color-text));
+      font-size: var(--bc-font-12);
+      line-height: 1.4;
+    }
 
     /* ── Tabs ───────────────────────────────────────────────────────────── */
     /* Sit flush with the top edge of the card below: only the active tab

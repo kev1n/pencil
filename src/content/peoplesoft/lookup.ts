@@ -1,18 +1,35 @@
 import type { LookupClassMessage, LookupClassResponse, LookupClassSuccess } from "../../shared/messages";
 import { buildCareerCandidates, initializeSearchContext, readContextCodes } from "./context";
-import { fetchPeopleSoft } from "./http";
+import { fetchPeopleSoft, fetchPeopleSoftGet } from "./http";
 import { buildLookupSummary, isMatchingClass, mergeDetailData } from "./parsers";
 import { buildDetailParams, buildSearchParams } from "./params";
-import { sanitizeClassNumber } from "./shared";
+import { resolveActionUrl, SEARCH_ENTRY_URL, sanitizeClassNumber } from "./shared";
 import { isRetryablePeopleSoftTaskError, runPeopleSoftTask, type PeopleSoftTaskPriority } from "./traffic";
 
 export async function lookupClass(
   message: LookupClassMessage,
-  options?: { priority?: PeopleSoftTaskPriority; owner?: string }
+  options?: { priority?: PeopleSoftTaskPriority; owner?: string; resetContextAfter?: boolean }
 ): Promise<LookupClassResponse> {
   return runPeopleSoftTask(
     options?.priority ?? "background",
-    () => lookupClassInternal(message),
+    async () => {
+      try {
+        return await lookupClassInternal(message);
+      } finally {
+        // Caller (class-search) is sitting on the search entry page, so
+        // `document.forms.win0` carries a static ICStateNum that the
+        // server's session left behind once we POSTed. Re-GET the entry
+        // URL to snap the server back to that ICStateNum so the next
+        // user action keeps working.
+        if (options?.resetContextAfter) {
+          try {
+            await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
+          } catch {
+            // Best-effort — don't fail the original op on reset trouble.
+          }
+        }
+      }
+    },
     { owner: options?.owner }
   );
 }

@@ -52,7 +52,6 @@ export type CaesarSearchResult = {
 
 export type CaesarSearchInput = {
   termId: string;
-  career: string;
   institution: string;
   subject: string;
   bareCatalog: string; // bare number — NOT the full "111-0"
@@ -111,8 +110,8 @@ export type CartFlowResult =
 export type CartFlowInput = {
   classNumber: string; // 5-digit CAESAR class number (e.g. "34612")
   termId: string;
-  career: string;
   institution: string;
+  bareCatalog: string; // drives career fallback order (TGS-first for 4xx)
 };
 
 export type CartFlowContinuationInput = {
@@ -137,7 +136,13 @@ export async function searchCaesarCatalog(
 ): Promise<CaesarSearchResult> {
   return runPeopleSoftTask(
     "user",
-    () => searchCaesarCatalogInternal(input),
+    async () => {
+      try {
+        return await searchCaesarCatalogInternal(input);
+      } finally {
+        await resetSearchEntryContext();
+      }
+    },
     { owner: "class-search-discover" }
   );
 }
@@ -147,7 +152,16 @@ export async function searchCaesarCatalog(
 export async function addSectionToCart(input: CartFlowInput): Promise<CartFlowResult> {
   return runPeopleSoftTask(
     "user",
-    () => addSectionToCartInternal(input),
+    async () => {
+      const result = await addSectionToCartInternal(input);
+      // Mid-wizard pause for related-component pick: leave server state
+      // alone — `continueCartAddWithRelated` resumes from the saved
+      // `continuationFormState` and a reset would invalidate it.
+      if (!("needsRelatedSection" in result)) {
+        await resetSearchEntryContext();
+      }
+      return result;
+    },
     { owner: "class-search-add" }
   );
 }
@@ -161,9 +175,30 @@ export async function continueCartAddWithRelated(
 ): Promise<CartFlowResult> {
   return runPeopleSoftTask(
     "user",
-    () => continueCartAddWithRelatedInternal(input),
+    async () => {
+      const result = await continueCartAddWithRelatedInternal(input);
+      if (!("needsRelatedSection" in result)) {
+        await resetSearchEntryContext();
+      }
+      return result;
+    },
     { owner: "class-search-add-related" }
   );
+}
+
+// User is parked on the SSR_CLSRCH_ENTRY page; the live `win0` form's
+// ICSID/ICStateNum are frozen at page-load values that we read on every
+// subsequent action. Each XHR POST advances the server's session past
+// them, so a second click would send a stale ICStateNum and break.
+// Re-GETting the entry URL pulls the server back to the entry-page state,
+// keeping it aligned with the still-static live form. Best-effort —
+// failures here should never bubble up over the actual operation.
+async function resetSearchEntryContext(): Promise<void> {
+  try {
+    await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
+  } catch {
+    // ignore
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -182,19 +217,44 @@ function fail(error: string, extras: FailExtras = {}): CartFlowResult {
 async function searchCaesarCatalogInternal(
   input: CaesarSearchInput
 ): Promise<CaesarSearchResult> {
-  const baseParams = await getEntryFormState();
-  if (!baseParams.has("ICSID")) {
-    throw new Error("Missing PeopleSoft session — try refreshing the page.");
+  const careers = careerOrderFor(input.bareCatalog);
+  let lastError: string | null = null;
+  let lastGroups: CaesarCourseGroup[] = [];
+
+  for (let i = 0; i < careers.length; i += 1) {
+    if (i > 0) {
+      // Each search POST advances server-side ICStateNum past the live
+      // form's static value, so a second attempt would send stale state.
+      // Snap the server back to entry between candidates.
+      try {
+        await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
+      } catch {
+        // ignore — best-effort
+      }
+    }
+    const baseParams = await getEntryFormState();
+    if (!baseParams.has("ICSID")) {
+      throw new Error("Missing PeopleSoft session — try refreshing the page.");
+    }
+
+    const searchParams = buildSearchPostParams(baseParams, input, careers[i]!);
+    const searchHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), searchParams);
+    if (looksLikeError(searchHtml)) {
+      lastError = extractErrorMessage(searchHtml) ?? "CAESAR search returned an error.";
+      continue;
+    }
+
+    const groups = parseCaesarGroups(searchHtml);
+    if (groups.length > 0) return { groups };
+    lastGroups = groups;
   }
 
-  const searchParams = buildSearchPostParams(baseParams, input);
-  const searchHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), searchParams);
-  if (looksLikeError(searchHtml)) {
-    throw new Error(extractErrorMessage(searchHtml) ?? "CAESAR search returned an error.");
+  if (lastError && lastGroups.length === 0) {
+    // Only surface the error when no career produced rows. An empty result
+    // (no error, no rows) is just "course not on CAESAR for this term".
+    throw new Error(lastError);
   }
-
-  const groups = parseCaesarGroups(searchHtml);
-  return { groups };
+  return { groups: lastGroups };
 }
 
 // Skip the entry GET when we're already sitting on the search entry page —
@@ -215,30 +275,54 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       return { ok: false, error: "Missing CAESAR class number — load CAESAR data first." };
     }
 
-    const baseParams = await getEntryFormState();
-    if (!baseParams.has("ICSID")) {
-      return { ok: false, error: "Missing PeopleSoft session — try refreshing the page." };
-    }
+    // Step 1: POST class-number search → search results page. Loop the
+    // career candidates so 4xx classes (catalogued under TGS) resolve
+    // even when the user's class-search dropdown is set to UGRD.
+    const careers = careerOrderFor(input.bareCatalog);
+    let searchHtml: string | null = null;
+    let groups: CaesarCourseGroup[] = [];
+    let match: { group: CaesarCourseGroup; section: CaesarSection } | null = null;
+    let lastError: string | null = null;
 
-    // Step 1: POST class-number search → search results page.
-    const searchPost = buildClassNumberSearchParams(baseParams, {
-      termId: input.termId,
-      career: input.career,
-      institution: input.institution,
-      classNumber
-    });
-    const searchHtml = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), searchPost);
-    if (looksLikeError(searchHtml)) {
-      return fail(extractErrorMessage(searchHtml) ?? "CAESAR search returned an error.", { classNumber });
-    }
-
-    const groups = parseCaesarGroups(searchHtml);
-    const match = locateByClassNumber(groups, classNumber);
-    if (!match) {
-      return fail(`Couldn't find class #${classNumber} on CAESAR for this term.`, {
-        classNumber,
-        searchGroups: groups
+    for (let i = 0; i < careers.length; i += 1) {
+      if (i > 0) {
+        try {
+          await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
+        } catch {
+          // ignore
+        }
+      }
+      const baseParams = await getEntryFormState();
+      if (!baseParams.has("ICSID")) {
+        return { ok: false, error: "Missing PeopleSoft session — try refreshing the page." };
+      }
+      const searchPost = buildClassNumberSearchParams(baseParams, {
+        termId: input.termId,
+        career: careers[i]!,
+        institution: input.institution,
+        classNumber
       });
+      const html = await fetchPeopleSoft(resolveActionUrl(SEARCH_ENDPOINT), searchPost);
+      if (looksLikeError(html)) {
+        lastError = extractErrorMessage(html) ?? "CAESAR search returned an error.";
+        continue;
+      }
+      const candidateGroups = parseCaesarGroups(html);
+      const candidateMatch = locateByClassNumber(candidateGroups, classNumber);
+      if (candidateMatch) {
+        searchHtml = html;
+        groups = candidateGroups;
+        match = candidateMatch;
+        break;
+      }
+      groups = candidateGroups;
+    }
+
+    if (!match || !searchHtml) {
+      return fail(
+        lastError ?? `Couldn't find class #${classNumber} on CAESAR for this term.`,
+        { classNumber, searchGroups: groups }
+      );
     }
 
     // CAESAR omits the Select button when the section is already in the
@@ -654,7 +738,11 @@ function locateByClassNumber(
 // ────────────────────────────────────────────────────────────────────────────
 // Form parameter helpers
 
-function buildSearchPostParams(base: URLSearchParams, input: CaesarSearchInput): URLSearchParams {
+function buildSearchPostParams(
+  base: URLSearchParams,
+  input: CaesarSearchInput,
+  career: string
+): URLSearchParams {
   const params = new URLSearchParams(base.toString());
   params.set("ICAJAX", "1");
   params.set("ICNAVTYPEDROPDOWN", "0");
@@ -677,13 +765,23 @@ function buildSearchPostParams(base: URLSearchParams, input: CaesarSearchInput):
   // by reading the result group titles.
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_CATALOG_NBR", input.bareCatalog);
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_SSR_EXACT_MATCH1", "C");
-  setAllWithPrefix(params, "SSR_CLSRCH_WRK_ACAD_CAREER", input.career);
+  setAllWithPrefix(params, "SSR_CLSRCH_WRK_ACAD_CAREER", career);
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_SSR_OPEN_ONLY$chk$", "N");
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_CLASS_NBR", "");
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_DESCR", "");
   setAllWithPrefix(params, "SSR_CLSRCH_WRK_LAST_NAME", "");
 
   return params;
+}
+
+// 400-level NU classes are catalogued under TGS even when undergrads can
+// take them (see project memory). For everything else, undergrad-first
+// matches the typical case. Two-element list so a wrong first guess always
+// has a fallback.
+function careerOrderFor(bareCatalog: string): string[] {
+  const num = parseInt(bareCatalog, 10);
+  const gradFirst = Number.isFinite(num) && num >= 400;
+  return gradFirst ? ["TGS", "UGRD"] : ["UGRD", "TGS"];
 }
 
 function buildClassNumberSearchParams(

@@ -90,5 +90,5 @@ export function formatCtecCreditsWarning(now: number = Date.now()): string | nul
   if (!oldestAt) return null;
   const refreshMs = Math.max(0, oldestAt + CTEC_CREDIT_WINDOW_MS - now);
   const refreshMin = Math.max(1, Math.ceil(refreshMs / 60_000));
-  return `${remaining} of ${CTEC_CREDIT_LIMIT} left, next opens in ${refreshMin} min`;
+  return `${remaining} of ${CTEC_CREDIT_LIMIT} left, limit resets in ${refreshMin} min`;
 }

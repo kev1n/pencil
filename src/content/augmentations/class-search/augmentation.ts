@@ -316,7 +316,11 @@ export class ClassSearchAugmentation implements Augmentation {
     const subtitle = doc.createElement("div");
     subtitle.className = "bc-cs-subtitle";
     subtitle.innerHTML = `Catalog from <a href="https://paper.nu" target="_blank" rel="noopener">paper.nu</a> · live status fetched from CAESAR on demand`;
-    header.append(title, subtitle);
+    const disclaimer = doc.createElement("div");
+    disclaimer.className = "bc-cs-disclaimer";
+    disclaimer.textContent =
+      "Heads up: Sharper Search is still buggy and will be fixed in a later release. If something misbehaves, switch to the Classic CAESAR tab.";
+    header.append(title, subtitle, disclaimer);
 
     const card = doc.createElement("div");
     card.className = "bc-cs-card";
@@ -774,7 +778,6 @@ export class ClassSearchAugmentation implements Augmentation {
     try {
       const result = await searchCaesarCatalog({
         termId: state.filters.termId,
-        career: state.career,
         institution: state.institution,
         subject: row.course.subject,
         bareCatalog: bareCatalogNumber(row.course.catalog)
@@ -897,14 +900,15 @@ export class ClassSearchAugmentation implements Augmentation {
     detailRow.className = "bc-cs-detail-row";
     li.parentElement?.insertBefore(detailRow, li.nextSibling);
 
+    const bareCatalog = bareCatalogNumber(row.course.catalog);
     const cachedDisk = readSeatsNotesCache(caesar.classNumber);
     if (cachedDisk?.result) {
       this.renderDetailRow(state, detailRow, caesar, cachedDisk.result, cachedDisk.fetchedAt, () => {
         if (!this.consumePsCredit("refresh-detail")) return;
-        void this.fetchAndRenderDetail(state, detailRow, caesar);
+        void this.fetchAndRenderDetail(state, detailRow, caesar, bareCatalog);
       });
     } else {
-      await this.fetchAndRenderDetail(state, detailRow, caesar);
+      await this.fetchAndRenderDetail(state, detailRow, caesar, bareCatalog);
     }
 
     button.dataset.expanded = "true";
@@ -914,18 +918,22 @@ export class ClassSearchAugmentation implements Augmentation {
   private async fetchAndRenderDetail(
     state: MountedState,
     detailRow: HTMLLIElement,
-    caesar: CaesarSection
+    caesar: CaesarSection,
+    bareCatalog: string
   ): Promise<void> {
     if (!detailRow.isConnected) return;
     this.renderDetailLoading(state, detailRow);
     try {
+      // Hint TGS first for 4xx so lookupClass's career fallback list
+      // doesn't waste a request trying UGRD on grad-only classes.
+      const careerHint = isGradCatalog(bareCatalog) ? "TGS" : "UGRD";
       const lookupResponse = await lookupClass(
         {
           type: "lookup-class",
           classNumber: caesar.classNumber,
-          careerHint: state.career === "TGS" ? "TGS" : "UGRD"
+          careerHint
         },
-        { priority: "background", owner: "class-search-detail" }
+        { priority: "background", owner: "class-search-detail", resetContextAfter: true }
       );
       const result = toSeatsNotesResult(lookupResponse);
       const fetchedAt = Date.now();
@@ -933,7 +941,7 @@ export class ClassSearchAugmentation implements Augmentation {
       if (detailRow.isConnected) {
         this.renderDetailRow(state, detailRow, caesar, result, fetchedAt, () => {
           if (!this.consumePsCredit("refresh-detail")) return;
-          void this.fetchAndRenderDetail(state, detailRow, caesar);
+          void this.fetchAndRenderDetail(state, detailRow, caesar, bareCatalog);
         });
       }
       const warning = formatPsCreditsWarning(fetchedAt);
@@ -947,7 +955,7 @@ export class ClassSearchAugmentation implements Augmentation {
       if (detailRow.isConnected) {
         this.renderDetailRow(state, detailRow, caesar, failure, Date.now(), () => {
           if (!this.consumePsCredit("refresh-detail")) return;
-          void this.fetchAndRenderDetail(state, detailRow, caesar);
+          void this.fetchAndRenderDetail(state, detailRow, caesar, bareCatalog);
         });
       }
     }
@@ -1070,8 +1078,8 @@ export class ClassSearchAugmentation implements Augmentation {
     const result = await addSectionToCart({
       classNumber,
       termId: state.filters.termId,
-      career: state.career,
-      institution: state.institution
+      institution: state.institution,
+      bareCatalog: bareCatalogNumber(row.course.catalog)
     });
 
     // Side effect: fold the class-number search response into the live
@@ -1407,6 +1415,13 @@ export class ClassSearchAugmentation implements Augmentation {
 
 function liveCacheKey(state: MountedState, row: ResultRow): string {
   return `${state.filters.termId}|${row.course.subject}|${bareCatalogNumber(row.course.catalog)}`;
+}
+
+// 4xx classes live under TGS even when undergrads can take them; this
+// matches the heuristic in caesar-search.ts and ctec-links/subject-careers.
+function isGradCatalog(bareCatalog: string): boolean {
+  const num = parseInt(bareCatalog, 10);
+  return Number.isFinite(num) && num >= 400;
 }
 
 // Cart-button registry key. Encodes everything we need to reverse-look up

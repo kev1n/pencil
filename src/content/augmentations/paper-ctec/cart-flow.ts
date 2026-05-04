@@ -64,12 +64,9 @@ export async function addChipSectionToCart(
       };
     }
 
-    const career = inferCareer(params.catalogNumber);
-
     onProgress?.(`Searching CAESAR for ${params.subject} ${params.catalogNumber}…`);
     const search = await searchCaesarCatalog({
       termId,
-      career,
       institution: INSTITUTION_DEFAULT,
       subject: params.subject,
       bareCatalog: bareCatalogNumber(params.catalogNumber)
@@ -93,8 +90,8 @@ export async function addChipSectionToCart(
     const result: CartFlowResult = await addSectionToCart({
       classNumber: caesarSection.classNumber,
       termId,
-      career,
-      institution: INSTITUTION_DEFAULT
+      institution: INSTITUTION_DEFAULT,
+      bareCatalog: bareCatalogNumber(params.catalogNumber)
     });
 
     if (result.ok) {
@@ -256,11 +253,3 @@ function extractTopic(titleHint: string): string | null {
   return titleHint.slice(0, idx).trim();
 }
 
-// Best-effort career hint for the cart-add chain. CAESAR rejects the search
-// if the career doesn't match the section, so a wrong guess fails fast — and
-// 4xx/5xx CTECs at NU are catalogued under TGS per the shared CTEC index.
-function inferCareer(catalogNumber: string): string {
-  const first = catalogNumber.replace(/[^0-9]/g, "").charAt(0);
-  if (first === "4" || first === "5") return "TGS";
-  return "UGRD";
-}

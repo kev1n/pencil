@@ -165,7 +165,7 @@ export function formatPsCreditsWarning(now: number = Date.now()): string | null 
   if (!state.oldestRecentAt) return null;
   const refreshMs = Math.max(0, state.oldestRecentAt + RATE_LIMIT_WINDOW_MS - now);
   const refreshMin = Math.max(1, Math.ceil(refreshMs / 60_000));
-  return `${remaining} of ${RATE_LIMIT_MAX} left, next opens in ${refreshMin} min`;
+  return `${remaining} of ${RATE_LIMIT_MAX} left, limit resets in ${refreshMin} min`;
 }
 
 function pruneRateLimit(now: number): void {
