@@ -95,7 +95,9 @@ export async function getRemoteSchedule(): Promise<RemoteSchedule> {
     });
     return fresh;
   }
-  if (cached) return { releases: cached.releaseAt, kill: cached.kill, banner: cached.banner };
+  // Server unreachable AND cache is stale (>30min). Don't serve the stale
+  // cache — fall back to the fully-open schedule so a long outage doesn't
+  // leave yesterday's kill / banner active forever.
   return FALLBACK_SCHEDULE;
 }
 

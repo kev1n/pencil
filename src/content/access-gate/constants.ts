@@ -16,13 +16,12 @@ export const BUCKET_LABELS: readonly [string, string, string] = [
   "Class of 2029 and later"
 ];
 
-// Used when the remote schedule is unreachable and nothing is cached. All
-// buckets stay locked until the server responds at least once.
-export const FALLBACK_BUCKET_RELEASE_TIMESTAMPS: readonly [number, number, number] = [
-  Date.parse("2099-01-01T00:00:00Z"),
-  Date.parse("2099-01-01T00:00:00Z"),
-  Date.parse("2099-01-01T00:00:00Z")
-];
+// Used when the remote schedule is unreachable. All buckets unlock at
+// epoch 0, so the extension behaves as if no server existed: no kill, no
+// banner, every bucket open. Tradeoff: an adversary who can block the
+// schedule URL bypasses the kill switch — accepted per product call so a
+// server outage doesn't break the extension for anyone.
+export const FALLBACK_BUCKET_RELEASE_TIMESTAMPS: readonly [number, number, number] = [0, 0, 0];
 
 export function bucketForGradYear(year: number | null): Bucket {
   if (year === null || !Number.isFinite(year)) return 2;
