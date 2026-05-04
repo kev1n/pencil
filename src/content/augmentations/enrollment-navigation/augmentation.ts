@@ -40,6 +40,13 @@ export class EnrollmentNavigationAugmentation implements Augmentation {
 
   private waitingForLoad = false;
   private lastSubmittedSignature: string | null = null;
+  // Stickier than lastSubmittedSignature: once we click Continue while landed
+  // on a particular URL, refuse to click again until the URL itself changes
+  // (i.e. the user navigated away and came back, or PS gave us a new query).
+  // Prevents a re-click loop if PS handles the click without navigating —
+  // ICStateNum bumps on the response, so the signature would otherwise
+  // differ and we'd click again every mutation tick.
+  private submittedForUrl: string | null = null;
   private termStateCache: {
     fetchedAt: number;
     promise: Promise<TermPickerState | null>;
@@ -68,6 +75,7 @@ export class EnrollmentNavigationAugmentation implements Augmentation {
     if (pageId !== TERM_PAGE_ID) {
       this.waitingForLoad = false;
       this.lastSubmittedSignature = null;
+      this.submittedForUrl = null;
       hideTermSpinnerOverlay(doc);
       hideEarlyTermPageMask(doc);
       return;
@@ -250,6 +258,15 @@ export class EnrollmentNavigationAugmentation implements Augmentation {
       return;
     }
 
+    const currentUrl = window.location.href;
+    if (this.submittedForUrl === currentUrl) {
+      // Already clicked Continue once for this landing. PS will either
+      // navigate (next run sees pageId !== TERM_PAGE_ID and clears the
+      // sentinel) or stall — in which case we'd rather leave the user on
+      // the page than spam clicks at CAESAR.
+      return;
+    }
+
     const targetValue = getTargetTermSelection() ?? "";
     const signature = buildPageSignature(doc, targetValue);
     if (this.lastSubmittedSignature === signature) {
@@ -283,6 +300,7 @@ export class EnrollmentNavigationAugmentation implements Augmentation {
     }
 
     this.lastSubmittedSignature = signature;
+    this.submittedForUrl = currentUrl;
     clearTargetTermSelection();
 
     if (!selectedRadio.checked) {

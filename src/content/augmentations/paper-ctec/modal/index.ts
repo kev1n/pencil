@@ -164,6 +164,20 @@ function renderStatusBody(
     body.className = "bc-paper-ctec-modal-status-text";
     body.textContent = input.errorMessage;
     card.append(body);
+
+    if (input.canRefresh) {
+      const retry = doc.createElement("button");
+      retry.type = "button";
+      retry.className = "bc-paper-ctec-modal-status-primary";
+      retry.disabled = input.backgroundRefreshing;
+      retry.textContent = input.backgroundRefreshing ? "Retrying…" : "Try again";
+      retry.addEventListener("click", (event) => {
+        preventAndStop(event);
+        if (retry.disabled) return;
+        callbacks.onRefresh();
+      });
+      card.append(retry);
+    }
   } else if (input.notFound) {
     const title = doc.createElement("h3");
     title.className = "bc-paper-ctec-modal-status-title";
