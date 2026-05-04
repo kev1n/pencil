@@ -1,3 +1,5 @@
+import { maxWidth } from "../../../design/breakpoints";
+
 // Modal chart styles: KPI strip, trend chart, distribution charts
 // (extracted-counts histogram + image fallback), hours density / bar /
 // labels, and the multi-line ratings chart with its legend.
@@ -45,7 +47,7 @@ export function modalChartStyles(): string {
     /* Tablet: stack groups vertically so each gets full width. The
        inner card grid stays as-is (e.g. Quality keeps 3 cards side by
        side) since the row now has the whole modal width to spend. */
-    @media (max-width: 1100px) {
+    @media ${maxWidth("xxl")} {
       .bc-paper-ctec-modal-kpi-strip {
         grid-template-columns: 1fr;
       }
@@ -54,7 +56,7 @@ export function modalChartStyles(): string {
        break to two rows instead of cramming. Tighten card padding and
        value font-size so the pill + sparkline still fit on ~140px wide
        columns. */
-    @media (max-width: 640px) {
+    @media ${maxWidth("sm")} {
       .bc-paper-ctec-modal-kpi-group-cards {
         grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
       }
@@ -164,7 +166,7 @@ export function modalChartStyles(): string {
       position: absolute;
       top: calc(100% + 8px);
       left: -8px;
-      width: 260px;
+      width: min(260px, calc(100vw - 32px));
       padding: 10px 12px;
       border-radius: var(--bc-radius-lg);
       background: var(--bc-color-text);

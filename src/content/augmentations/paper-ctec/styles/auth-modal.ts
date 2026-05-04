@@ -1,4 +1,5 @@
 import { AUTH_MODAL_ID } from "../constants";
+import { maxWidth } from "../../../design/breakpoints";
 
 // Auth modal styles: backdrop + card + close button + icon/spinner +
 // title/body/note/trust copy + primary/secondary action buttons.
@@ -162,7 +163,7 @@ export function authModalStyles(): string {
     .bc-paper-ctec-auth-secondary:hover {
       background: var(--bc-color-accent-fill-08);
     }
-    @media (max-width: 900px) {
+    @media ${maxWidth("lg")} {
       .bc-paper-ctec-status-brand {
         display: none;
       }

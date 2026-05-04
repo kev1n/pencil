@@ -1,3 +1,5 @@
+import { maxWidth } from "../../../design/breakpoints";
+
 // Terms tab styles: heatmap (term × metric grid with cells colored by mean),
 // the per-term drill-down (metrics, charts, fallback images), and the
 // responsive media queries that collapse the modal layout on small viewports.
@@ -275,13 +277,13 @@ export function modalTermStyles(): string {
     .bc-paper-ctec-modal-term-chart-image .bc-paper-ctec-histogram-svg {
       max-height: 180px;
     }
-    @media (max-width: 1100px) {
+    @media ${maxWidth("xxl")} {
       .bc-paper-ctec-modal-charts,
       .bc-paper-ctec-modal-drill {
         grid-template-columns: 1fr;
       }
     }
-    @media (max-width: 720px) {
+    @media ${maxWidth("md")} {
       .bc-paper-ctec-modal-comments {
         grid-template-columns: 1fr;
       }

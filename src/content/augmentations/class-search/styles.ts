@@ -1,3 +1,5 @@
+import { maxWidth } from "../../design/breakpoints";
+
 export const STYLE_ID = "better-caesar-class-search-styles";
 
 export function classSearchStyles(): string {
@@ -715,7 +717,7 @@ export function classSearchStyles(): string {
     /* Toast styles live in seats-notes/toast.ts (shared across augmentations). */
 
     /* ── Responsive ─────────────────────────────────────────────────────── */
-    @media (max-width: 1000px) {
+    @media ${maxWidth("xl")} {
       .bc-cs-form { grid-template-columns: 1fr; }
       .bc-cs-section {
         grid-template-columns: 60px 60px 1fr 1fr;
@@ -726,7 +728,7 @@ export function classSearchStyles(): string {
       .bc-cs-section-live,
       .bc-cs-section-actions { grid-column: 1 / -1; justify-self: start; }
     }
-    @media (max-width: 640px) {
+    @media ${maxWidth("sm")} {
       .bc-cs-root { padding: 0 10px; }
       .bc-cs-tabs { padding: 0 10px; }
       .bc-cs-course-head { grid-template-columns: 1fr; gap: 4px; }
