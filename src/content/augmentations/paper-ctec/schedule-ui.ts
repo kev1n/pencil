@@ -6,7 +6,7 @@ import type { ModalDisplayData } from "./modal-data";
 import { ratingPercentSignature } from "./rating-format";
 import type { PaperCtecWidgetData } from "./types";
 import { createIcon, preventAndStop, type IconName } from "./ui-shared";
-import { buildTooltip, globalChip, makeChip, metricChip } from "./widget-chips";
+import { globalChip, makeChip, metricChip } from "./widget-chips";
 
 export type AnalyticsPreviewSource = () => ModalDisplayData | null;
 
@@ -145,7 +145,6 @@ export function renderWidget(
   }
 
   const { aggregate } = data;
-  widget.title = buildTooltip(aggregate);
 
   // Primary chip set: a single rolled-up Global rating chip + hours. The
   // GBL chip averages Instruction / Course / Learned (matching the modal's

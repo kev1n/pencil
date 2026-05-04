@@ -208,43 +208,6 @@ function buildCompactChipTone(
   };
 }
 
-// Composes the long aggregate tooltip shown on the widget itself (vs the
-// per-chip tooltips). Mentions scope (all vs latest-N), evaluation count,
-// each metric line, latest term, and the "partial" caveat.
-export function buildTooltip(data: WidgetAggregate): string {
-  const scope = buildAggregateScopeText(data);
-  const parts = [
-    `CTEC compact summary uses ${scope}. ${data.evaluationCount} matching evaluation${data.evaluationCount === 1 ? "" : "s"} found overall.`
-  ];
-
-  appendMetricTooltip(parts, "Instructor", data.metrics.instruction, data);
-  appendMetricTooltip(parts, "Course", data.metrics.course, data);
-  appendMetricTooltip(parts, "Learned", data.metrics.learned, data);
-  appendMetricTooltip(parts, "Challenge", data.metrics.challenging, data);
-  appendMetricTooltip(parts, "Interest", data.metrics.stimulating, data);
-  if (data.metrics.hours) {
-    parts.push(
-      `Hours ${data.metrics.hours.mean.toFixed(1)}/week across ${data.metrics.hours.evaluationCount} matching term${
-        data.metrics.hours.evaluationCount === 1 ? "" : "s"
-      } in ${scope}.`
-    );
-  }
-  if (data.latestTerm) parts.push(`Latest ${data.latestTerm}.`);
-  if (data.partial) parts.push("Some linked evaluations were available but not fully parsed.");
-
-  return parts.join(" ");
-}
-
-function appendMetricTooltip(
-  parts: string[],
-  label: string,
-  metric: CtecAggregateMetric | undefined,
-  aggregate: WidgetAggregate
-): void {
-  if (!metric) return;
-  parts.push(buildMetricChipTooltip(label, metric, aggregate));
-}
-
 function buildAggregateScopeText(aggregate: WidgetAggregate): string {
   if (!aggregate.maxEntriesUsed || aggregate.aggregateEvaluationCount >= aggregate.evaluationCount) {
     return "all matching evaluations";
