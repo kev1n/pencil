@@ -205,10 +205,7 @@ function ensureWidget(content: HTMLElement): HTMLElement {
 // layout — leaving the card visually identical to a never-augmented one.
 export function teardownCardForCleanup(card: HTMLElement): void {
   card.querySelector<HTMLElement>(
-    `:scope > .${WIDGET_CLASS}-analytics-anchor`
-  )?.remove();
-  card.querySelector<HTMLElement>(
-    `:scope > .${WIDGET_CLASS}-cart-anchor`
+    `:scope > .${WIDGET_CLASS}-actions-anchor`
   )?.remove();
   card.querySelector<HTMLElement>(
     `:scope > .${WIDGET_CLASS}-preview`
@@ -252,12 +249,12 @@ export function teardownCardForCleanup(card: HTMLElement): void {
 }
 
 function cleanupCardWidget(card: HTMLElement): void {
-  // Analytics anchor button + hover-preview popup live as direct children
-  // of the outer card (outside the .${WIDGET_CLASS} content) so they can
-  // escape the dense card's overflow:hidden — clean them up too whenever
-  // the widget itself is removed.
+  // Actions wrapper + hover-preview popup live as direct children of the
+  // outer card (outside the .${WIDGET_CLASS} content) so they can escape
+  // the dense card's overflow:hidden — clean them up too whenever the
+  // widget itself is removed.
   card.querySelector<HTMLElement>(
-    `:scope > .${WIDGET_CLASS}-analytics-anchor`
+    `:scope > .${WIDGET_CLASS}-actions-anchor`
   )?.remove();
   card.querySelector<HTMLElement>(
     `:scope > .${WIDGET_CLASS}-preview`

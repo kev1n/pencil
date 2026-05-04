@@ -154,62 +154,66 @@ export function cardStyles(): string {
     }
     button.${WIDGET_CLASS}-chip-button {
       appearance: none;
-      border: 1px solid var(--bc-color-warn-rose-border-32);
       cursor: pointer;
       font: inherit;
-      padding: 1px 6px;
+      padding: 2px 9px;
+      transition: transform var(--bc-tx-base) var(--bc-easing),
+                  background var(--bc-tx-base) var(--bc-easing),
+                  box-shadow var(--bc-tx-base) var(--bc-easing);
     }
-    /* Analytics anchor: hangs from the bottom edge of the schedule card.
-       Mounted as a direct child of the outer .absolute card host so it
-       escapes the dense-card .overflow:hidden, and translateY(50%) pushes
-       half the pill below the card edge. The card is position:absolute
-       (paper.nu's own layout) so this is positioned relative to it. */
-    button.${WIDGET_CLASS}-analytics-btn {
-      appearance: none;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      height: 18px;
-      padding: 0 9px;
+    button.${WIDGET_CLASS}-chip-button.is-muted {
+      background: var(--bc-color-accent-surface-soft);
       border: 1px solid var(--bc-color-accent-border-45);
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-accent-soft);
-      color: var(--bc-color-accent-soft-on);
-      cursor: pointer;
-      font: inherit;
-      font-size: var(--bc-font-9);
+      color: var(--bc-color-accent);
       font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
-      line-height: 1;
+      letter-spacing: var(--bc-ls-wide);
       box-shadow: var(--bc-shadow-button);
     }
-    button.${WIDGET_CLASS}-analytics-anchor {
+    button.${WIDGET_CLASS}-chip-button.is-muted:hover {
+      background: var(--bc-color-accent-surface-tile);
+      border-color: var(--bc-color-accent);
+      box-shadow: var(--bc-shadow-button-hover);
+      transform: translateY(-1px);
+    }
+    button.${WIDGET_CLASS}-chip-button.is-muted:active {
+      transform: translateY(0);
+      box-shadow: var(--bc-shadow-button);
+    }
+    button.${WIDGET_CLASS}-chip-button.is-warn {
+      border: 1px solid var(--bc-color-warn-rose-border-32);
+    }
+    /* Actions wrapper: hangs from the bottom-right corner of the schedule
+       card so its position never depends on the card's own width — using
+       a fixed pixel offset for each button caused the cart pill to land
+       mid-card on narrow timeslots and to overlap the analytics pill once
+       its label expanded. Mounted as a direct child of the outer .absolute
+       card host so it escapes the dense-card overflow:hidden. Pinned at
+       one Y position with no hover-translate — animating Y on hover caused
+       a flicker loop where the wrapper would jump up out from under the
+       cursor, drop back, and re-trigger hover. */
+    .${WIDGET_CLASS}-actions-anchor {
       position: absolute;
-      bottom: 0;
-      right: 12px;
-      transform: translateY(80%);
-      transition: transform var(--bc-tx-base) var(--bc-easing), box-shadow var(--bc-tx-base) var(--bc-easing), background var(--bc-tx-base) var(--bc-easing);
+      bottom: -10px;
+      right: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
       z-index: 12;
+      pointer-events: auto;
     }
-    button.${WIDGET_CLASS}-analytics-anchor:hover {
-      transform: translateY(70%);
-    }
-    /* Cart anchor sits to the LEFT of the analytics anchor on the same
-       hanging row. Independent button so it can show progress / success
-       state without disturbing the analytics pill. */
+    /* Both action buttons share a single base style so they collapse to
+       the same icon-only pill by default and expand to icon + label on
+       hover/focus. The label animates via max-width while the icon stays
+       at a fixed size. */
+    button.${WIDGET_CLASS}-analytics-btn,
     button.${WIDGET_CLASS}-cart-btn {
       appearance: none;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      height: 18px;
-      padding: 0 9px;
-      border: 1px solid var(--bc-color-cart-border);
+      height: 22px;
+      padding: 0 6px;
       border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-cart-bg);
-      color: var(--bc-color-cart-text);
       cursor: pointer;
       font: inherit;
       font-size: var(--bc-font-9);
@@ -218,20 +222,54 @@ export function cardStyles(): string {
       text-transform: uppercase;
       line-height: 1;
       box-shadow: var(--bc-shadow-button);
+      transition: background var(--bc-tx-base) var(--bc-easing),
+                  border-color var(--bc-tx-base) var(--bc-easing),
+                  box-shadow var(--bc-tx-base) var(--bc-easing);
     }
-    button.${WIDGET_CLASS}-cart-anchor {
-      position: absolute;
-      bottom: 0;
-      /* Sits to the left of the analytics anchor (which starts at right:12px
-         and is roughly 78px wide once the "Analytics" label is laid out).
-         Leave a small gap so the two pills don't touch. */
-      right: 100px;
-      transform: translateY(80%);
-      transition: transform var(--bc-tx-base) var(--bc-easing), box-shadow var(--bc-tx-base) var(--bc-easing), background var(--bc-tx-base) var(--bc-easing);
-      z-index: 12;
+    button.${WIDGET_CLASS}-analytics-btn {
+      border: 1px solid var(--bc-color-accent-border-45);
+      background: var(--bc-color-accent-soft);
+      color: var(--bc-color-accent-soft-on);
     }
-    button.${WIDGET_CLASS}-cart-anchor:hover {
-      transform: translateY(70%);
+    button.${WIDGET_CLASS}-cart-btn {
+      border: 1px solid var(--bc-color-cart-border);
+      background: var(--bc-color-cart-bg);
+      color: var(--bc-color-cart-text);
+    }
+    button.${WIDGET_CLASS}-analytics-btn svg,
+    button.${WIDGET_CLASS}-cart-btn svg {
+      width: 12px;
+      height: 12px;
+      stroke-width: 2;
+      flex: 0 0 auto;
+    }
+    .${WIDGET_CLASS}-analytics-btn-label,
+    .${WIDGET_CLASS}-cart-btn-label {
+      display: inline-block;
+      max-width: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      opacity: 0;
+      margin-left: 0;
+      transition: max-width var(--bc-tx-base) var(--bc-easing),
+                  opacity var(--bc-tx-base) var(--bc-easing),
+                  margin-left var(--bc-tx-base) var(--bc-easing);
+    }
+    button.${WIDGET_CLASS}-analytics-btn:hover .${WIDGET_CLASS}-analytics-btn-label,
+    button.${WIDGET_CLASS}-analytics-btn:focus-visible .${WIDGET_CLASS}-analytics-btn-label,
+    button.${WIDGET_CLASS}-cart-btn:hover .${WIDGET_CLASS}-cart-btn-label,
+    button.${WIDGET_CLASS}-cart-btn:focus-visible .${WIDGET_CLASS}-cart-btn-label {
+      max-width: 220px;
+      opacity: 1;
+      margin-left: 4px;
+    }
+    /* In-flight or finished cart actions stay expanded so the user can
+       still read the status (Added #1234, Retry, Adding…) without
+       hovering. */
+    button.${WIDGET_CLASS}-cart-btn[data-cart-state] .${WIDGET_CLASS}-cart-btn-label {
+      max-width: 220px;
+      opacity: 1;
+      margin-left: 4px;
     }
     button.${WIDGET_CLASS}-cart-btn:hover:not(:disabled) {
       background: var(--bc-color-cart-bg-hover);
@@ -259,34 +297,15 @@ export function cardStyles(): string {
       0%, 100% { opacity: 0.85; }
       50% { opacity: 1; }
     }
-    .${WIDGET_CLASS}-cart-btn-label {
-      white-space: nowrap;
-    }
-    ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-cart-anchor:hover) {
-      transform: none !important;
-      box-shadow: none !important;
-    }
-    .${NO_HOVER_LIFT_CLASS} ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-cart-anchor:hover) {
-      outline-color: transparent !important;
-    }
     /* Suppress paper.nu's card-hover effect while the cursor is on the
-       analytics anchor — the anchor visually overlaps the card so users
-       are aiming at the pill, not the card itself. Uses :has() (Chrome
-       105+; we target current Chromium) to scope the override. */
-    ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-analytics-anchor:hover) {
+       actions wrapper — the wrapper visually overlaps the card so users
+       are aiming at the pills, not the card itself. */
+    ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-actions-anchor:hover) {
       transform: none !important;
       box-shadow: none !important;
     }
-    .${NO_HOVER_LIFT_CLASS} ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-analytics-anchor:hover) {
+    .${NO_HOVER_LIFT_CLASS} ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-actions-anchor:hover) {
       outline-color: transparent !important;
-    }
-    button.${WIDGET_CLASS}-analytics-btn svg {
-      width: 10px;
-      height: 10px;
-      stroke-width: 1.9;
-    }
-    .${WIDGET_CLASS}-analytics-btn-label {
-      white-space: nowrap;
     }
     button.${WIDGET_CLASS}-analytics-btn:hover {
       background: var(--bc-color-accent-soft-hover);

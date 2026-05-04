@@ -1,11 +1,14 @@
 import { PAPER_CTEC_CONFIG } from "./config";
 
 export type IconName =
+  | "alert"
   | "book"
   | "cap"
   | "chart"
+  | "check"
   | "clock"
   | "lock"
+  | "plus"
   | "spark"
   | "stack"
   | "star"
@@ -90,9 +93,27 @@ export function createIcon(name: IconName, options?: { filled?: boolean }): SVGE
     svg.appendChild(path);
   };
 
+  if (name === "alert") {
+    addPath("M12 9v4");
+    addPath("M12 17h.01");
+    addPath("M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z");
+    return svg;
+  }
+
   if (name === "book") {
     addPath("M4 6.5A2.5 2.5 0 0 1 6.5 4H20v16H6.5A2.5 2.5 0 0 0 4 22z");
     addPath("M8 4v16");
+    return svg;
+  }
+
+  if (name === "check") {
+    addPath("M5 12.5 10 17l9-10");
+    return svg;
+  }
+
+  if (name === "plus") {
+    addPath("M12 5v14");
+    addPath("M5 12h14");
     return svg;
   }
 

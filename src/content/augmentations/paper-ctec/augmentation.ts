@@ -187,7 +187,7 @@ export class PaperCtecAugmentation implements Augmentation {
     // card we currently see (e.g. cards that were unmounted between renders).
     for (const orphan of Array.from(
       doc.querySelectorAll<HTMLElement>(
-        `.${WIDGET_CLASS}, .${WIDGET_CLASS}-analytics-anchor, .${WIDGET_CLASS}-cart-anchor, .${WIDGET_CLASS}-preview`
+        `.${WIDGET_CLASS}, .${WIDGET_CLASS}-actions-anchor, .${WIDGET_CLASS}-preview`
       )
     )) {
       orphan.remove();
