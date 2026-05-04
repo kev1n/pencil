@@ -295,20 +295,20 @@ function makeCartButton(
     stateAttr = "loading";
   } else if (state.kind === "success") {
     icon = "cart";
-    label = `Added #${state.classNumber}`;
-    title = `Added class #${state.classNumber} to your CAESAR shopping cart.`;
+    label = "Added";
+    title = "Added to your CAESAR shopping cart.";
     disabled = true;
     stateAttr = "success";
   } else if (state.kind === "already") {
     icon = "cart";
     label = "In cart";
-    title = `Class #${state.classNumber} is in your CAESAR shopping cart.`;
+    title = "This class is in your CAESAR shopping cart.";
     disabled = true;
     stateAttr = "in-cart";
   } else if (state.kind === "enrolled") {
     icon = "cart";
     label = "Enrolled";
-    title = `You're enrolled in class #${state.classNumber}.`;
+    title = "You're enrolled in this class.";
     disabled = true;
     stateAttr = "enrolled";
   } else if (state.kind === "error") {
