@@ -24,7 +24,7 @@ const fetchControllers = new Map<string, AbortController>();
 // runtime.reload(). If we ever need a true global limit, route every
 // CAESAR/Bluera request through this worker.
 const CIRCUIT_BREAKER_WINDOW_MS = 60_000;
-const CIRCUIT_BREAKER_MAX = 50;
+const CIRCUIT_BREAKER_MAX = 150;
 const CIRCUIT_BREAKER_HOSTS = new Set([
   "caesar.ent.northwestern.edu",
   "northwestern.bluera.com"
