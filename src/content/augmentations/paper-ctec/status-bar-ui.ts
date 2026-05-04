@@ -3,9 +3,6 @@ import { STATUS_BAR_ID } from "./constants";
 import type { PaperCtecStatusBarData } from "./types";
 import { createIcon, type IconName } from "./ui-shared";
 
-const STATUS_STACK_CLASS = "bc-paper-ctec-status-stack";
-const STATUS_LEGEND_ID = "bc-paper-ctec-status-legend";
-
 // Mounts (and re-renders) the persistent status bar in the paper.nu action
 // row. Auth-required hides the bar entirely — the auth modal carries the
 // signal in that case.
@@ -22,8 +19,6 @@ export function renderStatusBar(
   if (!host) return;
   ensureActionHostLayout(host);
 
-  const stack = ensureStatusStack(doc, host);
-
   let bar = doc.getElementById(STATUS_BAR_ID) as HTMLDivElement | null;
   if (!bar) {
     bar = doc.createElement("div");
@@ -31,11 +26,9 @@ export function renderStatusBar(
     bar.setAttribute("aria-live", "polite");
   }
 
-  if (bar.parentElement !== stack || stack.firstElementChild !== bar) {
-    stack.prepend(bar);
+  if (bar.parentElement !== host || host.firstElementChild !== bar) {
+    host.prepend(bar);
   }
-
-  renderStatusLegend(doc, stack);
 
   const signature = buildStatusSignature(data);
   if (bar.dataset.bcPaperCtecSignature === signature) {
@@ -67,8 +60,6 @@ export function renderStatusBar(
 
 export function hideStatusBar(doc: Document): void {
   doc.getElementById(STATUS_BAR_ID)?.remove();
-  doc.getElementById(STATUS_LEGEND_ID)?.remove();
-  doc.querySelector<HTMLElement>(`.${STATUS_STACK_CLASS}`)?.remove();
 }
 
 // paper.nu's action row is the toolbar that holds Custom / Export / Clear
@@ -94,60 +85,6 @@ function ensureActionHostLayout(host: HTMLElement): void {
   host.style.alignItems = "flex-start";
   host.style.minWidth = "0";
   host.dataset.bcPaperCtecExpanded = "1";
-}
-
-function ensureStatusStack(doc: Document, host: HTMLElement): HTMLElement {
-  let stack = host.querySelector<HTMLElement>(`.${STATUS_STACK_CLASS}`);
-  if (!stack) {
-    stack = doc.createElement("div");
-    stack.className = STATUS_STACK_CLASS;
-  }
-
-  if (stack.parentElement !== host || host.firstElementChild !== stack) {
-    host.prepend(stack);
-  }
-
-  return stack;
-}
-
-function renderStatusLegend(doc: Document, stack: HTMLElement): void {
-  let legend = doc.getElementById(STATUS_LEGEND_ID) as HTMLDivElement | null;
-  if (!legend) {
-    legend = doc.createElement("div");
-    legend.id = STATUS_LEGEND_ID;
-  }
-
-  if (legend.parentElement !== stack) {
-    stack.append(legend);
-  }
-
-  const signature = "inst|crse|lrn|hrs";
-  if (legend.dataset.bcPaperCtecSignature === signature) {
-    return;
-  }
-
-  legend.replaceChildren(
-    makeLegendItem(doc, "Inst", "instruction rating"),
-    makeLegendItem(doc, "CRSE", "course rating"),
-    makeLegendItem(doc, "LRN", "amount learned"),
-    makeLegendItem(doc, "Hrs", "avg hours / week")
-  );
-  legend.dataset.bcPaperCtecSignature = signature;
-}
-
-function makeLegendItem(doc: Document, key: string, description: string): HTMLElement {
-  const item = doc.createElement("div");
-  item.className = "bc-paper-ctec-legend-item";
-
-  const legendKey = doc.createElement("span");
-  legendKey.className = "bc-paper-ctec-legend-key";
-  legendKey.textContent = key;
-
-  const legendText = doc.createElement("span");
-  legendText.textContent = description;
-
-  item.append(legendKey, legendText);
-  return item;
 }
 
 function buildStatusSignature(data: PaperCtecStatusBarData): string {

@@ -1,11 +1,8 @@
 import { PAPER_CTEC_CONFIG } from "../config";
 import { STATUS_BAR_ID } from "../constants";
 
-const STATUS_STACK_CLASS = "bc-paper-ctec-status-stack";
-const STATUS_LEGEND_ID = "bc-paper-ctec-status-legend";
-
 // Persistent paper.nu status bar styles: the pill that announces auth state,
-// loading progress, and CTEC readiness; plus the legend strip beneath it.
+// loading progress, and CTEC readiness.
 export function statusBarStyles(): string {
   return `
     #${STATUS_BAR_ID} {
@@ -44,13 +41,6 @@ export function statusBarStyles(): string {
       height: ${PAPER_CTEC_CONFIG.ui.statusIconSizePx}px;
       flex: 0 0 auto;
       stroke-width: ${PAPER_CTEC_CONFIG.ui.statusIconStrokeWidth};
-    }
-    .${STATUS_STACK_CLASS} {
-      display: flex;
-      flex: 1 1 auto;
-      flex-direction: column;
-      gap: 4px;
-      min-width: 0;
     }
     .bc-paper-ctec-status-mark {
       display: inline-flex;
@@ -92,30 +82,6 @@ export function statusBarStyles(): string {
     }
     .bc-paper-ctec-status-action:hover {
       background: var(--bc-color-surface-translucent-92);
-    }
-    #${STATUS_LEGEND_ID} {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      min-width: 0;
-      font-size: var(--bc-font-10);
-      line-height: 1.2;
-      color: var(--bc-color-text-mauve-soft);
-    }
-    .bc-paper-ctec-legend-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      padding: 2px 6px;
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-accent-fill-06);
-      white-space: nowrap;
-    }
-    .bc-paper-ctec-legend-key {
-      font-weight: var(--bc-fw-extrabold);
-      letter-spacing: var(--bc-ls-wider);
-      text-transform: uppercase;
-      color: var(--bc-color-accent-soft);
     }
   `;
 }
