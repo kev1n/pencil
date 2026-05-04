@@ -531,10 +531,13 @@ export class ModalController {
         showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
       } finally {
         this.analyticsBackgroundRefresh.delete(context.key);
-        if (isStale()) return;
-        this.callbacks.syncStatusBar();
-        this.callbacks.syncSideCard();
-        this.sync(document);
+        // Don't `return` from finally — that swallows any pending throw from
+        // the try/catch chain. Skip the post-refresh sync work instead.
+        if (!isStale()) {
+          this.callbacks.syncStatusBar();
+          this.callbacks.syncSideCard();
+          this.sync(document);
+        }
       }
     })();
   }

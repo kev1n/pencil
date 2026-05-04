@@ -1,3 +1,4 @@
+import { logQuiet } from "../../../shared/log";
 import { fetchTextViaBackground } from "../../remote-fetch";
 
 const DATA_URL = "https://api-legacy.dilanxd.com/paper/data";
@@ -337,8 +338,9 @@ export async function pruneStalePaperCaches(): Promise<void> {
     });
     if (stale.length > 0) await chrome.storage.local.remove(stale);
     await chrome.storage.local.set({ [PRUNE_VERSION_KEY]: CURRENT_TERM_CACHE_VERSION });
-  } catch {
-    // opportunistic
+  } catch (err) {
+    // Opportunistic — not worth surfacing to the user.
+    logQuiet("paper-data.prune", err);
   }
 }
 
@@ -367,8 +369,9 @@ async function readCache<T>(key: string): Promise<T | null> {
 async function writeCache<T>(key: string, value: T): Promise<void> {
   try {
     await chrome.storage.local.set({ [key]: value });
-  } catch {
+  } catch (err) {
     // Ignore storage errors (e.g. quota exceeded). The data layer falls back
     // to live fetches if persistence fails.
+    logQuiet("paper-data.writeCache", err);
   }
 }

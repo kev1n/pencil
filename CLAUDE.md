@@ -23,9 +23,12 @@ npm run build:chrome   # Chrome only
 npm run build:firefox  # Firefox only
 npm run dev            # Watch mode (Chrome)
 npm run typecheck      # tsc --noEmit
+npm run lint           # eslint src — must be 0 errors
+npm run test           # vitest run (jsdom env)
+npm run test:watch     # vitest watch mode
 ```
 
-**Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. There are no tests.
+**Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and both target builds on every push to main and every PR — keep all five green.
 
 ## Top-level layout
 
@@ -41,7 +44,12 @@ npm run typecheck      # tsc --noEmit
 - `src/popup/` — popup UI with toggle switches and "clear CTEC cache" / "clear catalog cache" / "clear cart cache" buttons.
 - `src/content/access-gate/` — pre-launch rollout gate: HMAC last-name codes (`code.ts`) for individual whitelisting, grad-year buckets (`constants.ts`, `grad-term-fetch.ts`) for staged release, and a remote schedule (`server-client.ts`) that also carries a kill switch + broadcast banner. Schedule URL is build-time-substituted from `BC_BUCKET_SCHEDULE_URL` in `.env`; `scripts/build.mjs` also patches the URL's origin into the manifest's `host_permissions`. The schedule itself is a single `bucket-schedule.json` in the public [kev1n/better-caesar-schedule](https://github.com/kev1n/better-caesar-schedule) repo, served via `raw.githubusercontent.com` (no server, no Docker — `git push` is the deploy). Fails open: when the URL is unreachable past the 30-min cache window, fallback constants flip every bucket to "unlocked" and drop kill / banner so an outage means full use, not a locked-out extension.
 - `src/shared/messages.ts` — typed message contracts shared across contexts.
+- `src/shared/log.ts` — debug-gated quiet logging (`logQuiet`, `logDebug`). Production is silent unless the user runs `localStorage.setItem("bc-debug", "1")`. Use `logQuiet(scope, err)` instead of empty `} catch {}` blocks; the eslint config bans bare empty catches.
 - `src/manifest.base.json` — base manifest; `scripts/build.mjs` patches it per target.
+
+## Pre-theme gate tokens
+
+`src/content/index.ts` calls `injectGateTokens()` (synchronous, idempotent) at the very top of the content-script bootstrap, before `bootstrapTheme()`. It mounts a dedicated `<style id="bc-gate-tokens">` at the head of `<head>` carrying the `--bc-gate-*` namespace defined in `tokens.ts → gateTokens()`. These vars feed the access-gate banner/toast (Shadow-DOM hosted — custom properties inherit through the host element) and the `injectEarlyTermPageMask()` style, both of which paint on the very first frame while the rest of the design system is still hydrating. Add new pre-bootstrap tokens to that block; don't reach into theme blocks for first-paint surfaces.
 
 ## Augmentation pattern
 

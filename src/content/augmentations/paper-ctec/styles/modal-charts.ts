@@ -1,5 +1,4 @@
 import { maxWidth } from "../../../design/breakpoints";
-import { trendZoneDarkRules } from "../chart-zones";
 
 // Modal chart styles: KPI strip, trend chart, distribution charts
 // (extracted-counts histogram + image fallback), hours density / bar /
@@ -511,11 +510,11 @@ export function modalChartStyles(): string {
       background: var(--bc-paper-ctec-kpi-bg-dark, transparent);
       color: var(--bc-paper-ctec-kpi-fg-dark, var(--bc-color-text));
     }
-    ${trendZoneDarkRules(".bc-paper-ctec-modal-trend-svg")}
     /* SVG fill/stroke colors are emitted by JS via style.fill/style.stroke
        with var(--bc-color-*) references, so they switch automatically with
        the active theme + dark-mode mirror — no per-attribute overrides
-       needed here. */
+       needed here. (Chart-zone bands consume --bc-color-trend-zone-*
+       which swap by theme directly, replacing the old explicit overrides.) */
     /* Distribution image fallback (raw PNG from Bluera) — inverted so the
        light-on-light chart becomes light-on-dark in the modal. */
     .dark .bc-paper-ctec-modal-dist-image img,

@@ -120,7 +120,10 @@ function renderKpiPill(
     pill.style.setProperty("--bc-paper-ctec-kpi-border", `hsla(${hue}, 82%, 24%, 0.38)`);
     pill.style.setProperty("--bc-paper-ctec-kpi-border-dark", `hsla(${hue}, 90%, 78%, 0.28)`);
     pill.style.setProperty("--bc-paper-ctec-kpi-fg", `hsl(${hue}, 62%, 18%)`);
-    pill.style.setProperty("--bc-paper-ctec-kpi-fg-dark", "#f9fafb");
+    pill.style.setProperty(
+      "--bc-paper-ctec-kpi-fg-dark",
+      "var(--bc-color-kpi-fg-dark)"
+    );
   }
 
   return pill;

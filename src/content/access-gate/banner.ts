@@ -116,6 +116,9 @@ async function readDismissedIds(): Promise<Set<string>> {
   return new Set(raw.filter((s) => typeof s === "string"));
 }
 
+// Colors pull from --bc-gate-warning-* injected by content/index.ts before
+// the design system bootstraps. Variables inherit into this shadow root
+// from the host element via :root.
 const BANNER_STYLES = `
   :host, * { box-sizing: border-box; }
   .banner {
@@ -124,13 +127,13 @@ const BANNER_STYLES = `
     align-items: center;
     gap: 12px;
     padding: 8px 14px;
-    background: #fef3c7;
-    color: #78350f;
-    border-bottom: 1px solid #f59e0b;
+    background: var(--bc-gate-warning-bg);
+    color: var(--bc-gate-warning-fg);
+    border-bottom: 1px solid var(--bc-gate-warning-border);
     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 13px;
     line-height: 1.4;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 2px 6px var(--bc-gate-warning-shadow);
   }
   .text {
     flex: 1 1 auto;
@@ -141,16 +144,16 @@ const BANNER_STYLES = `
     text-decoration: underline;
     font-weight: 600;
   }
-  .text a:hover { color: #451a03; }
+  .text a:hover { color: var(--bc-gate-warning-link-hover); }
   .close {
     flex: 0 0 auto;
     background: none;
     border: none;
     font-size: 18px;
     line-height: 1;
-    color: #92400e;
+    color: var(--bc-gate-warning-muted);
     cursor: pointer;
     padding: 4px 6px;
   }
-  .close:hover { color: #78350f; }
+  .close:hover { color: var(--bc-gate-warning-fg); }
 `;

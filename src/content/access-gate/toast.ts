@@ -261,17 +261,20 @@ async function persistDismissedKillId(id: string): Promise<void> {
   await chrome.storage.local.set({ [DISMISSED_KILL_IDS_STORAGE_KEY]: [...current] });
 }
 
+// Colors here pull from the --bc-gate-* tokens injected by content/index.ts
+// before bootstrapTheme() runs. Custom properties inherit through shadow
+// DOM via the host element, so vars defined on :root are visible inside.
 const TOAST_STYLES = `
   :host, * { box-sizing: border-box; }
   .toast {
     width: 320px;
     max-width: calc(100vw - 32px);
-    background: #ffffff;
-    color: #111827;
-    border: 1px solid #e5e7eb;
+    background: var(--bc-gate-bg);
+    color: var(--bc-gate-fg);
+    border: 1px solid var(--bc-gate-border);
     border-radius: 12px;
     padding: 12px 14px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 8px 24px var(--bc-gate-shadow);
     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     font-size: 13px;
     line-height: 1.4;
@@ -285,11 +288,11 @@ const TOAST_STYLES = `
     border: none;
     font-size: 18px;
     line-height: 1;
-    color: #9ca3af;
+    color: var(--bc-gate-muted-icon);
     cursor: pointer;
     padding: 4px 6px;
   }
-  .close:hover { color: #111827; }
+  .close:hover { color: var(--bc-gate-fg); }
   .body {
     display: flex;
     flex-direction: column;
@@ -299,25 +302,25 @@ const TOAST_STYLES = `
   .title {
     font-size: 13px;
     font-weight: 700;
-    color: #66023c;
+    color: var(--bc-gate-accent);
   }
   .sub {
     font-size: 12px;
-    color: #4b5563;
+    color: var(--bc-gate-muted);
   }
   .sub a {
     color: inherit;
     text-decoration: underline;
   }
-  .sub a:hover { color: #111827; }
-  .toast[data-kind="killed"] .title { color: #b91c1c; }
+  .sub a:hover { color: var(--bc-gate-fg); }
+  .toast[data-kind="killed"] .title { color: var(--bc-gate-error); }
   .primary {
     align-self: flex-start;
     padding: 6px 12px;
     border-radius: 8px;
     border: none;
-    background: #66023c;
-    color: #ffffff;
+    background: var(--bc-gate-accent);
+    color: var(--bc-gate-accent-on);
     font: inherit;
     font-size: 12px;
     font-weight: 600;
@@ -325,7 +328,7 @@ const TOAST_STYLES = `
     text-decoration: none;
     display: inline-block;
   }
-  .primary:hover { background: #4a012b; }
+  .primary:hover { background: var(--bc-gate-accent-hover); }
   .form {
     display: flex;
     flex-wrap: wrap;
@@ -337,23 +340,23 @@ const TOAST_STYLES = `
     min-width: 0;
     padding: 6px 8px;
     border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #ffffff;
-    color: #111827;
+    border: 1px solid var(--bc-gate-input-border);
+    background: var(--bc-gate-bg);
+    color: var(--bc-gate-fg);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
   .code-input:focus {
-    outline: 2px solid #66023c;
+    outline: 2px solid var(--bc-gate-accent);
     outline-offset: 1px;
-    border-color: #66023c;
+    border-color: var(--bc-gate-accent);
   }
   .msg {
     flex-basis: 100%;
     font-size: 11px;
-    color: #4b5563;
+    color: var(--bc-gate-muted);
   }
-  .msg.err { color: #b91c1c; }
+  .msg.err { color: var(--bc-gate-error); }
 `;

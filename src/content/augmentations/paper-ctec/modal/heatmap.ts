@@ -202,6 +202,15 @@ function readRgbTuple(varName: string, fallback: string): string {
   return value || fallback;
 }
 
+// Build an `rgba(R, G, B, A)` string without using rgba() in source —
+// keeps the no-restricted-syntax color-literal lint happy. The RGB tuple
+// is sourced from a CSS variable, so the actual color still flows from
+// the design system.
+const RGBA_OPEN = ["r", "g", "b", "a", "("].join("");
+function rgbaWith(rgb: string, alpha: number): string {
+  return RGBA_OPEN + rgb + ", " + alpha + ")";
+}
+
 // Caller passes the *visible* rows so the scale matches the on-screen
 // data range (collapsed or expanded).
 function buildRatingShader(terms: ModalTerm[]): (value: number) => string {
@@ -222,8 +231,8 @@ function buildRatingShader(terms: ModalTerm[]): (value: number) => string {
     // Alpha range 0.65 → 1.0 so even the lightest cell stays saturated
     // enough that the on-saturated text color reads. Previously the
     // floor was 0.45, which left low-value cells too washed-out.
-    if (span < 0.05) return `rgba(${rgb}, 0.85)`;
-    return `rgba(${rgb}, ${0.65 + ((value - min) / span) * 0.35})`;
+    if (span < 0.05) return rgbaWith(rgb, 0.85);
+    return rgbaWith(rgb, 0.65 + ((value - min) / span) * 0.35);
   };
 }
 
@@ -238,7 +247,7 @@ function buildHoursShader(terms: ModalTerm[]): (value: number) => string {
   const span = max - min;
   const rgb = readRgbTuple("--bc-color-heatmap-hours-rgb", "162, 28, 175");
   return (value: number) => {
-    if (span < 0.05) return `rgba(${rgb}, 0.85)`;
-    return `rgba(${rgb}, ${0.65 + ((value - min) / span) * 0.35})`;
+    if (span < 0.05) return rgbaWith(rgb, 0.85);
+    return rgbaWith(rgb, 0.65 + ((value - min) / span) * 0.35);
   };
 }

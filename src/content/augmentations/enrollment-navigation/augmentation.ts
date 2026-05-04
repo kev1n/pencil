@@ -1,3 +1,4 @@
+import { logQuiet } from "../../../shared/log";
 import type { Augmentation } from "../../framework";
 import { acquirePeopleSoftLock, releasePeopleSoftLock, runPeopleSoftTask } from "../../peoplesoft";
 
@@ -355,8 +356,8 @@ export class EnrollmentNavigationAugmentation implements Augmentation {
 function persistContext(context: EnrollmentContext): void {
   try {
     window.localStorage.setItem(CONTEXT_STORAGE_KEY, JSON.stringify(context));
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("enrollment-nav.persistContext", err);
   }
 }
 
@@ -487,8 +488,9 @@ function buildTermSelectorUrl(doc: Document): string | null {
         currentUrl.searchParams.set("PAGE", TERM_PAGE_ID);
         return currentUrl.toString();
       }
-    } catch {
+    } catch (err) {
       // Fall through to alternate discovery paths.
+      logQuiet("enrollment-nav.term-url.context-build", err);
     }
   }
 
@@ -590,8 +592,8 @@ function normalizeText(value: string): string {
 function setTargetTermSelection(value: string): void {
   try {
     window.sessionStorage.setItem(TARGET_TERM_VALUE_KEY, value);
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("enrollment-nav.setTargetTermSelection", err);
   }
 }
 
@@ -606,8 +608,8 @@ function getTargetTermSelection(): string | null {
 function clearTargetTermSelection(): void {
   try {
     window.sessionStorage.removeItem(TARGET_TERM_VALUE_KEY);
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("enrollment-nav.clearTargetTermSelection", err);
   }
 }
 
@@ -622,16 +624,16 @@ function readSubmittedUrl(): string | null {
 function writeSubmittedUrl(url: string): void {
   try {
     window.sessionStorage.setItem(SUBMITTED_URL_KEY, url);
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("enrollment-nav.writeSubmittedUrl", err);
   }
 }
 
 function clearSubmittedUrl(): void {
   try {
     window.sessionStorage.removeItem(SUBMITTED_URL_KEY);
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("enrollment-nav.clearSubmittedUrl", err);
   }
 }
 

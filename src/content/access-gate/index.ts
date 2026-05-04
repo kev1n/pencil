@@ -1,3 +1,4 @@
+import { logQuiet } from "../../shared/log";
 import {
   bucketForGradYear,
   BUCKET_LABELS,
@@ -55,8 +56,8 @@ function emit(status: GateStatus): void {
   for (const fn of listeners) {
     try {
       fn(status);
-    } catch {
-      // ignore listener errors
+    } catch (err) {
+      logQuiet("access-gate.emit.listener", err);
     }
   }
 }

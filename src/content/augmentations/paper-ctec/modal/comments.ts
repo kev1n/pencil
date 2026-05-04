@@ -64,11 +64,11 @@ function renderCommentsRail(
     count: number;
     dot: string;
   }> = [
-    { key: "all", label: "All", count: termFiltered.length, dot: "#d8b6c8" },
-    { key: "pos", label: "Positive", count: sentimentCounts.pos, dot: "#15803d" },
-    { key: "mix", label: "Mixed", count: sentimentCounts.mix, dot: "#a16207" },
-    { key: "neu", label: "Neutral", count: sentimentCounts.neu, dot: "#7a596a" },
-    { key: "neg", label: "Critical", count: sentimentCounts.neg, dot: "#9f1239" }
+    { key: "all", label: "All", count: termFiltered.length, dot: "var(--bc-color-sentiment-all-dot)" },
+    { key: "pos", label: "Positive", count: sentimentCounts.pos, dot: "var(--bc-color-sentiment-pos-fg)" },
+    { key: "mix", label: "Mixed", count: sentimentCounts.mix, dot: "var(--bc-color-sentiment-mix-fg)" },
+    { key: "neu", label: "Neutral", count: sentimentCounts.neu, dot: "var(--bc-color-sentiment-neu-fg)" },
+    { key: "neg", label: "Critical", count: sentimentCounts.neg, dot: "var(--bc-color-sentiment-neg-fg)" }
   ];
   for (const row of sentimentRows) {
     const active = state.commentsSentimentFilter === row.key;

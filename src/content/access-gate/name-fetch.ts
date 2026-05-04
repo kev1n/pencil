@@ -1,3 +1,4 @@
+import { logQuiet } from "../../shared/log";
 import { fetchTextResultViaBackground } from "../remote-fetch";
 import { fetchGradYear } from "./grad-term-fetch";
 import { writeStoredName, type StoredName } from "./storage";
@@ -53,8 +54,9 @@ export function fetchAndCacheUserName(): Promise<StoredName | null> {
       // recordFailedAttempt — we just successfully wrote a name.
       try {
         await chrome.storage.local.remove(NAME_FETCH_FAILED_AT_KEY);
-      } catch {
-        // ignore — sentinel will expire on its own.
+      } catch (err) {
+        // Sentinel will expire on its own.
+        logQuiet("access-gate.name-fetch.clear-sentinel", err);
       }
       return stored;
     } catch {
@@ -92,8 +94,8 @@ async function isWithinFailureBackoff(): Promise<boolean> {
 async function recordFailedAttempt(): Promise<void> {
   try {
     await chrome.storage.local.set({ [NAME_FETCH_FAILED_AT_KEY]: Date.now() });
-  } catch {
-    // ignore storage errors
+  } catch (err) {
+    logQuiet("access-gate.name-fetch.record-failure", err);
   }
 }
 

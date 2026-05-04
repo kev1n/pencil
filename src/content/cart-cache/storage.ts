@@ -1,3 +1,4 @@
+import { logQuiet } from "../../shared/log";
 import {
   CART_CACHE_STORAGE_KEY,
   emptyCache,
@@ -50,8 +51,9 @@ function fireListeners(): void {
   for (const listener of listeners) {
     try {
       listener();
-    } catch {
+    } catch (err) {
       // Listener errors must never break the broadcast loop.
+      logQuiet("cart-cache.fireListeners", err);
     }
   }
 }

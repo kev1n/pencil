@@ -1,4 +1,3 @@
-import { trendZoneDarkRules } from "../chart-zones";
 import { PAPER_CTEC_CONFIG } from "../config";
 import { NO_HOVER_LIFT_CLASS, WIDGET_CLASS } from "../constants";
 
@@ -391,10 +390,11 @@ export function cardStyles(): string {
       height: auto;
       display: block;
     }
-    /* SVG fill/stroke colors are now emitted by JS via style.* with
+    /* SVG fill/stroke colors are emitted by JS via style.* with
        var(--bc-color-*) references, so they switch with the active theme
-       automatically — no per-attribute dark overrides needed here. */
-    ${trendZoneDarkRules(`.${WIDGET_CLASS}-preview-trend-svg`)}
+       automatically — no per-attribute dark overrides needed here.
+       (Chart-zone bands previously needed explicit dark-mode CSS rules;
+       they now consume --bc-color-trend-zone-* vars that swap by theme.) */
     .${WIDGET_CLASS}-preview-empty {
       font-size: var(--bc-font-11);
       color: var(--bc-color-text-muted);

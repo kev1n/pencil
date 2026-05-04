@@ -1,3 +1,5 @@
+import { logQuiet } from "../../shared/log";
+
 const LOCK_KEY = "better-caesar:peoplesoft-lock";
 const DEFAULT_LOCK_TTL_MS = 120_000;
 
@@ -264,15 +266,15 @@ function readLock(): LockState | null {
 function writeLock(lock: LockState): void {
   try {
     window.sessionStorage.setItem(LOCK_KEY, JSON.stringify(lock));
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("peoplesoft.traffic.writeLock", err);
   }
 }
 
 function clearLock(): void {
   try {
     window.sessionStorage.removeItem(LOCK_KEY);
-  } catch {
-    // Ignore storage errors.
+  } catch (err) {
+    logQuiet("peoplesoft.traffic.clearLock", err);
   }
 }

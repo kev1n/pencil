@@ -6,6 +6,7 @@
 // chrome.storage.local lets the first modal open after a fresh page load
 // skip the work too, as long as the underlying CTEC entries are unchanged.
 
+import { logQuiet } from "../../../shared/log";
 import type { ModalDisplayData } from "./modal-data";
 
 export const PAPER_CTEC_MODAL_CACHE_KEY = "bc_paper_ctec_modal_cache";
@@ -109,8 +110,9 @@ async function persistNow(): Promise<void> {
   const record: CacheRecord = { version: STORAGE_VERSION, entries };
   try {
     await chrome.storage.local.set({ [PAPER_CTEC_MODAL_CACHE_KEY]: record });
-  } catch {
+  } catch (err) {
     // Quota / serialization failures must never break the modal — drop on
     // floor and let in-memory keep serving.
+    logQuiet("paper-ctec.modal-cache.persist", err);
   }
 }

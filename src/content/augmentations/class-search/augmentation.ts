@@ -1,3 +1,4 @@
+import { logQuiet } from "../../../shared/log";
 import {
   initCartCache,
   lookupBySignature,
@@ -68,8 +69,7 @@ import {
   type PaperCourse,
   type PaperSection,
   type PaperTermCourse,
-  type SubjectInfo,
-  type TermSummary
+  type SubjectInfo
 } from "./paper-data";
 import { STYLE_ID as CLASS_SEARCH_STYLE_ID, ensureStyles } from "./styles";
 import {
@@ -83,8 +83,6 @@ const ROOT_ID = "better-caesar-class-search-root";
 const TABS_ID = "better-caesar-class-search-tabs";
 const HIDE_NATIVE_STYLE_ID = "better-caesar-class-search-hide-native";
 const SEARCH_PAGE_ID = "SSR_CLSRCH_ENTRY";
-const RESULTS_PAGE_ID = "SSR_CLSRCH_RSLT";
-const CART_PAGE_ID = "SSR_SSENRL_CART";
 const SEARCH_COMPONENT = "CLASS_SEARCH";
 
 const TAB_STORAGE_KEY = "better-caesar:class-search:active-tab";
@@ -1910,8 +1908,8 @@ function readActiveTab(): TabId {
 function writeActiveTab(tab: TabId): void {
   try {
     window.sessionStorage.setItem(TAB_STORAGE_KEY, tab);
-  } catch {
-    // ignore storage errors
+  } catch (err) {
+    logQuiet("class-search.writeActiveTab", err);
   }
 }
 

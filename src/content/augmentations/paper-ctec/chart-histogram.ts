@@ -6,6 +6,7 @@
 // maroon gradient overlaid on top, dashed mean indicator with an AVG pill,
 // % y-axis with light gridlines, x-axis bucket labels.
 
+import { logQuiet } from "../../../shared/log";
 import {
   extractChartFromImage,
   type ChartExtraction
@@ -92,7 +93,8 @@ export function renderChartHistogram(
       wrapper.replaceChildren(renderHistogramSvg(doc, result.data, options));
       return;
     }
-    console.warn("[paper-ctec] chart extraction failed", {
+    logQuiet("paper-ctec.chart-extract", {
+      message: "chart extraction failed",
       imageUrl,
       kind,
       total,

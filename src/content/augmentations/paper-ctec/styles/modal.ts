@@ -219,7 +219,7 @@ export function modalStyles(): string {
       justify-content: center;
       font-size: var(--bc-font-12);
       font-weight: var(--bc-fw-bold);
-      background: rgba(255, 255, 255, 0.65);
+      background: var(--bc-color-flash-pill-bg);
     }
     .bc-paper-ctec-modal-flash-text {
       flex: 1;
@@ -243,14 +243,14 @@ export function modalStyles(): string {
       padding: 6px 10px;
       border-radius: var(--bc-radius-md);
       border: 1px solid currentColor;
-      background: rgba(255, 255, 255, 0.7);
+      background: var(--bc-color-flash-action-bg);
       color: inherit;
       cursor: pointer;
       white-space: nowrap;
       align-self: center;
     }
     .bc-paper-ctec-modal-flash-action:hover {
-      background: rgba(255, 255, 255, 1);
+      background: var(--bc-color-flash-action-bg-hover);
     }
     .bc-paper-ctec-modal-flash-dismiss {
       font: inherit;

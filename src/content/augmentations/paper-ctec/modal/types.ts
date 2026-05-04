@@ -92,18 +92,36 @@ export type AnalyticsModalInput = {
 
 // Per-tone visual metadata used by the comment cards (left border + tag pill)
 // and by the comments-rail dot row. Sentiment rail dots reuse `color` only.
+// Colors flow from the design tokens (--bc-color-sentiment-*) so the palette
+// adapts to the active theme + dark-mode mirror automatically.
 export const TONE_META: Record<ModalCommentTone, { color: string; bg: string; label: string }> = {
-  pos: { color: "#15803d", bg: "#ecfdf5", label: "Positive" },
-  neg: { color: "#9f1239", bg: "#fff1f2", label: "Critical" },
-  mix: { color: "#a16207", bg: "#fefce8", label: "Mixed" },
-  neu: { color: "#7a596a", bg: "#f6ecf2", label: "Neutral" }
+  pos: {
+    color: "var(--bc-color-sentiment-pos-fg)",
+    bg: "var(--bc-color-sentiment-pos-bg)",
+    label: "Positive"
+  },
+  neg: {
+    color: "var(--bc-color-sentiment-neg-fg)",
+    bg: "var(--bc-color-sentiment-neg-bg)",
+    label: "Critical"
+  },
+  mix: {
+    color: "var(--bc-color-sentiment-mix-fg)",
+    bg: "var(--bc-color-sentiment-mix-bg)",
+    label: "Mixed"
+  },
+  neu: {
+    color: "var(--bc-color-sentiment-neu-fg)",
+    bg: "var(--bc-color-sentiment-neu-bg)",
+    label: "Neutral"
+  }
 };
 
 export const TOPIC_TONE_COLORS: Record<ModalCommentTone, string> = {
-  pos: "#15803d",
-  mix: "#a16207",
-  neu: "#7a596a",
-  neg: "#9f1239"
+  pos: "var(--bc-color-sentiment-pos-fg)",
+  mix: "var(--bc-color-sentiment-mix-fg)",
+  neu: "var(--bc-color-sentiment-neu-fg)",
+  neg: "var(--bc-color-sentiment-neg-fg)"
 };
 
 export const TOPIC_TONE_LABELS: Record<ModalCommentTone, string> = {

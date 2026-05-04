@@ -204,7 +204,7 @@ function buildCompactChipTone(
     lightBorder: `hsla(${hue}, 82%, 24%, 0.38)`,
     darkBorder: `hsla(${hue}, 90%, 78%, 0.28)`,
     lightText: `hsl(${hue}, 62%, 18%)`,
-    darkText: "#f9fafb"
+    darkText: "var(--bc-color-kpi-fg-dark)"
   };
 }
 

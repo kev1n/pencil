@@ -32,8 +32,23 @@ export function tokensCss(fontUrl?: FontUrlResolver): string {
     defaultLight(),
     defaultDark(),
     pencilLight(),
-    pencilDark()
+    pencilDark(),
+    gateTokens()
   ].join("\n");
+}
+
+// Pre-theme tokens consumed by code that runs before bootstrapTheme():
+// the access-gate banner + toast (which mount inside Shadow DOM, but CSS
+// custom properties inherit through the shadow boundary) and the early
+// term-page mask injected by content/index.ts. Standalone of any theme
+// because theme bootstrap is asynchronous and these surfaces paint on
+// the very first frame.
+//
+// Exported so content/index.ts can inject this block synchronously in a
+// dedicated <style id="bc-gate-tokens"> at the top of <head>, ahead of
+// any other style insertion.
+export function gateTokensCss(): string {
+  return gateTokens();
 }
 
 // -----------------------------------------------------------------------------
@@ -357,6 +372,32 @@ function defaultLight(): string {
   --bc-color-overlay-auth: rgba(15, 23, 42, 0.6);
   --bc-color-overlay-on-light: rgba(15, 23, 42, 0.08);
 
+  /* Flash banner inner surfaces — translucent white pills/buttons that
+     sit on top of the colored flash background (success / warn / danger).
+     Light theme uses translucent white; dark theme inverts. */
+  --bc-color-flash-pill-bg: rgba(255, 255, 255, 0.65);
+  --bc-color-flash-action-bg: rgba(255, 255, 255, 0.7);
+  --bc-color-flash-action-bg-hover: rgba(255, 255, 255, 1);
+
+  /* Sentiment palette — drives the comment-card left border, tag pill,
+     and comments-rail dot row across positive / mixed / neutral / critical
+     classifications. The neutral-bg shade is the small "all comments"
+     summary dot in the rail (one notch lighter than the regular neutral
+     swatch). Kept identical to the previously hard-coded literals. */
+  --bc-color-sentiment-pos-fg: #15803d;
+  --bc-color-sentiment-pos-bg: #ecfdf5;
+  --bc-color-sentiment-neg-fg: #9f1239;
+  --bc-color-sentiment-neg-bg: #fff1f2;
+  --bc-color-sentiment-mix-fg: #a16207;
+  --bc-color-sentiment-mix-bg: #fefce8;
+  --bc-color-sentiment-neu-fg: #7a596a;
+  --bc-color-sentiment-neu-bg: #f6ecf2;
+  --bc-color-sentiment-all-dot: #d8b6c8;
+
+  /* KPI-pill dark-mode foreground fallback (used when an inline
+     pill-specific override isn't applied). */
+  --bc-color-kpi-fg-dark: #f9fafb;
+
   /* ----- Side-card / panel gradient (paper.nu analytics card frame) ----- */
   --bc-color-panel-grad-top: rgba(255, 250, 252, 0.98);
   --bc-color-panel-grad-bottom: rgba(255, 255, 255, 0.98);
@@ -429,6 +470,16 @@ function defaultLight(): string {
   --bc-color-seat-warn-row-border: #d99a66;
   --bc-color-seat-error-text: #7a123f;
   --bc-color-seat-muted-text: #5c4c56;
+
+  /* Trend-chart zone bands — 5 tiers from worst (red) to best (green).
+     Used by chart-zones.ts to color the rating + hours trend backgrounds.
+     Light-mode alpha is intentionally low (0.08–0.10) so the zones are
+     visible but never compete with the trend line itself. */
+  --bc-color-trend-zone-1: rgba(220, 38, 38, 0.08);
+  --bc-color-trend-zone-2: rgba(234, 88, 12, 0.08);
+  --bc-color-trend-zone-3: rgba(202, 138, 4, 0.08);
+  --bc-color-trend-zone-4: rgba(101, 163, 13, 0.10);
+  --bc-color-trend-zone-5: rgba(22, 163, 74, 0.10);
 }
 `;
 }
@@ -664,6 +715,14 @@ function defaultDark(): string {
   --bc-color-gate-ok-bg: rgba(16, 78, 53, 0.32);
   --bc-color-gate-ok-border: rgba(110, 231, 183, 0.36);
   --bc-color-gate-ok-text: #d1fadf;
+
+  /* Trend-chart zone bands — dark variants, brighter alpha so the bands
+     read against the modal/card dark surfaces. */
+  --bc-color-trend-zone-1: rgba(248, 113, 113, 0.16);
+  --bc-color-trend-zone-2: rgba(251, 146, 60, 0.16);
+  --bc-color-trend-zone-3: rgba(250, 204, 21, 0.16);
+  --bc-color-trend-zone-4: rgba(132, 204, 22, 0.18);
+  --bc-color-trend-zone-5: rgba(74, 222, 128, 0.18);
 }
 `;
 }
@@ -977,6 +1036,14 @@ function pencilLight(): string {
   --bc-color-seat-warn-row-border: #d4a373;
   --bc-color-seat-error-text: #8a3a4a;
   --bc-color-seat-muted-text: #6b5a55;
+
+  /* Trend-chart zone bands — pencil-light keeps the same low-alpha
+     5-tier palette as default-light. */
+  --bc-color-trend-zone-1: rgba(220, 38, 38, 0.08);
+  --bc-color-trend-zone-2: rgba(234, 88, 12, 0.08);
+  --bc-color-trend-zone-3: rgba(202, 138, 4, 0.08);
+  --bc-color-trend-zone-4: rgba(101, 163, 13, 0.10);
+  --bc-color-trend-zone-5: rgba(22, 163, 74, 0.10);
 }
 `;
 }
@@ -1215,6 +1282,61 @@ function pencilDark(): string {
   --bc-color-gate-ok-bg: rgba(31, 90, 54, 0.38);
   --bc-color-gate-ok-border: rgba(155, 227, 168, 0.40);
   --bc-color-gate-ok-text: #d5f3da;
+
+  /* Trend-chart zone bands — light pencil-dark variants. Same 5 tiers
+     as default-light, just brighter alpha to read on graphite paper. */
+  --bc-color-trend-zone-1: rgba(248, 113, 113, 0.16);
+  --bc-color-trend-zone-2: rgba(251, 146, 60, 0.16);
+  --bc-color-trend-zone-3: rgba(250, 204, 21, 0.16);
+  --bc-color-trend-zone-4: rgba(132, 204, 22, 0.18);
+  --bc-color-trend-zone-5: rgba(74, 222, 128, 0.18);
+}
+`;
+}
+
+// -----------------------------------------------------------------------------
+// Access-gate tokens (--bc-gate-*)
+//
+// These render BEFORE bootstrapTheme() runs — the access-gate banner/toast
+// and the early term-page mask all paint on the very first frame, while
+// the rest of the design system is still hydrating. This block is injected
+// synchronously by content/index.ts in a dedicated <style id="bc-gate-tokens">
+// element at the top of <head>, so the variables are available immediately
+// (and inherit through the access-gate Shadow DOM boundaries).
+//
+// Values intentionally locked to a stable, theme-free neutral palette:
+// the gate UI must look identical regardless of which Pencil theme would
+// later activate. Dark-mode variants live in the same namespace and are
+// scoped via prefers-color-scheme so they apply pre-bootstrap too.
+// -----------------------------------------------------------------------------
+function gateTokens(): string {
+  return `
+:root {
+  /* Toast surface */
+  --bc-gate-bg: #ffffff;
+  --bc-gate-fg: #111827;
+  --bc-gate-border: #e5e7eb;
+  --bc-gate-shadow: rgba(0, 0, 0, 0.18);
+  --bc-gate-muted: #4b5563;
+  --bc-gate-muted-icon: #9ca3af;
+  --bc-gate-input-border: #d1d5db;
+
+  /* Brand accent (NU purple — kept identical to the original toast
+     palette so this stays visually unchanged across the migration). */
+  --bc-gate-accent: #66023c;
+  --bc-gate-accent-hover: #4a012b;
+  --bc-gate-accent-on: #ffffff;
+
+  /* Status colors */
+  --bc-gate-error: #b91c1c;
+
+  /* Banner — amber alert palette */
+  --bc-gate-warning-bg: #fef3c7;
+  --bc-gate-warning-fg: #78350f;
+  --bc-gate-warning-border: #f59e0b;
+  --bc-gate-warning-shadow: rgba(0, 0, 0, 0.08);
+  --bc-gate-warning-link-hover: #451a03;
+  --bc-gate-warning-muted: #92400e;
 }
 `;
 }

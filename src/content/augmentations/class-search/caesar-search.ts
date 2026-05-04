@@ -13,7 +13,7 @@ import {
   SEARCH_ENTRY_URL
 } from "../../peoplesoft/shared";
 
-import { bareCatalogNumber, formatCatalogForDisplay } from "./catalog-format";
+import { formatCatalogForDisplay } from "./catalog-format";
 
 // CAESAR row, parsed from the search results page. We keep enough info to
 // render a "live status" badge inline AND to drive the add-to-cart chain.
