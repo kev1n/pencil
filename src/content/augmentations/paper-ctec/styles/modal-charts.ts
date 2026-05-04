@@ -1,4 +1,5 @@
 import { maxWidth } from "../../../design/breakpoints";
+import { trendZoneDarkRules } from "../chart-zones";
 
 // Modal chart styles: KPI strip, trend chart, distribution charts
 // (extracted-counts histogram + image fallback), hours density / bar /
@@ -516,7 +517,7 @@ export function modalChartStyles(): string {
        we cannot replace them with design tokens. */
     .dark .bc-paper-ctec-modal-trend-svg [stroke="#f1ebef"] { stroke: #525252; }
     .dark .bc-paper-ctec-modal-trend-svg [fill="#9b8290"] { fill: #a3a3a3; }
-    .dark .bc-paper-ctec-modal-trend-svg [fill="rgba(102,2,60,0.08)"] { fill: rgba(216, 180, 254, 0.12); }
+    ${trendZoneDarkRules(".bc-paper-ctec-modal-trend-svg")}
     .dark .bc-paper-ctec-modal-trend-svg [stroke="#66023c"] { stroke: #d8b4fe; }
     .dark .bc-paper-ctec-modal-trend-svg [fill="#66023c"] { fill: #d8b4fe; }
     .dark .bc-paper-ctec-modal-trend-svg [fill="white"] { fill: #262626; }
@@ -529,6 +530,8 @@ export function modalChartStyles(): string {
     .dark .bc-paper-ctec-histogram-svg [fill="#3a2730"] { fill: #fafafa; }
     .dark .bc-paper-ctec-histogram-svg [stroke="#66023c"] { stroke: #d8b4fe; }
     .dark .bc-paper-ctec-histogram-svg [fill="#66023c"] { fill: #d8b4fe; }
+    .dark .bc-paper-ctec-histogram-svg [stroke="#475569"] { stroke: #a3a3a3; }
+    .dark .bc-paper-ctec-histogram-svg [fill="#475569"] { fill: #a3a3a3; }
     .dark .bc-paper-ctec-histogram-svg [fill="white"] { fill: #1f1147; }
     .dark .bc-paper-ctec-modal-hours-density-svg [stroke="#e6e6ea"] { stroke: #525252; }
     .dark .bc-paper-ctec-modal-hours-density-svg [fill="#6b7280"] { fill: #a3a3a3; }

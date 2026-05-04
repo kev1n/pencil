@@ -42,6 +42,12 @@ export type RenderMetricDistributionOptions = {
   // Renders as a secondary slate pill stacked above the primary one.
   historicalMean?: number;
   historicalLabel?: string;
+  // Optional aggregate bar counts (across all loaded terms) used to draw
+  // a dashed slate spline behind the primary curve, mirroring the
+  // workload card's two-series overlay. Length must match the metric's
+  // bucket count; total is the sum of counts (or a precomputed total).
+  historicalCounts?: number[];
+  historicalTotal?: number;
 };
 
 export function renderMetricDistribution(
@@ -56,7 +62,9 @@ export function renderMetricDistribution(
     renderHoursBuckets,
     primaryLabel,
     historicalMean,
-    historicalLabel
+    historicalLabel,
+    historicalCounts,
+    historicalTotal
   } = options;
 
   if (metric === "hours" && term.hoursBuckets.length > 0) {
@@ -84,6 +92,8 @@ export function renderMetricDistribution(
           ? historicalMean
           : undefined,
       secondaryLabel: historicalLabel,
+      secondaryCounts: historicalCounts,
+      secondaryTotal: historicalTotal,
       xAxisTitle: isHours ? "HOURS PER WEEK" : "RATING",
       preExtractedCounts: chart.counts,
       className

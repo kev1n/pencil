@@ -38,6 +38,12 @@ export type RenderHistogramOptions = {
   // similar context line. Stacks above the primary pill.
   secondaryMean?: number;
   secondaryLabel?: string;
+  // Optional second distribution drawn as a dashed slate curve behind
+  // the primary one. Mirrors the workload card's "historical" overlay.
+  // Pairs with secondaryTotal so percentages can be computed; both must
+  // be present and positive for the curve to render.
+  secondaryCounts?: number[];
+  secondaryTotal?: number;
   // Numeric anchors for each bar (1..6 for ratings, bucket midpoints for
   // hours). Used to position the mean indicator correctly. Defaults to
   // [1..6] when omitted.
@@ -144,9 +150,22 @@ function renderHistogramSvg(
   const innerW = W - PL - PR;
   const innerH = innerHTarget;
 
-  // Y-axis scale: nice-stepped to fit the tallest bar. For very flat
-  // distributions step=2; very peaked ones step=50.
-  const maxPct = pcts.length > 0 ? Math.max(...pcts) : 0;
+  // Secondary distribution percentages, when supplied. Computed up-front
+  // so the y-axis can scale to fit whichever series peaks higher.
+  const hasSecondaryCurve =
+    Array.isArray(opts.secondaryCounts) &&
+    opts.secondaryCounts.length === counts.length &&
+    typeof opts.secondaryTotal === "number" &&
+    Number.isFinite(opts.secondaryTotal) &&
+    opts.secondaryTotal > 0;
+  const secondaryPcts = hasSecondaryCurve
+    ? opts.secondaryCounts!.map((c) => (c / opts.secondaryTotal!) * 100)
+    : null;
+
+  // Y-axis scale: nice-stepped to fit the tallest bar in either series.
+  // For very flat distributions step=2; very peaked ones step=50.
+  const allPcts = secondaryPcts ? [...pcts, ...secondaryPcts] : pcts;
+  const maxPct = allPcts.length > 0 ? Math.max(...allPcts) : 0;
   const niceStep = (max: number): number => {
     const targets = [2, 5, 10, 20, 25, 50];
     for (const t of targets) if (max / t <= 4) return t;
@@ -273,13 +292,18 @@ function renderHistogramSvg(
   // edges) so the fill doesn't sweep down to the chart's left/right padding
   // and create misleading wings beyond the data.
   const baseline = PT + innerH;
-  const pts: [number, number][] = pcts.map((p, i) => [xMid(i), yPct(p)]);
-  const segs: string[] = [];
-  if (pts.length > 0) {
+  const buildPath = (seriesPcts: number[]): {
+    path: string;
+    pts: [number, number][];
+  } => {
+    const pts: [number, number][] = seriesPcts.map((p, i) => [xMid(i), yPct(p)]);
+    if (pts.length === 0) return { path: "", pts };
     const firstX = pts[0]![0];
     const lastX = pts[pts.length - 1]![0];
-    segs.push(`M ${firstX} ${baseline}`);
-    segs.push(`L ${firstX} ${pts[0]![1]}`);
+    const segs: string[] = [
+      `M ${firstX} ${baseline}`,
+      `L ${firstX} ${pts[0]![1]}`
+    ];
     for (let i = 0; i < pts.length - 1; i += 1) {
       const p0 = pts[i - 1] ?? pts[i]!;
       const p1 = pts[i]!;
@@ -292,9 +316,38 @@ function renderHistogramSvg(
       segs.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2[0]} ${p2[1]}`);
     }
     segs.push(`L ${lastX} ${baseline} Z`);
-  }
-  const curvePath = segs.join(" ");
+    return { path: segs.join(" "), pts };
+  };
 
+  // Secondary curve drawn first so the primary's filled curve sits on
+  // top — same z-order as the workload card. Dashed slate stroke, no
+  // fill, smaller dots so it reads as context rather than the focus.
+  if (secondaryPcts) {
+    const { path: secPath, pts: secPts } = buildPath(secondaryPcts);
+    if (secPath) {
+      const secCurve = doc.createElementNS(SVG_NS, "path");
+      secCurve.setAttribute("d", secPath);
+      secCurve.setAttribute("fill", "none");
+      secCurve.setAttribute("stroke", "#475569");
+      secCurve.setAttribute("stroke-width", "1.4");
+      secCurve.setAttribute("stroke-dasharray", "5 3");
+      secCurve.setAttribute("stroke-linejoin", "round");
+      svg.append(secCurve);
+
+      for (const [x, y] of secPts) {
+        const dot = doc.createElementNS(SVG_NS, "circle");
+        dot.setAttribute("cx", String(x));
+        dot.setAttribute("cy", String(y));
+        dot.setAttribute("r", "1.8");
+        dot.setAttribute("fill", "white");
+        dot.setAttribute("stroke", "#475569");
+        dot.setAttribute("stroke-width", "1.2");
+        svg.append(dot);
+      }
+    }
+  }
+
+  const { path: curvePath, pts } = buildPath(pcts);
   const area = doc.createElementNS(SVG_NS, "path");
   area.setAttribute("d", curvePath);
   area.setAttribute("fill", `url(#${gradId})`);

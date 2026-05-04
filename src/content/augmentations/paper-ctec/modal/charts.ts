@@ -1,3 +1,8 @@
+import {
+  appendTrendZones,
+  HOURS_TREND_ZONES,
+  RATING_TREND_ZONES
+} from "../chart-zones";
 import { renderMetricDistribution } from "../dist-render";
 import {
   renderHoursDensity,
@@ -53,22 +58,30 @@ export function renderTrendChart(
     const PT = 24;
     const PB = 36;
 
-    const min = Math.min(...values) - 0.3;
-    const max = Math.max(...values) + 0.3;
-    const range = max - min || 1;
+    // Fixed scale per metric: rating metrics share a 1–6 axis, hours uses
+    // 0–20. This keeps trend lines visually comparable across courses
+    // (auto-scaling makes a 4.5→5.4 trend look identical to a 2.0→2.3
+    // one). Integer (or 4-step) ticks anchor the colored zones.
+    const isHours = metric === "hours";
+    const yMin = isHours ? 0 : 1;
+    const yMax = isHours ? 20 : 6;
+    const range = yMax - yMin;
+    const tickValues = isHours ? [0, 4, 8, 12, 16, 20] : [1, 2, 3, 4, 5, 6];
+    const zones = isHours ? HOURS_TREND_ZONES : RATING_TREND_ZONES;
+
     const xAt = (i: number) =>
       PL + (i / Math.max(1, values.length - 1)) * (W - PL - PR);
     const yAt = (v: number) =>
-      H - PB - ((v - min) / range) * (H - PT - PB);
+      H - PB - ((v - yMin) / range) * (H - PT - PB);
 
     const SVG_NS = "http://www.w3.org/2000/svg";
     const svg = doc.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.setAttribute("class", "bc-paper-ctec-modal-trend-svg");
 
-    const ticks = 4;
-    for (let i = 0; i < ticks; i++) {
-      const yv = min + ((max - min) * i) / (ticks - 1);
+    appendTrendZones(doc, svg, zones, PL, W - PR, yAt);
+
+    for (const yv of tickValues) {
       const line = doc.createElementNS(SVG_NS, "line");
       line.setAttribute("x1", String(PL));
       line.setAttribute("x2", String(W - PR));
@@ -83,20 +96,11 @@ export function renderTrendChart(
       tick.setAttribute("fill", "#9b8290");
       tick.setAttribute("font-size", "10");
       tick.setAttribute("text-anchor", "end");
-      tick.textContent = yv.toFixed(1);
+      tick.textContent = String(yv);
       svg.append(tick);
     }
 
     const points = values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-    const area = doc.createElementNS(SVG_NS, "path");
-    area.setAttribute(
-      "d",
-      `M ${xAt(0)},${H - PB} L ${points.split(" ").join(" L ")} L ${xAt(
-        values.length - 1
-      )},${H - PB} Z`
-    );
-    area.setAttribute("fill", "rgba(102,2,60,0.08)");
-    svg.append(area);
 
     const polyline = doc.createElementNS(SVG_NS, "polyline");
     polyline.setAttribute("fill", "none");
@@ -201,6 +205,27 @@ export function renderDistChart(
     ? `HISTORICAL AVG ${historicalMean!.toFixed(1)}${unit}`
     : undefined;
 
+  // Aggregate per-bar counts across every term that has a chart for this
+  // metric, so the histogram can overlay a dashed slate spline through
+  // the multi-term distribution. Length matches the metric's bucket
+  // count (6 for both ratings and hours histograms).
+  const historicalCountsAndTotal = (() => {
+    if (!showHistorical || !data) return null;
+    let summed: number[] | null = null;
+    let total = 0;
+    for (const t of data.terms) {
+      const chart = t.charts[metric];
+      if (!chart?.counts) continue;
+      if (!summed) summed = new Array(chart.counts.length).fill(0);
+      if (summed.length !== chart.counts.length) continue;
+      for (let i = 0; i < chart.counts.length; i += 1) {
+        summed[i]! += chart.counts[i] ?? 0;
+      }
+      total += chart.counts.reduce((sum, c) => sum + c, 0);
+    }
+    return summed && total > 0 ? { counts: summed, total } : null;
+  })();
+
   wrapper.append(
     renderMetricDistribution({
       doc,
@@ -211,6 +236,8 @@ export function renderDistChart(
       primaryLabel,
       historicalMean: showHistorical ? historicalMean : undefined,
       historicalLabel: showHistorical ? historicalLabel : undefined,
+      historicalCounts: historicalCountsAndTotal?.counts,
+      historicalTotal: historicalCountsAndTotal?.total,
       renderHoursBuckets: (t) => {
         const series: HoursDensitySeries[] = [];
         if (

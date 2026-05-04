@@ -1,3 +1,4 @@
+import { trendZoneDarkRules } from "../chart-zones";
 import { PAPER_CTEC_CONFIG } from "../config";
 import { NO_HOVER_LIFT_CLASS, WIDGET_CLASS } from "../constants";
 
@@ -385,6 +386,13 @@ export function cardStyles(): string {
       height: auto;
       display: block;
     }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [stroke="#f1ebef"] { stroke: #525252; }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [fill="#9b8290"] { fill: #a3a3a3; }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [fill="#7a596a"] { fill: #a3a3a3; }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [stroke="#66023c"] { stroke: #d8b4fe; }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [fill="#66023c"] { fill: #d8b4fe; }
+    .dark .${WIDGET_CLASS}-preview-trend-svg [fill="white"] { fill: #1f1147; }
+    ${trendZoneDarkRules(`.${WIDGET_CLASS}-preview-trend-svg`)}
     .${WIDGET_CLASS}-preview-empty {
       font-size: var(--bc-font-11);
       color: var(--bc-color-text-muted);

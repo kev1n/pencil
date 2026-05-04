@@ -5,6 +5,7 @@ import {
   type ModalTerm
 } from "./modal-data";
 import { renderHoursDensity, type HoursDensitySeries } from "./hours-density";
+import { appendTrendZones, RATING_TREND_ZONES } from "./chart-zones";
 import { abbrTerm } from "./term-format";
 
 const PREVIEW_CLASS = `${WIDGET_CLASS}-preview`;
@@ -43,22 +44,25 @@ function renderGlobalSplineTrend(
   const PB = 28;
 
   const values = entries.map((entry) => entry.value);
-  const minRaw = Math.min(...values);
-  const min = minRaw > 3 ? minRaw - 0.3 : 0;
-  const max = Math.max(...values) + 0.3;
-  const range = max - min || 1;
+  // Fixed 1–6 scale + colored zones — same rationale as the modal trend
+  // chart (auto-scaling makes courses with very different absolute
+  // ratings look identical at a glance).
+  const yMin = 1;
+  const yMax = 6;
+  const range = yMax - yMin;
+  const tickValues = [1, 2, 3, 4, 5, 6];
   const xAt = (i: number) =>
     PL + (i / Math.max(1, values.length - 1)) * (W - PL - PR);
-  const yAt = (v: number) => H - PB - ((v - min) / range) * (H - PT - PB);
+  const yAt = (v: number) => H - PB - ((v - yMin) / range) * (H - PT - PB);
 
   const SVG_NS = "http://www.w3.org/2000/svg";
   const svg = doc.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
   svg.setAttribute("class", `${PREVIEW_CLASS}-trend-svg`);
 
-  const ticks = 3;
-  for (let i = 0; i < ticks; i++) {
-    const yv = min + ((max - min) * i) / (ticks - 1);
+  appendTrendZones(doc, svg, RATING_TREND_ZONES, PL, W - PR, yAt);
+
+  for (const yv of tickValues) {
     const line = doc.createElementNS(SVG_NS, "line");
     line.setAttribute("x1", String(PL));
     line.setAttribute("x2", String(W - PR));
@@ -73,20 +77,11 @@ function renderGlobalSplineTrend(
     tick.setAttribute("fill", "#9b8290");
     tick.setAttribute("font-size", "9");
     tick.setAttribute("text-anchor", "end");
-    tick.textContent = yv.toFixed(1);
+    tick.textContent = String(yv);
     svg.append(tick);
   }
 
   const points = values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-  const area = doc.createElementNS(SVG_NS, "path");
-  area.setAttribute(
-    "d",
-    `M ${xAt(0)},${H - PB} L ${points.split(" ").join(" L ")} L ${xAt(
-      values.length - 1
-    )},${H - PB} Z`
-  );
-  area.setAttribute("fill", "rgba(102,2,60,0.12)");
-  svg.append(area);
 
   const polyline = doc.createElementNS(SVG_NS, "polyline");
   polyline.setAttribute("fill", "none");
