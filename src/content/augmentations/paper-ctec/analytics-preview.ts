@@ -296,7 +296,7 @@ function createPreviewController(card: HTMLElement): PreviewController {
     chip.dataset.bcPaperCtecPreviewBound = "1";
     chip.classList.add(TRIGGER_CLASS);
     chip.removeAttribute("title");
-    for (const el of chip.querySelectorAll<HTMLElement>("[title]")) {
+    for (const el of Array.from(chip.querySelectorAll<HTMLElement>("[title]"))) {
       el.removeAttribute("title");
     }
     chip.addEventListener("mouseenter", () => show(chip));

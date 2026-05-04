@@ -933,7 +933,7 @@ export class ClassSearchAugmentation implements Augmentation {
           classNumber: caesar.classNumber,
           careerHint
         },
-        { priority: "background", owner: "class-search-detail", resetContextAfter: true }
+        { priority: "background", owner: "class-search-detail" }
       );
       const result = toSeatsNotesResult(lookupResponse);
       const fetchedAt = Date.now();

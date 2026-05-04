@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Pencil",
+  "name": "pencil.nu",
   "description": "Sharpens Paper.nu and CAESAR with inline CTECs, seat counts, and faster term navigation.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "icons": {
     "16": "assets/icons/pencil-16.png",
     "32": "assets/icons/pencil-32.png",
@@ -10,7 +10,7 @@
     "128": "assets/icons/pencil-128.png"
   },
   "action": {
-    "default_title": "Pencil",
+    "default_title": "pencil.nu",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "assets/icons/pencil-16.png",
@@ -30,23 +30,18 @@
     },
     {
       "matches": [
-        "https://www.paper.nu/*",
-        "https://paper.nu/*"
+        "https://www.paper.nu/*"
       ],
       "js": ["content/index.js"],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
-  "permissions": ["storage", "unlimitedStorage", "declarativeNetRequestWithHostAccess"],
+  "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
     "https://caesar.ent.northwestern.edu/*",
-    "https://caesar.northwestern.edu/*",
     "https://www.paper.nu/*",
-    "https://paper.nu/*",
     "https://northwestern.bluera.com/*",
-    "https://prd-nusso.it.northwestern.edu/*",
-    "https://fed.it.northwestern.edu/*",
     "https://api-legacy.dilanxd.com/*",
     "https://cdn.dil.sh/*"
   ],
@@ -55,8 +50,7 @@
       "resources": ["assets/fonts/*.woff2"],
       "matches": [
         "https://caesar.ent.northwestern.edu/*",
-        "https://www.paper.nu/*",
-        "https://paper.nu/*"
+        "https://www.paper.nu/*"
       ]
     }
   ]

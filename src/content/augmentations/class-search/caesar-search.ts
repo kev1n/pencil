@@ -1,5 +1,4 @@
 import { runPeopleSoftTask } from "../../peoplesoft";
-import { getLiveSearchEntryForm, serializeSearchForm } from "../../peoplesoft/context";
 import { fetchPeopleSoft, fetchPeopleSoftGet } from "../../peoplesoft/http";
 import { extractHiddenInputs } from "../../peoplesoft/params";
 import { extractErrorMessage } from "../../peoplesoft/parsers";
@@ -129,39 +128,24 @@ const INSTITUTION_DEFAULT = "NWUNV";
 // Public API
 
 // Display-only search. Runs CAESAR's catalog search for `subject` + bare
-// number, returns parsed groups. Each call advances PeopleSoft state by one
-// step but the user never sees it because we never touch the live form.
+// number, returns parsed groups. `getEntryFormState()` always fetches a
+// fresh entry page, so the server's ICStateNum is reset to a known-good
+// value at the start of every operation.
 export async function searchCaesarCatalog(
   input: CaesarSearchInput
 ): Promise<CaesarSearchResult> {
   return runPeopleSoftTask(
     "user",
-    async () => {
-      try {
-        return await searchCaesarCatalogInternal(input);
-      } finally {
-        await resetSearchEntryContext();
-      }
-    },
+    () => searchCaesarCatalogInternal(input),
     { owner: "class-search-discover" }
   );
 }
 
 // Drives the full Search → Select → Next chain to put a section in the cart.
-// Always restarts from the entry page so the wizard's state matches.
 export async function addSectionToCart(input: CartFlowInput): Promise<CartFlowResult> {
   return runPeopleSoftTask(
     "user",
-    async () => {
-      const result = await addSectionToCartInternal(input);
-      // Mid-wizard pause for related-component pick: leave server state
-      // alone — `continueCartAddWithRelated` resumes from the saved
-      // `continuationFormState` and a reset would invalidate it.
-      if (!("needsRelatedSection" in result)) {
-        await resetSearchEntryContext();
-      }
-      return result;
-    },
+    () => addSectionToCartInternal(input),
     { owner: "class-search-add" }
   );
 }
@@ -175,30 +159,9 @@ export async function continueCartAddWithRelated(
 ): Promise<CartFlowResult> {
   return runPeopleSoftTask(
     "user",
-    async () => {
-      const result = await continueCartAddWithRelatedInternal(input);
-      if (!("needsRelatedSection" in result)) {
-        await resetSearchEntryContext();
-      }
-      return result;
-    },
+    () => continueCartAddWithRelatedInternal(input),
     { owner: "class-search-add-related" }
   );
-}
-
-// User is parked on the SSR_CLSRCH_ENTRY page; the live `win0` form's
-// ICSID/ICStateNum are frozen at page-load values that we read on every
-// subsequent action. Each XHR POST advances the server's session past
-// them, so a second click would send a stale ICStateNum and break.
-// Re-GETting the entry URL pulls the server back to the entry-page state,
-// keeping it aligned with the still-static live form. Best-effort —
-// failures here should never bubble up over the actual operation.
-async function resetSearchEntryContext(): Promise<void> {
-  try {
-    await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
-  } catch {
-    // ignore
-  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -222,16 +185,9 @@ async function searchCaesarCatalogInternal(
   let lastGroups: CaesarCourseGroup[] = [];
 
   for (let i = 0; i < careers.length; i += 1) {
-    if (i > 0) {
-      // Each search POST advances server-side ICStateNum past the live
-      // form's static value, so a second attempt would send stale state.
-      // Snap the server back to entry between candidates.
-      try {
-        await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
-      } catch {
-        // ignore — best-effort
-      }
-    }
+    // `getEntryFormState()` re-GETs the entry page on every call, so each
+    // loop iteration starts from a fresh ICStateNum — no inter-attempt
+    // reset needed.
     const baseParams = await getEntryFormState();
     if (!baseParams.has("ICSID")) {
       throw new Error("Missing PeopleSoft session — try refreshing the page.");
@@ -257,13 +213,13 @@ async function searchCaesarCatalogInternal(
   return { groups: lastGroups };
 }
 
-// Skip the entry GET when we're already sitting on the search entry page —
-// `document.forms.win0` already carries the latest ICSID/ICStateNum. Falls
-// back to a real GET for callers running outside that page (defensive: this
-// module is only invoked from the class-search augmentation today).
+// Always GET the entry page — never read the live `document.forms.win0`.
+// The live form's ICSID/ICStateNum are frozen at page-load and our XHR
+// POSTs advance the server's session past them. A fresh GET resets the
+// server back to a known-good state and returns matching hidden inputs,
+// so every operation begins with a clean ICStateNum regardless of what
+// happened in earlier operations or other tabs.
 async function getEntryFormState(): Promise<URLSearchParams> {
-  const liveForm = getLiveSearchEntryForm();
-  if (liveForm) return serializeSearchForm(liveForm);
   const entryHtml = await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
   return serializeFormFromDoc(parseAjaxFragment(entryHtml));
 }
@@ -285,13 +241,8 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
     let lastError: string | null = null;
 
     for (let i = 0; i < careers.length; i += 1) {
-      if (i > 0) {
-        try {
-          await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
-        } catch {
-          // ignore
-        }
-      }
+      // `getEntryFormState()` re-GETs the entry page each call, so server
+      // state is fresh on every iteration without a manual reset.
       const baseParams = await getEntryFormState();
       if (!baseParams.has("ICSID")) {
         return { ok: false, error: "Missing PeopleSoft session — try refreshing the page." };

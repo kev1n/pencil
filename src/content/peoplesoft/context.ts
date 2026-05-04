@@ -14,9 +14,10 @@ import {
 import { fetchPeopleSoftGet } from "./http";
 
 export async function initializeSearchContext(): Promise<SearchContext> {
-  const liveForm = getLiveSearchEntryForm();
-  if (liveForm) return buildSearchContextFromForm(liveForm);
-
+  // Always GET fresh — never trust the live form. The live form's
+  // ICSID/ICStateNum are frozen at page-load while our XHR POSTs advance
+  // the server's session past them, so reusing the live form's state
+  // breaks on the second call from the same page.
   const html = await fetchPeopleSoftGet(resolveActionUrl(SEARCH_ENTRY_URL));
   const parser = new DOMParser();
   const doc = parser.parseFromString(html, "text/html");
@@ -25,22 +26,6 @@ export async function initializeSearchContext(): Promise<SearchContext> {
     throw new Error("Class search form not found while initializing context.");
   }
   return buildSearchContextFromForm(form);
-}
-
-// Returns the live page's `win0` form when we're sitting on the class
-// search entry page. Lets callers skip the wasted entry GET — the form
-// already carries the right ICSID/ICStateNum.
-export function getLiveSearchEntryForm(): HTMLFormElement | null {
-  if (typeof document === "undefined") return null;
-  const pageInfo = document.getElementById("pt_pageinfo_win0");
-  if (!pageInfo) return null;
-  if (pageInfo.getAttribute("Component") !== "CLASS_SEARCH") return null;
-  const form = document.forms.namedItem("win0");
-  return form instanceof HTMLFormElement ? form : null;
-}
-
-export function serializeSearchForm(form: HTMLFormElement): URLSearchParams {
-  return serializeForm(form);
 }
 
 function buildSearchContextFromForm(form: HTMLFormElement): SearchContext {

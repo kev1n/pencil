@@ -1,4 +1,3 @@
-import { FEATURES_STORAGE_KEY } from "./content/settings";
 import type {
   AbortFetchMessage,
   AuthPopupClosedMessage,
@@ -55,7 +54,7 @@ function recordAndCheckCircuitBreaker(url: string): boolean {
   if (requestTimestamps.length > CIRCUIT_BREAKER_MAX) {
     circuitTripped = true;
     console.error(
-      `[Pencil] Circuit breaker tripped: ${requestTimestamps.length} ` +
+      `[pencil.nu] Circuit breaker tripped: ${requestTimestamps.length} ` +
         `requests to NU hosts in the last ${CIRCUIT_BREAKER_WINDOW_MS / 1000}s. ` +
         `Reloading extension as a failsafe.`
     );
@@ -64,9 +63,6 @@ function recordAndCheckCircuitBreaker(url: string): boolean {
   }
   return true;
 }
-
-const CAESAR_REDIRECT_FEATURE_ID = "caesar-domain-redirect";
-const CAESAR_REDIRECT_RULE_ID = 1;
 
 const POST_AUTH_URL_PATTERNS = [
   /^https:\/\/caesar\.ent\.northwestern\.edu\/psc\//i,
@@ -82,48 +78,8 @@ const trackedPopups = new Map<number, TrackedPopup>();
 const ownerToPopup = new Map<number, number>();
 
 chrome.runtime.onInstalled.addListener(() => {
-  console.log("Pencil extension installed.");
-  void syncCaesarRedirectRule();
+  console.log("pencil.nu extension installed.");
 });
-
-chrome.runtime.onStartup.addListener(() => {
-  void syncCaesarRedirectRule();
-});
-
-chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local") return;
-  if (!changes[FEATURES_STORAGE_KEY]) return;
-  void syncCaesarRedirectRule();
-});
-
-async function syncCaesarRedirectRule(): Promise<void> {
-  const result = await chrome.storage.local.get(FEATURES_STORAGE_KEY) as Record<string, unknown>;
-  const raw = result[FEATURES_STORAGE_KEY];
-  const settings = raw && typeof raw === "object" ? raw as Record<string, boolean> : {};
-  const enabled = settings[CAESAR_REDIRECT_FEATURE_ID] ?? true;
-
-  await chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: [CAESAR_REDIRECT_RULE_ID],
-    addRules: enabled
-      ? [
-          {
-            id: CAESAR_REDIRECT_RULE_ID,
-            priority: 1,
-            action: {
-              type: chrome.declarativeNetRequest.RuleActionType.REDIRECT,
-              redirect: {
-                transform: { host: "caesar.ent.northwestern.edu" }
-              }
-            },
-            condition: {
-              requestDomains: ["caesar.northwestern.edu"],
-              resourceTypes: [chrome.declarativeNetRequest.ResourceType.MAIN_FRAME]
-            }
-          }
-        ]
-      : []
-  });
-}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "fetch-text") {
@@ -147,7 +103,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const m = message as CreditUsedMessage;
     const owner = m.owner ? ` owner=${m.owner}` : "";
     console.log(
-      `[Pencil] credit used [${m.pool}]: ${m.remaining}/${m.cap} left${owner}`
+      `[pencil.nu] credit used [${m.pool}]: ${m.remaining}/${m.cap} left${owner}`
     );
     return false;
   }

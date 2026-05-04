@@ -97,11 +97,6 @@ const FEATURE_SECTIONS: FeatureSection[] = [
         id: "class-search",
         label: "Class Search",
         description: "Replaces CAESAR's class search with a paper.nu-powered UI that adds sections to your cart in place."
-      },
-      {
-        id: "caesar-domain-redirect",
-        label: "Short Domain Redirect",
-        description: "Sends caesar.northwestern.edu to caesar.ent.northwestern.edu so the short URL works."
       }
     ]
   },
@@ -559,7 +554,7 @@ function buildGateNode(status: GateStatus): HTMLElement {
     card.append(
       makeGateRow(
         "Sign in to CAESAR to enable",
-        "Open caesar.ent.northwestern.edu and sign in. Pencil will detect your account automatically."
+        "Open caesar.ent.northwestern.edu and sign in. pencil.nu will detect your account automatically."
       )
     );
     return card;
@@ -571,7 +566,7 @@ function buildGateNode(status: GateStatus): HTMLElement {
     wrap.className = "gate-copy";
     const t = document.createElement("div");
     t.className = "gate-title";
-    t.textContent = "Pencil is disabled";
+    t.textContent = "pencil.nu is disabled";
     const b = document.createElement("div");
     b.className = "gate-body";
     renderInlineMarkdown(b, status.message);

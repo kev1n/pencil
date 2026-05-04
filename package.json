@@ -1,6 +1,6 @@
 {
   "name": "better-caesar-extension",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -10,6 +10,7 @@
     "build:firefox": "node scripts/build.mjs --target firefox",
     "dev": "node scripts/build.mjs --target chrome --watch",
     "icons": "node scripts/render-icons.mjs",
+    "package:chrome": "npm run build:chrome && node scripts/package.mjs --target chrome",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
