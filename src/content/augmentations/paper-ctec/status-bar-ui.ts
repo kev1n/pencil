@@ -1,7 +1,9 @@
+import { html, render } from "lit-html";
+
 import { PAPER_CTEC_CONFIG } from "./config";
 import { STATUS_BAR_ID } from "./constants";
 import type { PaperCtecStatusBarData } from "./types";
-import { createIcon, type IconName } from "./ui-shared";
+import { iconTemplate, type IconName } from "./ui-shared";
 
 // Mounts (and re-renders) the persistent status bar in the paper.nu action
 // row. Auth-required hides the bar entirely — the auth modal carries the
@@ -30,32 +32,19 @@ export function renderStatusBar(
     host.prepend(bar);
   }
 
-  const signature = buildStatusSignature(data);
-  if (bar.dataset.bcPaperCtecSignature === signature) {
-    return;
-  }
-
-  const nextClassName = data.state === "ready" ? "is-ready" : "is-loading";
-
-  bar.className = nextClassName;
-  bar.replaceChildren();
+  bar.className = data.state === "ready" ? "is-ready" : "is-loading";
   bar.title = buildStatusTitle(data);
 
-  const mark = doc.createElement("div");
-  mark.className = "bc-paper-ctec-status-mark";
-  mark.append(createIcon(statusIcon(data.state)));
-
-  const brand = doc.createElement("span");
-  brand.className = "bc-paper-ctec-status-brand";
-  brand.textContent = "pencil.nu";
-  mark.append(brand);
-
-  const copy = doc.createElement("div");
-  copy.className = "bc-paper-ctec-status-copy";
-  copy.textContent = buildStatusCopy(data);
-
-  bar.append(mark, copy);
-  bar.dataset.bcPaperCtecSignature = signature;
+  render(
+    html`<div class="bc-paper-ctec-status-mark">
+        ${iconTemplate(statusIcon(data.state))}<span
+          class="bc-paper-ctec-status-brand"
+          >pencil.nu</span
+        >
+      </div>
+      <div class="bc-paper-ctec-status-copy">${buildStatusCopy(data)}</div>`,
+    bar
+  );
 }
 
 export function hideStatusBar(doc: Document): void {
@@ -85,22 +74,6 @@ function ensureActionHostLayout(host: HTMLElement): void {
   host.style.alignItems = "flex-start";
   host.style.minWidth = "0";
   host.dataset.bcPaperCtecExpanded = "1";
-}
-
-function buildStatusSignature(data: PaperCtecStatusBarData): string {
-  return [
-    data.state,
-    data.totalCount,
-    data.resolvedCount,
-    data.activeCount,
-    data.foundCount,
-    data.notFoundCount,
-    data.errorCount,
-    data.authCount,
-    data.latestMessage ?? "",
-    data.loginUrl ?? "",
-    data.awaitingAuthRetry ? "1" : "0"
-  ].join("|");
 }
 
 function hasPaperActions(candidate: HTMLElement): boolean {

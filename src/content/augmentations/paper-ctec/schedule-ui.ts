@@ -1,11 +1,11 @@
-import { isFeatureEnabled } from "../../settings";
+import { html, render, type TemplateResult } from "lit-html";
+
 import { getOrCreatePreviewController } from "./analytics-preview";
 import { PAPER_CTEC_CONFIG } from "./config";
-import { COMPACT_CARD_STARS_FEATURE_ID, WIDGET_CLASS } from "./constants";
+import { WIDGET_CLASS } from "./constants";
 import type { ModalDisplayData } from "./modal-data";
-import { ratingPercentSignature } from "./rating-format";
 import type { PaperCtecWidgetData } from "./types";
-import { createIcon, preventAndStop, type IconName } from "./ui-shared";
+import { createIcon, iconTemplate, preventAndStop, type IconName } from "./ui-shared";
 import { globalChip, makeChip, metricChip } from "./widget-chips";
 
 export type AnalyticsPreviewSource = () => ModalDisplayData | null;
@@ -30,45 +30,38 @@ export type CartAnchorState =
 // Card-state renderers (idle / loading / data) for the per-class summary
 // widget that paper.nu schedule cards inherit. Status-bar logic lives in
 // status-bar-ui.ts and chip factories live in widget-chips.ts; this file
-// just orchestrates which chips a given state should show, signature-based
-// idempotence, and the "open analytics" button in the corner.
+// just orchestrates which chips a given state should show, hands the
+// composed template to lit-html for diffed re-render, and threads the
+// "open analytics" button into the corner anchor.
 
 export function renderIdle(
   widget: HTMLElement,
   onLoad: () => void,
   onOpenAnalytics?: () => void
 ): void {
-  const signature = `idle|${onOpenAnalytics ? "1" : "0"}`;
-  if (widget.dataset.bcPaperCtecSignature === signature) {
-    return;
-  }
-
-  widget.textContent = "";
   widget.title = "Click to fetch CTEC summary for this class.";
 
-  const summary = widget.ownerDocument.createElement("div");
-  summary.className = `${WIDGET_CLASS}-summary`;
+  render(
+    html`<div class=${`${WIDGET_CLASS}-summary`}>
+      <button
+        type="button"
+        class=${`${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`}
+        @pointerdown=${(event: Event) => {
+          preventAndStop(event);
+          onLoad();
+        }}
+        @click=${preventAndStop}
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          preventAndStop(event);
+          onLoad();
+        }}
+      >${iconTemplate("spark")}Load CTEC</button>
+    </div>`,
+    widget
+  );
 
-  const chip = widget.ownerDocument.createElement("button");
-  chip.type = "button";
-  chip.className = `${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`;
-  chip.append(createIcon("spark"), document.createTextNode("Load CTEC"));
-
-  const trigger = (event: Event) => {
-    preventAndStop(event);
-    onLoad();
-  };
-  chip.addEventListener("pointerdown", trigger);
-  chip.addEventListener("click", preventAndStop);
-  chip.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter" && event.key !== " ") return;
-    trigger(event);
-  });
-
-  summary.appendChild(chip);
   attachAnalyticsAnchor(widget, onOpenAnalytics);
-  widget.appendChild(summary);
-  widget.dataset.bcPaperCtecSignature = signature;
 }
 
 export function renderLoading(
@@ -76,25 +69,21 @@ export function renderLoading(
   message = "CTEC…",
   onOpenAnalytics?: () => void
 ): void {
-  const signature = `loading|${message}|${onOpenAnalytics ? "1" : "0"}`;
-  if (widget.dataset.bcPaperCtecSignature === signature) {
-    return;
-  }
-
-  widget.textContent = "";
   widget.title = "pencil.nu is loading Northwestern CTEC data for this class.";
 
-  const summary = widget.ownerDocument.createElement("div");
-  summary.className = `${WIDGET_CLASS}-summary`;
-  const spinner = widget.ownerDocument.createElement("span");
-  spinner.className = `${WIDGET_CLASS}-spinner`;
-  spinner.setAttribute("role", "status");
-  spinner.setAttribute("aria-label", "Loading CTEC");
-  summary.appendChild(spinner);
-  summary.appendChild(makeChip("spark", message, "is-muted"));
+  render(
+    html`<div class=${`${WIDGET_CLASS}-summary`}>
+      <span
+        class=${`${WIDGET_CLASS}-spinner`}
+        role="status"
+        aria-label="Loading CTEC"
+      ></span>
+      ${makeChip("spark", message, "is-muted")}
+    </div>`,
+    widget
+  );
+
   attachAnalyticsAnchor(widget, onOpenAnalytics);
-  widget.appendChild(summary);
-  widget.dataset.bcPaperCtecSignature = signature;
 }
 
 export function renderWidget(
@@ -104,80 +93,82 @@ export function renderWidget(
   onOpenAnalytics?: () => void,
   getPreviewData?: AnalyticsPreviewSource
 ): void {
-  const signature = `${buildWidgetSignature(data)}|a:${onOpenAnalytics ? "1" : "0"}|p:${
-    getPreviewData ? "1" : "0"
-  }`;
-  if (widget.dataset.bcPaperCtecSignature === signature) {
-    if (data.state === "found" && getPreviewData) {
-      refreshPreviewSource(widget, getPreviewData);
-    }
-    return;
+  // Title is updated via direct DOM (lit-html targets the widget's children;
+  // the host's title attribute is independent).
+  if (data.state === "auth-required") {
+    widget.title = "Click to open the Northwestern login prompt for pencil.nu.";
+  } else if (data.state === "error") {
+    widget.title = data.message;
+  } else {
+    widget.removeAttribute("title");
   }
 
-  widget.textContent = "";
-  widget.removeAttribute("title");
+  // chips list is captured before render so we can pass it through to the
+  // analytics-preview hover wiring after lit-html plants the DOM.
+  const summary = buildWidgetSummary(data, onAuthChipClick);
 
-  const summary = widget.ownerDocument.createElement("div");
-  summary.className = `${WIDGET_CLASS}-summary`;
-  widget.appendChild(summary);
+  render(
+    html`<div class=${`${WIDGET_CLASS}-summary`}>${summary}</div>`,
+    widget
+  );
 
+  attachAnalyticsAnchor(widget, onOpenAnalytics);
+
+  if (data.state === "found" && getPreviewData) {
+    const chipNodes = Array.from(
+      widget.querySelectorAll<HTMLElement>(
+        `:scope > .${WIDGET_CLASS}-summary > .${WIDGET_CLASS}-chip`
+      )
+    );
+    if (chipNodes.length > 0) {
+      attachPreviewToChips(widget, chipNodes, getPreviewData);
+    }
+  }
+}
+
+// Computes the inner summary template for `renderWidget`. Pulled out so
+// the chip set is easy to follow without weaving render() ergonomics
+// through the data-state branches.
+function buildWidgetSummary(
+  data: PaperCtecWidgetData,
+  onAuthChipClick?: () => void
+): TemplateResult | TemplateResult[] {
   if (data.state === "not-found") {
-    summary.appendChild(makeChip("spark", "No CTEC", "is-muted"));
-    attachAnalyticsAnchor(widget, onOpenAnalytics);
-    widget.dataset.bcPaperCtecSignature = signature;
-    return;
+    return makeChip("spark", "No CTEC", "is-muted");
   }
 
   if (data.state === "auth-required") {
-    widget.title = "Click to open the Northwestern login prompt for pencil.nu.";
-    summary.appendChild(makeAuthChip(onAuthChipClick));
-    attachAnalyticsAnchor(widget, onOpenAnalytics);
-    widget.dataset.bcPaperCtecSignature = signature;
-    return;
+    return makeAuthChipTemplate(onAuthChipClick);
   }
 
   if (data.state === "error") {
-    widget.title = data.message;
-    summary.appendChild(makeChip("spark", "CTEC unavailable", "is-muted"));
-    attachAnalyticsAnchor(widget, onOpenAnalytics);
-    widget.dataset.bcPaperCtecSignature = signature;
-    return;
+    return makeChip("spark", "CTEC unavailable", "is-muted");
   }
 
   const { aggregate } = data;
-
-  // Primary chip set: a single rolled-up Global rating chip + hours. The
-  // GBL chip averages Instruction / Course / Learned (matching the modal's
-  // Global KPI), and the Hrs chip is unchanged. Hovering either one opens
-  // the analytics preview popup.
   const gbl = globalChip(aggregate);
   const hrs = metricChip("Hrs", "Hours", aggregate.metrics.hours, aggregate, "hours");
-  const chips = [gbl, hrs].filter((chip): chip is HTMLElement => !!chip);
+  const chips = [gbl, hrs].filter(
+    (chip): chip is TemplateResult => chip !== null
+  );
 
   if (chips.length === 0) {
     const fallbackChips = [
       metricChip("CHLG", "Challenge", aggregate.metrics.challenging, aggregate, "rating"),
       metricChip("INT", "Interest", aggregate.metrics.stimulating, aggregate, "rating")
-    ].filter((chip): chip is HTMLElement => !!chip);
+    ].filter((chip): chip is TemplateResult => chip !== null);
 
-    if (fallbackChips.length > 0) {
-      fallbackChips.forEach((chip) => summary.appendChild(chip));
-    } else {
-      summary.appendChild(
-        makeChip(
-          "spark",
-          "CTEC detail",
-          "is-muted",
-          "Matching CTEC reports were found, but the compact card does not have Global, Hours, Challenge, or Interest summary metrics for this course."
-        )
-      );
-    }
-  } else {
-    chips.forEach((chip) => summary.appendChild(chip));
-    if (getPreviewData) attachPreviewToChips(widget, chips, getPreviewData);
+    if (fallbackChips.length > 0) return fallbackChips;
+
+    return makeChip(
+      "spark",
+      "CTEC detail",
+      "is-muted",
+      "Matching CTEC reports were found, but the compact card does not have Global, Hours, Challenge, or Interest summary metrics for this course."
+    );
   }
-  attachAnalyticsAnchor(widget, onOpenAnalytics);
-  widget.dataset.bcPaperCtecSignature = signature;
+
+  return chips;
 }
 
 function attachPreviewToChips(
@@ -194,17 +185,6 @@ function attachPreviewToChips(
   for (const chip of chips) {
     controller.attachTrigger(chip);
   }
-}
-
-function refreshPreviewSource(
-  widget: HTMLElement,
-  getPreviewData: AnalyticsPreviewSource
-): void {
-  const card = widget.closest<HTMLElement>(
-    PAPER_CTEC_CONFIG.selectors.scheduleCard
-  );
-  if (!card) return;
-  getOrCreatePreviewController(card).refreshData(getPreviewData);
 }
 
 export { hideStatusBar, renderStatusBar } from "./status-bar-ui";
@@ -399,58 +379,28 @@ function makeAnalyticsButton(onClick: () => void): HTMLElement {
   return button;
 }
 
-function makeAuthChip(onClick?: () => void): HTMLElement {
-  const chip = document.createElement("button");
-  chip.type = "button";
-  chip.className = `${WIDGET_CLASS}-chip is-warn ${WIDGET_CLASS}-chip-button`;
-  chip.title = "Open the Northwestern login prompt for pencil.nu.";
-  chip.append(createIcon("lock"), document.createTextNode("Login needed"));
+function makeAuthChipTemplate(onClick?: () => void): TemplateResult {
+  const handler = onClick
+    ? (event: Event) => {
+        preventAndStop(event);
+        onClick();
+      }
+    : undefined;
 
-  if (onClick) {
-    const trigger = (event: Event) => {
-      preventAndStop(event);
-      onClick();
-    };
-    chip.addEventListener("pointerdown", trigger);
-    chip.addEventListener("click", preventAndStop);
-    chip.addEventListener("keydown", (event) => {
+  return html`<button
+    type="button"
+    class=${`${WIDGET_CLASS}-chip is-warn ${WIDGET_CLASS}-chip-button`}
+    title="Open the Northwestern login prompt for pencil.nu."
+    @pointerdown=${handler}
+    @click=${preventAndStop}
+    @keydown=${(event: KeyboardEvent) => {
       if (event.key !== "Enter" && event.key !== " ") return;
-      trigger(event);
-    });
-  }
-
-  return chip;
+      handler?.(event);
+    }}
+  >${iconTemplate("lock")}Login needed</button>`;
 }
 
-// Includes every aggregate field the chip set depends on. Stars/values mode
-// is part of the signature so a settings flip re-renders even without a
-// data change. ratingPercentSignature is included for the same reason.
-function buildWidgetSignature(data: PaperCtecWidgetData): string {
-  if (data.state !== "found") {
-    return data.state === "error" ? `${data.state}|${data.message}` : data.state;
-  }
-
-  const { aggregate } = data;
-  const metricSignature = [
-    aggregate.metrics.instruction?.mean ?? "",
-    aggregate.metrics.course?.mean ?? "",
-    aggregate.metrics.learned?.mean ?? "",
-    aggregate.metrics.hours?.mean ?? "",
-    aggregate.metrics.challenging?.mean ?? "",
-    aggregate.metrics.stimulating?.mean ?? "",
-    aggregate.parsedCount
-  ].join(",");
-
-  return [
-    data.state,
-    isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID) ? "stars" : "values",
-    ratingPercentSignature(),
-    aggregate.evaluationCount,
-    aggregate.aggregateEvaluationCount,
-    aggregate.partial ? "1" : "0",
-    aggregate.latestTerm ?? "",
-    aggregate.windowTerms.join(","),
-    aggregate.maxEntriesUsed ?? "",
-    metricSignature
-  ].join("|");
-}
+// (Previously this file exported `buildWidgetSignature` for the
+// hand-rolled idempotent-render pattern. lit-html now does that diffing
+// internally from the template structure + bound values, so the helper
+// was deleted along with the dataset.bcPaperCtecSignature dance.)

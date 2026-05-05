@@ -1,3 +1,5 @@
+import { html, type TemplateResult } from "lit-html";
+
 import type { CtecAggregateMetric } from "../ctec-links/reports";
 import { isFeatureEnabled } from "../../settings";
 import { PAPER_CTEC_CONFIG } from "./config";
@@ -5,8 +7,8 @@ import { COMPACT_CARD_STARS_FEATURE_ID, WIDGET_CLASS } from "./constants";
 import { formatChipRating, formatRatingDetail } from "./rating-format";
 import type { PaperCtecWidgetData } from "./types";
 import {
-  createIcon,
-  createRatingStars,
+  iconTemplate,
+  ratingStarsTemplate,
   type IconName
 } from "./ui-shared";
 
@@ -28,12 +30,9 @@ export function makeChip(
   text: string,
   extraClass = "",
   title?: string
-): HTMLElement {
-  const chip = document.createElement("span");
-  chip.className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
-  if (title) chip.title = title;
-  chip.append(createIcon(icon), document.createTextNode(text));
-  return chip;
+): TemplateResult {
+  const className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
+  return html`<span class=${className} title=${title ?? ""}>${iconTemplate(icon)}${text}</span>`;
 }
 
 // Builds the GBL (Global) chip from the aggregate. Mirrors the modal's
@@ -41,7 +40,7 @@ export function makeChip(
 // / Learned means (skipping any metric that's missing). Returns null when
 // none of the three contribute. Honors the stars-mode toggle just like
 // metricChip so the schedule-card chip set stays visually consistent.
-export function globalChip(aggregate: WidgetAggregate): HTMLElement | null {
+export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
   const components: Array<{ label: string; mean: number; n: number }> = [];
   for (const [kind, label] of [
     ["instruction", "Instruction"],
@@ -88,7 +87,7 @@ export function metricChip(
   metric: CtecAggregateMetric | undefined,
   aggregate: WidgetAggregate,
   scale: "rating" | "hours"
-): HTMLElement | null {
+): TemplateResult | null {
   if (!metric) return null;
 
   const starMode = isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID);
@@ -125,52 +124,36 @@ function makeMetricValueChip(
   extraClass = "",
   title?: string,
   tone?: CompactChipTone
-): HTMLElement {
-  const chip = document.createElement("span");
-  chip.className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
-  if (title) chip.title = title;
-  if (tone) applyCompactChipTone(chip, tone);
-
-  const chipLabel = document.createElement("span");
-  chipLabel.className = `${WIDGET_CLASS}-chip-label`;
-  chipLabel.textContent = label;
-
-  const chipValue = document.createElement("span");
-  chipValue.className = `${WIDGET_CLASS}-chip-value`;
-  chipValue.textContent = value;
-
-  chip.append(chipLabel, chipValue);
-  return chip;
+): TemplateResult {
+  const className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
+  const style = tone ? compactChipToneStyleString(tone) : "";
+  return html`<span
+    class=${className}
+    title=${title ?? ""}
+    style=${style}
+  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-value`}>${value}</span></span>`;
 }
 
 function makeMetricStarsChip(
   label: string,
   value: number,
   title?: string
-): HTMLElement {
-  const chip = document.createElement("span");
-  chip.className = `${WIDGET_CLASS}-chip`;
-  if (title) chip.title = title;
-
-  const chipLabel = document.createElement("span");
-  chipLabel.className = `${WIDGET_CLASS}-chip-label`;
-  chipLabel.textContent = label;
-
-  const chipStars = document.createElement("span");
-  chipStars.className = `${WIDGET_CLASS}-chip-stars`;
-  chipStars.append(createRatingStars(document, value));
-
-  chip.append(chipLabel, chipStars);
-  return chip;
+): TemplateResult {
+  return html`<span
+    class=${`${WIDGET_CLASS}-chip`}
+    title=${title ?? ""}
+  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-stars`}>${ratingStarsTemplate(value)}</span></span>`;
 }
 
-function applyCompactChipTone(chip: HTMLElement, tone: CompactChipTone): void {
-  chip.style.setProperty("--bc-paper-ctec-chip-bg", tone.lightBackground);
-  chip.style.setProperty("--bc-paper-ctec-chip-bg-dark", tone.darkBackground);
-  chip.style.setProperty("--bc-paper-ctec-chip-border", tone.lightBorder);
-  chip.style.setProperty("--bc-paper-ctec-chip-border-dark", tone.darkBorder);
-  chip.style.setProperty("--bc-paper-ctec-chip-fg", tone.lightText);
-  chip.style.setProperty("--bc-paper-ctec-chip-fg-dark", tone.darkText);
+function compactChipToneStyleString(tone: CompactChipTone): string {
+  return [
+    `--bc-paper-ctec-chip-bg: ${tone.lightBackground}`,
+    `--bc-paper-ctec-chip-bg-dark: ${tone.darkBackground}`,
+    `--bc-paper-ctec-chip-border: ${tone.lightBorder}`,
+    `--bc-paper-ctec-chip-border-dark: ${tone.darkBorder}`,
+    `--bc-paper-ctec-chip-fg: ${tone.lightText}`,
+    `--bc-paper-ctec-chip-fg-dark: ${tone.darkText}`
+  ].join("; ");
 }
 
 // Picks an HSL hue for a metric value within its scale. Shared by the

@@ -1,3 +1,5 @@
+import { html, render } from "lit-html";
+
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
   SIDECARD_ANALYTICS_PANEL_CLASS,
@@ -42,19 +44,13 @@ export function renderSideCardAnalytics(
   renderSideCardTabs(tabsRoot, data.selectedTab, onSelectTab);
   applySideCardMode(context.panel, header, tabsRoot, panelRoot, data.selectedTab);
 
-  const signature = data.selectedTab;
-  if (panelRoot.dataset.bcPaperCtecSignature === signature) {
-    return;
-  }
-
-  panelRoot.replaceChildren();
-  if (data.selectedTab !== "analytics") {
-    panelRoot.dataset.bcPaperCtecSignature = signature;
-    return;
-  }
-
-  panelRoot.append(renderLauncher(context.panel.ownerDocument, onOpenModal));
-  panelRoot.dataset.bcPaperCtecSignature = signature;
+  // lit-html owns panelRoot's children. When Analytics isn't selected we
+  // render an empty fragment (clears prior contents); when it is, the
+  // launcher template lights up.
+  render(
+    data.selectedTab === "analytics" ? renderLauncher(onOpenModal) : html``,
+    panelRoot
+  );
 }
 
 function removeSideCardAnalyticsChrome(panel: HTMLElement): void {
@@ -76,41 +72,27 @@ function restoreDefaultPanelChildren(
   }
 }
 
-function renderLauncher(doc: Document, onOpenModal: () => void): HTMLElement {
-  const wrapper = doc.createElement("div");
-  wrapper.className = "bc-paper-ctec-analytics-body";
-
-  const head = doc.createElement("div");
-  head.className = "bc-paper-ctec-analytics-head";
-
-  const title = doc.createElement("div");
-  title.className = "bc-paper-ctec-analytics-title";
-  title.textContent = "pencil.nu CTEC Analytics";
-  head.append(title);
-  wrapper.append(head);
-
-  const launcher = doc.createElement("div");
-  launcher.className = "bc-paper-ctec-analytics-launcher";
-
-  const copy = doc.createElement("div");
-  copy.className = "bc-paper-ctec-analytics-launcher-copy";
-  copy.textContent =
-    "Open the full analytics view to see term-by-term metrics, distributions, and student comments.";
-  launcher.append(copy);
-
-  const button = doc.createElement("button");
-  button.type = "button";
-  button.className = "bc-paper-ctec-analytics-launcher-btn";
-  button.textContent = "Open Analytics ↗";
-  button.addEventListener("pointerdown", (event) => {
-    preventAndStop(event);
-    onOpenModal();
-  });
-  button.addEventListener("click", preventAndStop);
-  launcher.append(button);
-
-  wrapper.append(launcher);
-  return wrapper;
+function renderLauncher(onOpenModal: () => void) {
+  return html`<div class="bc-paper-ctec-analytics-body">
+    <div class="bc-paper-ctec-analytics-head">
+      <div class="bc-paper-ctec-analytics-title">pencil.nu CTEC Analytics</div>
+    </div>
+    <div class="bc-paper-ctec-analytics-launcher">
+      <div class="bc-paper-ctec-analytics-launcher-copy">
+        Open the full analytics view to see term-by-term metrics,
+        distributions, and student comments.
+      </div>
+      <button
+        type="button"
+        class="bc-paper-ctec-analytics-launcher-btn"
+        @pointerdown=${(event: Event) => {
+          preventAndStop(event);
+          onOpenModal();
+        }}
+        @click=${preventAndStop}
+      >Open Analytics ↗</button>
+    </div>
+  </div>`;
 }
 
 function ensureSideCardHeader(panel: HTMLElement): HTMLElement | null {
@@ -166,38 +148,33 @@ function renderSideCardTabs(
   selectedTab: "paper" | "analytics",
   onSelectTab: (tab: "paper" | "analytics") => void
 ): void {
-  if (tabsRoot.dataset.bcPaperCtecSelectedTab === selectedTab && tabsRoot.childElementCount === 2) {
-    return;
-  }
-
-  tabsRoot.replaceChildren();
-
   const tabs: Array<{ key: "paper" | "analytics"; label: string }> = [
     { key: "paper", label: "Paper.nu" },
     { key: "analytics", label: "CTEC Analytics" }
   ];
 
-  for (const tab of tabs) {
-    const button = tabsRoot.ownerDocument.createElement("button");
-    button.type = "button";
-    button.className = `bc-paper-ctec-side-tab${tab.key === selectedTab ? " is-active" : ""}`;
-    button.textContent = tab.label;
-    button.setAttribute("role", "tab");
-    button.setAttribute("aria-selected", tab.key === selectedTab ? "true" : "false");
-    const activateTab = (event: Event) => {
-      preventAndStop(event);
-      onSelectTab(tab.key);
-    };
-    button.addEventListener("pointerdown", activateTab);
-    button.addEventListener("keydown", (event) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      activateTab(event);
-    });
-    button.addEventListener("click", preventAndStop);
-    tabsRoot.append(button);
-  }
-
-  tabsRoot.dataset.bcPaperCtecSelectedTab = selectedTab;
+  render(
+    html`${tabs.map((tab) => {
+      const isActive = tab.key === selectedTab;
+      const activate = (event: Event) => {
+        preventAndStop(event);
+        onSelectTab(tab.key);
+      };
+      return html`<button
+        type="button"
+        class=${`bc-paper-ctec-side-tab${isActive ? " is-active" : ""}`}
+        role="tab"
+        aria-selected=${isActive ? "true" : "false"}
+        @pointerdown=${activate}
+        @click=${preventAndStop}
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          activate(event);
+        }}
+      >${tab.label}</button>`;
+    })}`,
+    tabsRoot
+  );
 }
 
 function applySideCardMode(
