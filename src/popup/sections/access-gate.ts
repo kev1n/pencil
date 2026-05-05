@@ -1,5 +1,6 @@
 import { canonicalizeCodeInput, isCodeValidForLastName } from "../../content/access-gate/code";
 import { evaluateGate, type GateStatus } from "../../content/access-gate";
+import { bindActionButton } from "../../content/framework";
 import { renderInlineMarkdown } from "../../content/access-gate/markdown";
 import {
   ACCESS_GATE_CODE_KEY,
@@ -81,8 +82,13 @@ function buildGateNode(status: GateStatus): HTMLElement {
     const remove = document.createElement("button");
     remove.className = "gate-link";
     remove.textContent = "Remove code";
-    remove.addEventListener("click", async () => {
-      await clearStoredCode();
+    bindActionButton(remove, {
+      label: "Remove code",
+      loadingLabel: "Removing…",
+      onClick: async () => {
+        await clearStoredCode();
+        return { kind: "idle" };
+      }
     });
     card.append(remove);
   }

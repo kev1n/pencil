@@ -23,7 +23,8 @@ npm run build:chrome   # Chrome only
 npm run build:firefox  # Firefox only
 npm run dev            # Watch mode (Chrome)
 npm run typecheck      # tsc --noEmit
-npm run lint           # eslint src — must be 0 errors
+npm run lint           # eslint src + lint:buttons — must be 0 errors
+npm run lint:buttons   # action-button enforcement (no raw async click handlers)
 npm run test           # vitest run (jsdom env)
 npm run test:watch     # vitest watch mode
 ```
@@ -47,6 +48,20 @@ npm run test:watch     # vitest watch mode
 - `src/shared/messages.ts` — typed message contracts shared across contexts.
 - `src/shared/log.ts` — debug-gated quiet logging (`logQuiet`, `logDebug`). Production is silent unless the user runs `localStorage.setItem("bc-debug", "1")`. Use `logQuiet(scope, err)` instead of empty `} catch {}` blocks; the eslint config bans bare empty catches.
 - `src/manifest.base.json` — base manifest; `scripts/build.mjs` patches it per target.
+
+## Action buttons
+
+Every async-action button (one whose click triggers a network request, computation, or multi-step flow) MUST go through `createActionButton` from `src/content/framework/action-button.ts`. The factory enforces:
+
+- Synchronous `disabled` lock on the very first click — set BEFORE the first `await`, so back-to-back synchronous double-clicks cannot double-fire the action.
+- Loading-state visual feedback via `dataset.state="loading"` + a configurable `loadingLabel` (defaults to "Loading…").
+- Click-once semantics: while state is non-idle, additional clicks are no-ops, except retryable error states which return to idle on the next click.
+- AbortSignal plumbed into `onClick`, fires when `destroy()` runs mid-flight.
+- Result-driven state machine: `void` → idle, `{ kind: "success", sticky: true }` → terminal locked, `{ kind: "success" }` → flash then idle, `{ kind: "error", retryable }` → re-enabled for retry, thrown error → retryable error.
+
+Pure-DOM buttons (Cancel, Close, Toggle visibility) can stay as `el(doc, "button", ...)` — they don't have async work to gate. Only buttons whose click handler is `async` (or returns a Promise) need the factory.
+
+The `npm run lint:buttons` script (`scripts/check-action-buttons.mjs`, wired into `npm run lint`) flags raw async click handlers on buttons that don't import `createActionButton`. Adding a new button that does network/storage/multi-step work without going through the factory will fail CI.
 
 ## Pre-theme gate tokens
 

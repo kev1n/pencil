@@ -1,4 +1,4 @@
-import { ensureStyle, el } from "../../framework";
+import { createActionButton, ensureStyle, el } from "../../framework";
 
 import {
   NOTES_CELL_CLASS,
@@ -171,15 +171,22 @@ export function paintIdle(
   clearChildren(cells.seatsCell);
   clearChildren(cells.notesCell);
 
+  // The runtime owns the load-state transition: clicking this button
+  // calls onLoad(), which immediately re-paints the cell into the loading
+  // state via paintLoading(). createActionButton ensures the click is
+  // disabled synchronously so a back-to-back double-click can't queue two
+  // PS lookups for the same row.
+  const loadBtn = createActionButton({
+    doc: document,
+    label: "Load seats & notes",
+    loadingLabel: "Loading…",
+    className: "better-caesar-load-btn",
+    onClick: async () => {
+      onLoad();
+    }
+  });
   cells.seatsCell.appendChild(
-    el(document, "div", { class: "better-caesar-idle" }, [
-      el(document, "button", {
-        class: "better-caesar-load-btn",
-        attrs: { type: "button" },
-        text: "Load seats & notes",
-        on: { click: () => onLoad() }
-      })
-    ])
+    el(document, "div", { class: "better-caesar-idle" }, [loadBtn.element])
   );
 
   cells.notesCell.appendChild(
@@ -245,18 +252,25 @@ export function startTimestampTicker(doc: Document): () => void {
 }
 
 function buildMetaBar(fetchedAt: number, onRefresh: () => void): HTMLElement {
+  // Refresh re-runs the same runtime fetch path as the initial load —
+  // the runtime paints the cell into loading state synchronously, so this
+  // button never has to render its own success/error states.
+  const refreshBtn = createActionButton({
+    doc: document,
+    label: "↻ Refresh",
+    loadingLabel: "Refreshing…",
+    className: "better-caesar-refresh-btn",
+    onClick: async () => {
+      onRefresh();
+    }
+  });
   return el(document, "div", { class: "better-caesar-meta" }, [
     el(document, "span", {
       class: "better-caesar-meta-time",
       dataset: { bcFetchedAt: String(fetchedAt) },
       text: `Loaded ${formatRelativeTime(Date.now() - fetchedAt)}`
     }),
-    el(document, "button", {
-      class: "better-caesar-refresh-btn",
-      attrs: { type: "button" },
-      text: "↻ Refresh",
-      on: { click: () => onRefresh() }
-    })
+    refreshBtn.element
   ]);
 }
 

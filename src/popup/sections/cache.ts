@@ -1,3 +1,4 @@
+import { bindActionButton } from "../../content/framework";
 import { CART_CACHE_STORAGE_KEY } from "../../content/cart-cache/types";
 import { CTEC_INDEX_STORAGE_KEY } from "../../content/ctec-index/storage";
 import {
@@ -18,9 +19,8 @@ import {
 const FEEDBACK_RESTORE_DELAY_MS = 1500;
 
 // Wires a "click → run cleanup → flash success → restore label" pattern.
-// Used for every cache-clear button in the popup. The button is disabled
-// during the success-flash window so a frantic double-click can't queue a
-// second cleanup before the first one's feedback has cleared.
+// Adopts the static HTML <button> via bindActionButton so the action-button
+// contract (sync disabled lock, click-once, state machine) covers it.
 export function makeClearCacheButton(options: {
   containerId: string;
   buttonText: string;
@@ -31,14 +31,15 @@ export function makeClearCacheButton(options: {
   const successText = options.successText ?? "Cleared!";
   const btn = document.getElementById(containerId);
   if (!(btn instanceof HTMLButtonElement)) return;
-  btn.addEventListener("click", async () => {
-    await cleanup();
-    btn.textContent = successText;
-    btn.disabled = true;
-    setTimeout(() => {
-      btn.textContent = buttonText;
-      btn.disabled = false;
-    }, FEEDBACK_RESTORE_DELAY_MS);
+  bindActionButton(btn, {
+    label: buttonText,
+    loadingLabel: "Clearing…",
+    successLabel: successText,
+    successFlashMs: FEEDBACK_RESTORE_DELAY_MS,
+    onClick: async () => {
+      await cleanup();
+      return { kind: "success", label: successText };
+    }
   });
 }
 
@@ -75,48 +76,39 @@ export function initCacheButtons(): void {
   });
 }
 
-// The grad-year reconfirm and schedule-refresh buttons share the same
-// "click → work → flash → restore" shape but want different success text
-// and longer feedback windows. Kept as separate inits because their cleanup
-// also writes back into UI state (success message reflects the fetched
-// grad year), which the generic factory's fixed success-text contract
-// doesn't fit.
-
 export function initReconfirmGradYearButton(): void {
   const btn = document.getElementById("reconfirm-grad-year");
   if (!(btn instanceof HTMLButtonElement)) return;
-  const restore = "Reconfirm grad year";
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Checking...";
-    await chrome.storage.local.remove([ACCESS_GATE_NAME_KEY, NAME_FETCH_FAILED_AT_KEY]);
-    const stored = await fetchAndCacheUserName();
-    if (stored) {
-      const yr = stored.gradYear;
-      btn.textContent = yr !== null ? `Detected ${yr}` : "Detected (no grad year)";
-    } else {
-      btn.textContent = "Failed — sign in to CAESAR";
+  bindActionButton(btn, {
+    label: "Reconfirm grad year",
+    loadingLabel: "Checking…",
+    successFlashMs: 3000,
+    onClick: async () => {
+      await chrome.storage.local.remove([ACCESS_GATE_NAME_KEY, NAME_FETCH_FAILED_AT_KEY]);
+      const stored = await fetchAndCacheUserName();
+      if (stored) {
+        const yr = stored.gradYear;
+        return {
+          kind: "success",
+          label: yr !== null ? `Detected ${yr}` : "Detected (no grad year)"
+        };
+      }
+      return { kind: "error", label: "Failed — sign in to CAESAR", retryable: true };
     }
-    setTimeout(() => {
-      btn.textContent = restore;
-      btn.disabled = false;
-    }, 3000);
   });
 }
 
 export function initRefreshScheduleButton(): void {
   const btn = document.getElementById("refresh-schedule");
   if (!(btn instanceof HTMLButtonElement)) return;
-  const restore = "Refresh bucket schedule";
-  btn.addEventListener("click", async () => {
-    btn.disabled = true;
-    btn.textContent = "Polling...";
-    await chrome.storage.local.remove(SCHEDULE_CACHE_STORAGE_KEY);
-    await getRemoteSchedule();
-    btn.textContent = "Refreshed";
-    setTimeout(() => {
-      btn.textContent = restore;
-      btn.disabled = false;
-    }, 2000);
+  bindActionButton(btn, {
+    label: "Refresh bucket schedule",
+    loadingLabel: "Polling…",
+    successFlashMs: 2000,
+    onClick: async () => {
+      await chrome.storage.local.remove(SCHEDULE_CACHE_STORAGE_KEY);
+      await getRemoteSchedule();
+      return { kind: "success", label: "Refreshed" };
+    }
   });
 }

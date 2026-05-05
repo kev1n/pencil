@@ -8,6 +8,7 @@
 // exported helpers so the augmentation can swap them in without re-deriving
 // the wrapping `<li>` shell.
 
+import { createActionButton } from "../../../framework";
 import { el } from "../../../framework/dom";
 import type { SeatsNotesResult, SeatsNotesSuccess } from "../../seats-notes/types";
 
@@ -128,20 +129,21 @@ function buildFooter(
     attrs: { title: new Date(fetchedAt).toLocaleString() }
   });
 
-  const refresh = el(doc, "button", {
-    class: "bc-cs-detail-refresh",
-    text: "Refresh",
-    attrs: { type: "button" },
-    on: {
-      click: () => {
-        refresh.disabled = true;
-        refresh.textContent = "Refreshing…";
-        void Promise.resolve(onRefresh());
-      }
+  // The detail controller swaps the entire detail row to its loading
+  // shell as soon as onRefresh fires, so this button only needs the
+  // synchronous-disable contract — once the controller re-renders, the
+  // current button is gone.
+  const refresh = createActionButton({
+    doc,
+    label: "Refresh",
+    loadingLabel: "Refreshing…",
+    className: "bc-cs-detail-refresh",
+    onClick: async () => {
+      onRefresh();
     }
   });
 
-  return el(doc, "div", { class: "bc-cs-detail-footer" }, [stamp, refresh]);
+  return el(doc, "div", { class: "bc-cs-detail-footer" }, [stamp, refresh.element]);
 }
 
 function appendStat(

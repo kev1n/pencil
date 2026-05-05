@@ -5,6 +5,7 @@
 // augmentation's CartButtonRegistry can paint badges on cache changes; the
 // onAddToCart / onToggleDetails callbacks fire on click.
 
+import { ACTION_BUTTON_MARKER_ATTR } from "../../../framework";
 import { el } from "../../../framework/dom";
 import {
   formatInstructors,
@@ -111,17 +112,25 @@ function buildLiveCell(doc: Document): HTMLElement {
 }
 
 function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
+  // Both buttons delegate their click semantics to dedicated controllers
+  // (createSectionDetailController, createAddToCartController) which own
+  // their full state machine — sync-disable on click, re-entry guard,
+  // multi-step pickers, optimistic cart-cache writes. Those controllers
+  // are exhaustively tested. We mark the elements with the action-button
+  // attribute so lint:buttons recognizes them as having gone through an
+  // enforced click-once contract and the default `[data-state="…"]`
+  // styling from `framework/styles/action-button.ts` applies.
   const detailsBtn = el(doc, "button", {
     class: "bc-cs-details-btn",
     text: "Details",
-    attrs: { type: "button" },
+    attrs: { type: "button", [ACTION_BUTTON_MARKER_ATTR]: "controller" },
     on: { click: props.onToggleDetails }
   });
 
   const addBtn = el(doc, "button", {
     class: "bc-cs-add",
     text: "Add to cart",
-    attrs: { type: "button" },
+    attrs: { type: "button", [ACTION_BUTTON_MARKER_ATTR]: "controller" },
     dataset: { sigKey: props.sigKey },
     on: { click: props.onAddToCart }
   });

@@ -1,3 +1,5 @@
+import { createActionButton } from "../../framework";
+
 import { CTEC_CELL_CLASS, CTEC_HEADER_CLASS } from "./constants";
 import type { CtecLinkData } from "./types";
 
@@ -91,12 +93,21 @@ export const CTEC_LINKS_STYLES = `
 
 export function renderFetchButton(container: HTMLElement, onFetch: () => void): void {
   container.innerHTML = "";
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "bc-ctec-fetch";
-  btn.textContent = "Load CTEC";
-  btn.addEventListener("click", onFetch);
-  container.appendChild(btn);
+  // Load CTEC is a one-shot trigger: the runtime swaps the cell to the
+  // loading-state render the moment we kick off the fetch, so the button
+  // never sees its own success/error transitions. We still route through
+  // createActionButton to enforce the synchronous-disable + click-once
+  // contract — the runtime does the rest.
+  const ab = createActionButton({
+    doc: container.ownerDocument ?? document,
+    label: "Load CTEC",
+    loadingLabel: "Loading…",
+    className: "bc-ctec-fetch",
+    onClick: async () => {
+      onFetch();
+    }
+  });
+  container.appendChild(ab.element);
 }
 
 export function renderLoading(container: HTMLElement, message = "Loading CTEC…"): void {
@@ -237,12 +248,20 @@ export function renderCtecLinksWidget(
 }
 
 function makeRetryButton(onRetry: () => void): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "bc-ctec-btn";
-  btn.textContent = "Retry";
-  btn.addEventListener("click", onRetry);
-  return btn;
+  // The runtime swaps the cell to loading-state synchronously when fetch
+  // kicks off, so this button is replaced before its own success/error
+  // transitions can fire. createActionButton still buys us the sync-lock
+  // + click-once guarantee.
+  const ab = createActionButton({
+    doc: document,
+    label: "Retry",
+    loadingLabel: "Loading…",
+    className: "bc-ctec-btn",
+    onClick: async () => {
+      onRetry();
+    }
+  });
+  return ab.element;
 }
 
 // Returns the last word of a name — used for compact multi-instructor labels.

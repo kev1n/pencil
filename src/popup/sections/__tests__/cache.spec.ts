@@ -99,7 +99,7 @@ describe("makeClearCacheButton()", () => {
     expect(btn.disabled).toBe(false);
   });
 
-  it("awaits the cleanup promise before showing success feedback", async () => {
+  it("locks the button to a loading label synchronously before cleanup resolves", async () => {
     const btn = makeButton("clear-async", "Clear A");
     let resolveCleanup: () => void = () => undefined;
     const cleanup = vi.fn(
@@ -107,10 +107,11 @@ describe("makeClearCacheButton()", () => {
     );
     makeClearCacheButton({ containerId: "clear-async", buttonText: "Clear A", cleanup });
     btn.click();
-    // Give a microtask for the click handler to run; cleanup is pending.
-    await Promise.resolve();
-    expect(btn.textContent).toBe("Clear A");
-    expect(btn.disabled).toBe(false);
+    // Synchronous lock fires before any await — the action-button contract
+    // requires immediate visual feedback ("Clearing…") + disabled=true so a
+    // double-click can't fire a second cleanup.
+    expect(btn.textContent).toBe("Clearing…");
+    expect(btn.disabled).toBe(true);
     resolveCleanup();
     await vi.waitFor(() => {
       expect(btn.textContent).toBe("Cleared!");
