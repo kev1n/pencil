@@ -14,6 +14,7 @@ import type {
 import { CaesarAuthRequiredError } from "../caesar-search";
 import type { PaperSection, PaperTermCourse } from "../paper-data";
 import type { ResultRow } from "../types";
+import { PeopleSoftTaskCancelledError } from "../../../peoplesoft/traffic";
 
 function fresh(): Document {
   return document.implementation.createHTMLDocument("t");
@@ -581,5 +582,121 @@ describe("createAddToCartController — needs-related → picker recursion", () 
     // user isn't stuck staring at "Adding…" while the section row shows
     // the error.
     expect(deps.closeRelatedPicker).toHaveBeenCalled();
+  });
+});
+
+// ── Async failure recovery (Wave: action-button cancellation propagation) ──
+//
+// The section-row Add-to-cart `<button>` is NOT a `createActionButton` instance
+// (it's a raw `el(...)` button driven by this controller), so the factory's
+// built-in throw-handler does NOT cover rejected onClick paths. The controller
+// must catch network rejections itself or the button will hang on "Loading…"
+// / "Adding…" with `disabled=true` forever and the rejection will surface as
+// an unhandled promise rejection.
+
+describe("createAddToCartController — async failure recovery", () => {
+  it("rejected resolveClassNumber → button error state, no cart-cache write, retryable", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    const deps = makeDeps();
+    const ctx = makeCtx({
+      resolveClassNumber: vi
+        .fn()
+        .mockRejectedValue(new Error("storage read blew up"))
+    });
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, ctx);
+
+    expect(deps.addSectionToCart).not.toHaveBeenCalled();
+    expect(deps.recordOptimisticAdd).not.toHaveBeenCalled();
+    expect(button.dataset.state).toBe("error");
+    expect(button.textContent).toBe("Try again");
+    expect(button.disabled).toBe(false);
+    expect(deps.showToast).toHaveBeenCalledWith(
+      "storage read blew up",
+      expect.objectContaining({ tone: "error" })
+    );
+  });
+
+  it("rejected non-auth addSectionToCart (post-withAuthRecovery rethrow) → button error state, retryable", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    // withAuthRecovery rethrows non-auth errors verbatim. Pre-fix this would
+    // bubble up to the void-discarded promise in handleAdd and corrupt the
+    // button's mid-flight state.
+    const deps = makeDeps({
+      addSectionToCart: vi
+        .fn()
+        .mockRejectedValue(new Error("PeopleSoft requests are paused while term navigation is in progress."))
+    });
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+
+    expect(button.dataset.state).toBe("error");
+    expect(button.textContent).toBe("Try again");
+    expect(button.disabled).toBe(false);
+    expect(deps.recordOptimisticAdd).not.toHaveBeenCalled();
+    expect(deps.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("PeopleSoft requests are paused"),
+      expect.objectContaining({ tone: "error" })
+    );
+  });
+
+  it("rejected continueCartAddWithRelated → button error state, picker closed, retryable", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    const groups: CaesarCourseGroup[] = [];
+    const deps = makeDeps({
+      addSectionToCart: vi.fn().mockResolvedValue({
+        ok: false,
+        needsRelatedSection: true,
+        classNumber: "12345",
+        sectionLabel: "20-LEC",
+        courseTitle: "Algorithms",
+        relatedOptions: [makeOption({ rowIndex: 7 })],
+        continuationFormState: "ICSID=abc",
+        searchGroups: groups
+      } as CartFlowResult),
+      continueCartAddWithRelated: vi
+        .fn()
+        .mockRejectedValue(new Error("network blew up mid-continuation")),
+      openRelatedPicker: vi.fn().mockResolvedValue(makeOption({ rowIndex: 7 }))
+    });
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+
+    expect(button.dataset.state).toBe("error");
+    expect(button.textContent).toBe("Try again");
+    expect(button.disabled).toBe(false);
+    expect(deps.closeRelatedPicker).toHaveBeenCalled();
+    expect(deps.recordOptimisticAdd).not.toHaveBeenCalled();
+    expect(deps.showToast).toHaveBeenCalledWith(
+      "network blew up mid-continuation",
+      expect.objectContaining({ tone: "error" })
+    );
+  });
+
+  it("rejected addSectionToCart with a PS-cancellation error: silent reset (no toast) but still retryable", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    const deps = makeDeps({
+      addSectionToCart: vi
+        .fn()
+        .mockRejectedValue(new PeopleSoftTaskCancelledError("Background canceled."))
+    });
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+
+    expect(button.dataset.state).toBe("error");
+    expect(button.disabled).toBe(false);
+    // No toast on canceled tasks — a higher-priority action took over and
+    // the user already triggered the new flow.
+    const calls = (deps.showToast as ReturnType<typeof vi.fn>).mock.calls;
+    const errorToasts = calls.filter((c) => c[1]?.tone === "error");
+    expect(errorToasts.length).toBe(0);
   });
 });

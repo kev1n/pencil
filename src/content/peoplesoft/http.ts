@@ -119,15 +119,22 @@ export async function fetchPeopleSoft(
 ): Promise<string> {
   if (shouldUseBackgroundFetch()) {
     const signal = getCurrentPeopleSoftTaskSignal();
-    return fetchTextViaBackground(actionUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-      },
-      body: params.toString(),
-      allowNonOkStatus: true,
-      signal: signal ?? undefined
-    });
+    try {
+      throwIfAborted(signal);
+      const text = await fetchTextViaBackground(actionUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        body: params.toString(),
+        allowNonOkStatus: true,
+        signal: signal ?? undefined
+      });
+      throwIfAborted(signal);
+      return text;
+    } catch (error) {
+      rethrowAsCancellation(signal, error);
+    }
   }
 
   const response = await fetchPeopleSoftResult(actionUrl, params);
@@ -140,11 +147,18 @@ export async function fetchPeopleSoft(
 export async function fetchPeopleSoftGet(url: string): Promise<string> {
   if (shouldUseBackgroundFetch()) {
     const signal = getCurrentPeopleSoftTaskSignal();
-    return fetchTextViaBackground(url, {
-      method: "GET",
-      allowNonOkStatus: true,
-      signal: signal ?? undefined
-    });
+    try {
+      throwIfAborted(signal);
+      const text = await fetchTextViaBackground(url, {
+        method: "GET",
+        allowNonOkStatus: true,
+        signal: signal ?? undefined
+      });
+      throwIfAborted(signal);
+      return text;
+    } catch (error) {
+      rethrowAsCancellation(signal, error);
+    }
   }
 
   const response = await fetchPeopleSoftGetResult(url);
@@ -169,4 +183,21 @@ function throwIfAborted(signal: AbortSignal | null): void {
   throw new PeopleSoftTaskCancelledError(
     reason instanceof Error ? reason.message : "PeopleSoft task canceled."
   );
+}
+
+// Mirror the wrapping behavior of `fetchPeopleSoftResult` / `fetchPeopleSoftGetResult`
+// for the bare-string variants (`fetchPeopleSoft` / `fetchPeopleSoftGet`). Pre-fix,
+// background-fetch aborts surfaced as raw `AbortError`s (or whatever
+// `fetchTextViaBackground` rejected with), bypassing
+// `isRetryablePeopleSoftTaskError` and getting treated as normal lookup
+// failures by `lookupClassInternal` and `addSectionToCartInternal`.
+function rethrowAsCancellation(signal: AbortSignal | null, error: unknown): never {
+  if (signal?.aborted) {
+    const reason = signal.reason;
+    if (reason instanceof PeopleSoftTaskCancelledError) throw reason;
+    throw new PeopleSoftTaskCancelledError(
+      reason instanceof Error ? reason.message : "PeopleSoft task canceled."
+    );
+  }
+  throw error;
 }

@@ -146,44 +146,66 @@ export function createSectionDetailController(
         return;
       }
 
-      // Resolve the catalog search via cache (memory → disk → fetch).
-      const card = li.closest<HTMLElement>(".bc-cs-course");
-      const liveResult = await deps.ensureLiveData(row, card);
-      if (!liveResult) {
-        showToast("Could not load CAESAR data for this course.", { tone: "error" });
+      // Outer try/catch — the Details `<button>` is owned by the section-row
+      // template (not a `createActionButton` instance), so the factory's
+      // built-in throw-handler can't fire here. `ensureLiveData` and
+      // `runFetchAndRender` already catch their own errors, but a bare
+      // throw from any sync helper (sessionStorage read, DOM mutation) would
+      // otherwise leave the button stuck on "Loading…" forever and surface
+      // as an unhandled rejection.
+      try {
+        // Resolve the catalog search via cache (memory → disk → fetch).
+        const card = li.closest<HTMLElement>(".bc-cs-course");
+        const liveResult = await deps.ensureLiveData(row, card);
+        if (!liveResult) {
+          showToast("Could not load CAESAR data for this course.", { tone: "error" });
+          restoreIdle();
+          return;
+        }
+
+        const matchingGroup = matchCaesarGroup(liveResult.groups, row.course.catalog);
+        const caesar = matchingGroup
+          ? matchCaesarSection(matchingGroup, section.section, section.component)
+          : null;
+        if (!caesar) {
+          showToast("No matching CAESAR section found.", { tone: "error" });
+          restoreIdle();
+          return;
+        }
+
+        detailRow = doc.createElement("li");
+        detailRow.className = "bc-cs-detail-row";
+        li.parentElement?.insertBefore(detailRow, li.nextSibling);
+
+        const bareCatalog = bareCatalogNumber(row.course.catalog);
+        const cachedDisk = readSeatsNotesCache(caesar.classNumber);
+        if (cachedDisk?.result) {
+          renderRow(deps, detailRow, caesar, cachedDisk.result, cachedDisk.fetchedAt, () => {
+            if (!deps.consumePsCredit("refresh-detail")) return;
+            void fetchAndRender(detailRow!, caesar, bareCatalog);
+          });
+        } else {
+          await fetchAndRender(detailRow, caesar, bareCatalog);
+        }
+
+        button.dataset.expanded = "true";
+        button.dataset.state = "expanded";
+        button.disabled = false;
+        button.textContent = "Hide";
+      } catch (error) {
+        // Reset to a retryable idle state. Skip the toast on canceled tasks
+        // (a higher-priority action took over) and keep the panel torn down
+        // so the next click can re-trigger cleanly.
+        if (detailRow && detailRow.isConnected) detailRow.remove();
         restoreIdle();
-        return;
+        if (!isRetryablePeopleSoftTaskError(error)) {
+          const msg = error instanceof Error ? error.message : String(error);
+          showToast(msg || "Could not load section detail.", {
+            tone: "error",
+            durationMs: 5000
+          });
+        }
       }
-
-      const matchingGroup = matchCaesarGroup(liveResult.groups, row.course.catalog);
-      const caesar = matchingGroup
-        ? matchCaesarSection(matchingGroup, section.section, section.component)
-        : null;
-      if (!caesar) {
-        showToast("No matching CAESAR section found.", { tone: "error" });
-        restoreIdle();
-        return;
-      }
-
-      detailRow = doc.createElement("li");
-      detailRow.className = "bc-cs-detail-row";
-      li.parentElement?.insertBefore(detailRow, li.nextSibling);
-
-      const bareCatalog = bareCatalogNumber(row.course.catalog);
-      const cachedDisk = readSeatsNotesCache(caesar.classNumber);
-      if (cachedDisk?.result) {
-        renderRow(deps, detailRow, caesar, cachedDisk.result, cachedDisk.fetchedAt, () => {
-          if (!deps.consumePsCredit("refresh-detail")) return;
-          void fetchAndRender(detailRow!, caesar, bareCatalog);
-        });
-      } else {
-        await fetchAndRender(detailRow, caesar, bareCatalog);
-      }
-
-      button.dataset.expanded = "true";
-      button.dataset.state = "expanded";
-      button.disabled = false;
-      button.textContent = "Hide";
     },
 
     refreshOpenPanels(row, card, result) {

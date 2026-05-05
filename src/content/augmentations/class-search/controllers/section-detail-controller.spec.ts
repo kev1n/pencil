@@ -167,3 +167,30 @@ describe("createSectionDetailController — re-entry guard", () => {
     expect(deps.consumePsCredit).not.toHaveBeenCalled();
   });
 });
+
+describe("createSectionDetailController — async failure recovery", () => {
+  it("rejected ensureLiveData → button restored to idle, retryable", async () => {
+    const doc = document;
+    const button = makeButton(doc);
+    const li = makeLi(doc);
+    // Production `ensureLiveData` catches its own errors and returns null,
+    // but a defensive controller-side catch covers the case where the
+    // implementation rejects (e.g. an unexpected sync throw downstream).
+    const deps = makeDeps({
+      doc,
+      ensureLiveData: vi
+        .fn()
+        .mockRejectedValue(new Error("storage layer panicked"))
+    });
+    const ctrl = createSectionDetailController(deps);
+
+    await ctrl.toggle(makeRow(), makeSection(), li, button);
+
+    expect(button.dataset.state).toBe("");
+    expect(button.disabled).toBe(false);
+    expect(button.textContent).toBe("Details");
+    // No detail row should be left mounted under `li`.
+    const detailRow = li.nextElementSibling;
+    expect(detailRow).toBeNull();
+  });
+});

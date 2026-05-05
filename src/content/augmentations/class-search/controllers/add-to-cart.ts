@@ -20,6 +20,7 @@ import {
   continueCartAddWithRelated,
   isCaesarAuthRequiredError
 } from "../caesar-search";
+import { isRetryablePeopleSoftTaskError } from "../../../peoplesoft";
 import { bareCatalogNumber, formatCourseIdForDisplay } from "../catalog-format";
 import type { PaperSection } from "../paper-data";
 import type { ResultRow } from "../types";
@@ -133,14 +134,36 @@ export function createAddToCartController(deps: AddToCartDeps): AddToCartControl
       if (!deps.consumeCredit("related-pick")) return;
       button.textContent = "Adding…";
 
-      const continued = await deps.continueCartAddWithRelated({
-        continuationFormState: result.continuationFormState,
-        selectedRowIndex: picked.rowIndex,
-        classNumber: result.classNumber,
-        sectionLabel: result.sectionLabel,
-        courseTitle: result.courseTitle,
-        searchGroups: result.searchGroups
-      });
+      let continued: CartFlowResult;
+      try {
+        continued = await deps.continueCartAddWithRelated({
+          continuationFormState: result.continuationFormState,
+          selectedRowIndex: picked.rowIndex,
+          classNumber: result.classNumber,
+          sectionLabel: result.sectionLabel,
+          courseTitle: result.courseTitle,
+          searchGroups: result.searchGroups
+        });
+      } catch (error) {
+        // The continuation rejected (PS task canceled, lock held, raw network
+        // error from the background fetch, etc.). The action-button's catch
+        // arm in the factory does NOT reach here — the click was on a
+        // controller-managed `<button>`, so we own the recovery: drop the
+        // picker UI, repaint the section button as a retryable error, and
+        // surface the cause when it's actionable.
+        deps.closeRelatedPicker();
+        button.dataset.state = "error";
+        button.textContent = "Try again";
+        button.disabled = false;
+        if (!isRetryablePeopleSoftTaskError(error)) {
+          const msg = error instanceof Error ? error.message : String(error);
+          deps.showToast(msg || "Couldn't add to cart.", {
+            tone: "error",
+            durationMs: 6000
+          });
+        }
+        return;
+      }
 
       if (continued.ok) {
         finalizeSuccess(button, ctx, continued.classNumber, picked);
@@ -295,45 +318,70 @@ export function createAddToCartController(deps: AddToCartDeps): AddToCartControl
       button.dataset.state = "loading";
       button.textContent = "Loading…";
 
-      const classNumber = await ctx.resolveClassNumber();
-      if (!classNumber) {
+      // Outer try/catch — the section-row's <button> is NOT a
+      // `createActionButton` instance (the registry needs to mutate the raw
+      // element directly), so the factory's built-in throw-handler can't fire
+      // here. A rejection from `resolveClassNumber`, `addSectionToCart` (via
+      // `withAuthRecovery`, which rethrows non-auth errors verbatim), or
+      // `continueCartAddWithRelated` would otherwise leave the button stuck
+      // showing "Loading…" / "Adding…" with `disabled=true` forever and the
+      // rejection would surface as an unhandled promise rejection.
+      try {
+        const classNumber = await ctx.resolveClassNumber();
+        if (!classNumber) {
+          button.dataset.state = "error";
+          button.textContent = "Add to cart";
+          button.disabled = false;
+          deps.showToast("Couldn't resolve the CAESAR class number for this section.", {
+            tone: "error"
+          });
+          return;
+        }
+
+        button.textContent = "Adding…";
+
+        const result = await withAuthRecovery(deps.authRecovery, isCaesarAuthRequiredError, () =>
+          deps.addSectionToCart({
+            classNumber,
+            termId: ctx.termId,
+            institution: ctx.institution,
+            bareCatalog: bareCatalogNumber(ctx.row.course.catalog)
+          })
+        );
+
+        if (!result) {
+          // Auth recovery toast already explained why; just reset the button so
+          // the user can re-trigger once they've completed sign-in.
+          button.dataset.state = "idle";
+          button.textContent = "Add to cart";
+          button.disabled = false;
+          return;
+        }
+
+        // Side effect: fold the class-number search response into the live
+        // cache so the row's status badge paints without a Load CAESAR call.
+        const searchGroups = "searchGroups" in result ? result.searchGroups : undefined;
+        if (searchGroups && searchGroups.length > 0) {
+          ctx.mergeAndRepaint(searchGroups);
+        }
+
+        await handleResult(button, ctx, result);
+      } catch (error) {
+        // Reset the section button to a retryable error state. Suppress the
+        // toast on canceled tasks (a higher-priority action took over — the
+        // user already triggered the new flow and doesn't need an error
+        // popup), but show the cause for everything else.
         button.dataset.state = "error";
-        button.textContent = "Add to cart";
+        button.textContent = "Try again";
         button.disabled = false;
-        deps.showToast("Couldn't resolve the CAESAR class number for this section.", {
-          tone: "error"
-        });
-        return;
+        if (!isRetryablePeopleSoftTaskError(error)) {
+          const msg = error instanceof Error ? error.message : String(error);
+          deps.showToast(msg || "Couldn't add to cart.", {
+            tone: "error",
+            durationMs: 6000
+          });
+        }
       }
-
-      button.textContent = "Adding…";
-
-      const result = await withAuthRecovery(deps.authRecovery, isCaesarAuthRequiredError, () =>
-        deps.addSectionToCart({
-          classNumber,
-          termId: ctx.termId,
-          institution: ctx.institution,
-          bareCatalog: bareCatalogNumber(ctx.row.course.catalog)
-        })
-      );
-
-      if (!result) {
-        // Auth recovery toast already explained why; just reset the button so
-        // the user can re-trigger once they've completed sign-in.
-        button.dataset.state = "idle";
-        button.textContent = "Add to cart";
-        button.disabled = false;
-        return;
-      }
-
-      // Side effect: fold the class-number search response into the live
-      // cache so the row's status badge paints without a Load CAESAR call.
-      const searchGroups = "searchGroups" in result ? result.searchGroups : undefined;
-      if (searchGroups && searchGroups.length > 0) {
-        ctx.mergeAndRepaint(searchGroups);
-      }
-
-      await handleResult(button, ctx, result);
     }
   };
 }
