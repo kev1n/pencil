@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from "lit-html";
 
+import { renderSparkline as paintSparkline } from "../chart-kit";
 import {
   renderHoursDensity,
   type HoursDensitySeries
@@ -512,27 +513,13 @@ function renderSparkline(
   svg.setAttribute("height", String(height));
   svg.setAttribute("class", "bc-paper-ctec-modal-sparkline");
 
-  const polyline = doc.createElementNS("http://www.w3.org/2000/svg", "polyline");
-  polyline.setAttribute("fill", "none");
-  polyline.style.stroke = "var(--bc-color-accent)";
-  polyline.setAttribute("stroke-width", "1.5");
-  polyline.setAttribute("stroke-linecap", "round");
-  polyline.setAttribute("stroke-linejoin", "round");
-  polyline.setAttribute(
-    "points",
-    values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ")
-  );
-  svg.append(polyline);
-
-  const lastValue = values[values.length - 1];
-  if (typeof lastValue === "number") {
-    const dot = doc.createElementNS("http://www.w3.org/2000/svg", "circle");
-    dot.setAttribute("cx", String(xAt(values.length - 1)));
-    dot.setAttribute("cy", String(yAt(lastValue)));
-    dot.setAttribute("r", "2");
-    dot.style.fill = "var(--bc-color-accent)";
-    svg.append(dot);
-  }
+  const points = values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+  paintSparkline(doc, svg, points, {
+    strokeColor: "var(--bc-color-accent)",
+    strokeWidth: 1.5,
+    lastDotOnly: true,
+    lastDotRadius: 2
+  });
 
   return svg;
 }

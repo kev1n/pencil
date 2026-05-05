@@ -1,3 +1,4 @@
+import { renderSparkline } from "./chart-kit";
 import { WIDGET_CLASS } from "./constants";
 import {
   computeGlobalMean,
@@ -81,27 +82,15 @@ function renderGlobalSplineTrend(
     svg.append(tick);
   }
 
-  const points = values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-
-  const polyline = doc.createElementNS(SVG_NS, "polyline");
-  polyline.setAttribute("fill", "none");
-  polyline.style.stroke = "var(--bc-color-accent)";
-  polyline.setAttribute("stroke-width", "1.6");
-  polyline.setAttribute("stroke-linecap", "round");
-  polyline.setAttribute("stroke-linejoin", "round");
-  polyline.setAttribute("points", points);
-  svg.append(polyline);
+  const points = values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+  renderSparkline(doc, svg, points, {
+    strokeColor: "var(--bc-color-accent)",
+    strokeWidth: 1.6,
+    dotRadius: 2.6,
+    dotStrokeWidth: 1.4
+  });
 
   values.forEach((v, i) => {
-    const dot = doc.createElementNS(SVG_NS, "circle");
-    dot.setAttribute("cx", String(xAt(i)));
-    dot.setAttribute("cy", String(yAt(v)));
-    dot.setAttribute("r", "2.6");
-    dot.style.fill = "var(--bc-color-bg)";
-    dot.style.stroke = "var(--bc-color-accent)";
-    dot.setAttribute("stroke-width", "1.4");
-    svg.append(dot);
-
     const termLabel = doc.createElementNS(SVG_NS, "text");
     termLabel.setAttribute("x", String(xAt(i)));
     termLabel.setAttribute("y", String(H - 10));

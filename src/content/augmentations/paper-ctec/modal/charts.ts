@@ -1,3 +1,4 @@
+import { renderSparkline } from "../chart-kit";
 import {
   appendTrendZones,
   HOURS_TREND_ZONES,
@@ -104,27 +105,14 @@ export function renderTrendChart(
       svg.append(tick);
     }
 
-    const points = values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-
-    const polyline = doc.createElementNS(SVG_NS, "polyline");
-    polyline.setAttribute("fill", "none");
-    polyline.style.stroke = "var(--bc-color-accent)";
-    polyline.setAttribute("stroke-width", "2");
-    polyline.setAttribute("stroke-linecap", "round");
-    polyline.setAttribute("stroke-linejoin", "round");
-    polyline.setAttribute("points", points);
-    svg.append(polyline);
+    const points = values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
+    renderSparkline(doc, svg, points, {
+      strokeColor: "var(--bc-color-accent)",
+      strokeWidth: 2,
+      dotRadius: 3.5
+    });
 
     values.forEach((v, i) => {
-      const circle = doc.createElementNS(SVG_NS, "circle");
-      circle.setAttribute("cx", String(xAt(i)));
-      circle.setAttribute("cy", String(yAt(v)));
-      circle.setAttribute("r", "3.5");
-      circle.style.fill = "var(--bc-color-bg)";
-      circle.style.stroke = "var(--bc-color-accent)";
-      circle.setAttribute("stroke-width", "1.6");
-      svg.append(circle);
-
       const valueLabel = doc.createElementNS(SVG_NS, "text");
       valueLabel.setAttribute("x", String(xAt(i)));
       valueLabel.setAttribute("y", String(yAt(v) - 8));

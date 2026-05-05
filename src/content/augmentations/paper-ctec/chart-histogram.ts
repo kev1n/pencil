@@ -8,6 +8,17 @@
 
 import { logQuiet } from "../../../shared/log";
 import {
+  appendStackedAvgPills,
+  appendVerticalGradient,
+  appendXAxis,
+  appendYAxis,
+  buildLinePath,
+  niceStep,
+  PERCENT_AXIS_STEPS,
+  type AvgIndicator,
+  type Point
+} from "./chart-kit";
+import {
   extractChartFromImage,
   type ChartExtraction
 } from "./chart-extract";
@@ -168,12 +179,7 @@ function renderHistogramSvg(
   // For very flat distributions step=2; very peaked ones step=50.
   const allPcts = secondaryPcts ? [...pcts, ...secondaryPcts] : pcts;
   const maxPct = allPcts.length > 0 ? Math.max(...allPcts) : 0;
-  const niceStep = (max: number): number => {
-    const targets = [2, 5, 10, 20, 25, 50];
-    for (const t of targets) if (max / t <= 4) return t;
-    return 50;
-  };
-  const step = niceStep(maxPct);
+  const step = niceStep(maxPct, [...PERCENT_AXIS_STEPS]);
   const yMax = Math.max(step, Math.ceil(maxPct / step) * step) || step;
   const ticks: number[] = [];
   for (let v = 0; v <= yMax; v += step) ticks.push(v);
@@ -215,61 +221,21 @@ function renderHistogramSvg(
   if (opts.alt) svg.setAttribute("aria-label", opts.alt);
 
   // Gradient fill for the distribution curve (matches hours-density).
-  const defs = doc.createElementNS(SVG_NS, "defs");
-  const gradId = `bc-paper-ctec-hist-grad-${Math.random().toString(36).slice(2, 8)}`;
-  const grad = doc.createElementNS(SVG_NS, "linearGradient");
-  grad.setAttribute("id", gradId);
-  grad.setAttribute("x1", "0");
-  grad.setAttribute("y1", "0");
-  grad.setAttribute("x2", "0");
-  grad.setAttribute("y2", "1");
-  const stopTop = doc.createElementNS(SVG_NS, "stop");
-  stopTop.setAttribute("offset", "0%");
-  stopTop.style.stopColor = "var(--bc-color-accent-fill-45)";
-  const stopBot = doc.createElementNS(SVG_NS, "stop");
-  stopBot.setAttribute("offset", "100%");
-  stopBot.style.stopColor = "var(--bc-color-accent-fill-05)";
-  grad.append(stopTop, stopBot);
-  defs.append(grad);
-  svg.append(defs);
+  const gradId = appendVerticalGradient(doc, svg, {
+    idPrefix: "bc-paper-ctec-hist-grad",
+    topColor: "var(--bc-color-accent-fill-45)",
+    bottomColor: "var(--bc-color-accent-fill-05)"
+  });
 
-  // Y-axis ticks + horizontal gridlines.
-  for (const v of ticks) {
-    const line = doc.createElementNS(SVG_NS, "line");
-    line.setAttribute("x1", String(PL));
-    line.setAttribute("x2", String(PL + innerW));
-    line.setAttribute("y1", String(yPct(v)));
-    line.setAttribute("y2", String(yPct(v)));
-    line.style.stroke = "var(--bc-color-border)";
-    line.setAttribute("stroke-width", "1");
-    if (v !== 0) {
-      line.setAttribute("stroke-dasharray", "2 3");
-      line.setAttribute("opacity", "0.6");
-    }
-    svg.append(line);
-
-    const tickLabel = doc.createElementNS(SVG_NS, "text");
-    tickLabel.setAttribute("x", String(PL - 6));
-    tickLabel.setAttribute("y", String(yPct(v) + 3));
-    tickLabel.setAttribute("text-anchor", "end");
-    tickLabel.setAttribute("font-size", "9");
-    tickLabel.style.fill = "var(--bc-color-text-muted)";
-    tickLabel.textContent = `${v}%`;
-    svg.append(tickLabel);
-  }
-
-  // Y-axis title.
-  const yTitle = doc.createElementNS(SVG_NS, "text");
-  yTitle.setAttribute("x", "10");
-  yTitle.setAttribute("y", String(PT + innerH / 2));
-  yTitle.setAttribute("text-anchor", "middle");
-  yTitle.setAttribute("font-size", "8.5");
-  yTitle.style.fill = "var(--bc-color-text-subtle)";
-  yTitle.setAttribute("letter-spacing", "0.6");
-  yTitle.setAttribute("font-weight", "600");
-  yTitle.setAttribute("transform", `rotate(-90 10 ${PT + innerH / 2})`);
-  yTitle.textContent = "% OF RESPONSES";
-  svg.append(yTitle);
+  // Y-axis ticks + horizontal gridlines + rotated title.
+  appendYAxis(doc, svg, {
+    ticks,
+    yAt: yPct,
+    PL,
+    innerW,
+    title: "% OF RESPONSES",
+    titleY: PT + innerH / 2
+  });
 
   // Count label above each curve point (only when there's room above).
   pcts.forEach((p, i) => {
@@ -294,38 +260,19 @@ function renderHistogramSvg(
   // edges) so the fill doesn't sweep down to the chart's left/right padding
   // and create misleading wings beyond the data.
   const baseline = PT + innerH;
-  const buildPath = (seriesPcts: number[]): {
+  const seriesPath = (seriesPcts: number[]): {
     path: string;
-    pts: [number, number][];
+    pts: Point[];
   } => {
-    const pts: [number, number][] = seriesPcts.map((p, i) => [xMid(i), yPct(p)]);
-    if (pts.length === 0) return { path: "", pts };
-    const firstX = pts[0]![0];
-    const lastX = pts[pts.length - 1]![0];
-    const segs: string[] = [
-      `M ${firstX} ${baseline}`,
-      `L ${firstX} ${pts[0]![1]}`
-    ];
-    for (let i = 0; i < pts.length - 1; i += 1) {
-      const p0 = pts[i - 1] ?? pts[i]!;
-      const p1 = pts[i]!;
-      const p2 = pts[i + 1]!;
-      const p3 = pts[i + 2] ?? p2;
-      const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-      const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-      const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-      segs.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2[0]} ${p2[1]}`);
-    }
-    segs.push(`L ${lastX} ${baseline} Z`);
-    return { path: segs.join(" "), pts };
+    const pts: Point[] = seriesPcts.map((p, i) => [xMid(i), yPct(p)]);
+    return buildLinePath(pts, { baseline });
   };
 
   // Secondary curve drawn first so the primary's filled curve sits on
   // top — same z-order as the workload card. Dashed slate stroke, no
   // fill, smaller dots so it reads as context rather than the focus.
   if (secondaryPcts) {
-    const { path: secPath, pts: secPts } = buildPath(secondaryPcts);
+    const { path: secPath, pts: secPts } = seriesPath(secondaryPcts);
     if (secPath) {
       const secCurve = doc.createElementNS(SVG_NS, "path");
       secCurve.setAttribute("d", secPath);
@@ -349,7 +296,7 @@ function renderHistogramSvg(
     }
   }
 
-  const { path: curvePath, pts } = buildPath(pcts);
+  const { path: curvePath, pts } = seriesPath(pcts);
   const area = doc.createElementNS(SVG_NS, "path");
   area.setAttribute("d", curvePath);
   area.setAttribute("fill", `url(#${gradId})`);
@@ -372,87 +319,45 @@ function renderHistogramSvg(
 
   // Mean indicators. Secondary (slate) stacks on top, primary (maroon)
   // sits below it — same vertical order as the workload card pills.
-  type Indicator = { value: number; label: string; color: string };
-  const indicators: Indicator[] = [];
+  const indicators: AvgIndicator[] = [];
   if (hasSecondaryMean) {
-    indicators.push({
-      value: opts.secondaryMean!,
-      label: opts.secondaryLabel ?? `AVG ${opts.secondaryMean!.toFixed(1)}`,
-      color: "var(--bc-color-chart-axis-cool)"
-    });
+    const x = meanXFor(opts.secondaryMean!);
+    if (x !== null) {
+      indicators.push({
+        x,
+        label:
+          opts.secondaryLabel ?? `AVG ${opts.secondaryMean!.toFixed(1)}`,
+        color: "var(--bc-color-chart-axis-cool)"
+      });
+    }
   }
   if (hasMean) {
-    indicators.push({
-      value: opts.mean!,
-      label: opts.meanLabel ?? `AVG ${opts.mean!.toFixed(1)}`,
-      color: "var(--bc-color-accent)"
-    });
+    const x = meanXFor(opts.mean!);
+    if (x !== null) {
+      indicators.push({
+        x,
+        label: opts.meanLabel ?? `AVG ${opts.mean!.toFixed(1)}`,
+        color: "var(--bc-color-accent)"
+      });
+    }
   }
-  indicators.forEach((ind, slot) => {
-    const meanX = meanXFor(ind.value);
-    if (meanX === null) return;
-    const pillTop = slot * PILL_STEP;
-
-    const meanLine = doc.createElementNS(SVG_NS, "line");
-    meanLine.setAttribute("x1", String(meanX));
-    meanLine.setAttribute("x2", String(meanX));
-    meanLine.setAttribute("y1", String(pillTop + PILL_H + 1));
-    meanLine.setAttribute("y2", String(PT + innerH));
-    meanLine.style.stroke = ind.color;
-    meanLine.setAttribute("stroke-width", "1.5");
-    meanLine.setAttribute("stroke-dasharray", "3 3");
-    svg.append(meanLine);
-
-    const pillW = Math.max(60, ind.label.length * 5.5 + 12);
-    const pillX = Math.max(
-      PL,
-      Math.min(PL + innerW - pillW, meanX - pillW / 2)
-    );
-    const pill = doc.createElementNS(SVG_NS, "rect");
-    pill.setAttribute("x", String(pillX));
-    pill.setAttribute("y", String(pillTop));
-    pill.setAttribute("width", String(pillW));
-    pill.setAttribute("height", String(PILL_H));
-    pill.setAttribute("rx", "3");
-    pill.style.fill = ind.color;
-    svg.append(pill);
-
-    const pillLabel = doc.createElementNS(SVG_NS, "text");
-    pillLabel.setAttribute("x", String(pillX + pillW / 2));
-    pillLabel.setAttribute("y", String(pillTop + 10));
-    pillLabel.setAttribute("text-anchor", "middle");
-    pillLabel.setAttribute("font-size", "9");
-    pillLabel.setAttribute("font-weight", "700");
-    pillLabel.style.fill = "var(--bc-color-accent-on)";
-    pillLabel.setAttribute("letter-spacing", "0.5");
-    pillLabel.textContent = ind.label;
-    svg.append(pillLabel);
+  appendStackedAvgPills(doc, svg, indicators, {
+    PILL_H,
+    PILL_STEP,
+    PL,
+    innerW,
+    baselineY: PT + innerH
   });
 
-  // X-axis bucket labels.
-  for (let i = 0; i < numBars; i += 1) {
-    const t = doc.createElementNS(SVG_NS, "text");
-    t.setAttribute("x", String(xMid(i)));
-    t.setAttribute("y", String(H - 12));
-    t.setAttribute("text-anchor", "middle");
-    t.setAttribute("font-size", "9");
-    t.style.fill = "var(--bc-color-text-muted)";
-    t.textContent = labels[i] ?? "";
-    svg.append(t);
-  }
-
-  // X-axis title.
-  const xTitle = doc.createElementNS(SVG_NS, "text");
-  xTitle.setAttribute("x", String(W / 2));
-  xTitle.setAttribute("y", String(H - 1));
-  xTitle.setAttribute("text-anchor", "middle");
-  xTitle.setAttribute("font-size", "8.5");
-  xTitle.style.fill = "var(--bc-color-text-subtle)";
-  xTitle.setAttribute("letter-spacing", "0.6");
-  xTitle.setAttribute("font-weight", "600");
-  xTitle.textContent =
-    opts.xAxisTitle ?? (opts.kind === "hours" ? "HOURS PER WEEK" : "RATING");
-  svg.append(xTitle);
+  // X-axis bucket labels + title.
+  appendXAxis(doc, svg, {
+    labels,
+    xAt: xMid,
+    H,
+    W,
+    title:
+      opts.xAxisTitle ?? (opts.kind === "hours" ? "HOURS PER WEEK" : "RATING")
+  });
 
   return svg;
 }

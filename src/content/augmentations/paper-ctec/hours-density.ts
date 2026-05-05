@@ -1,3 +1,14 @@
+import {
+  appendStackedAvgPills,
+  appendVerticalGradient,
+  appendXAxis,
+  appendYAxis,
+  buildLinePath,
+  niceStep,
+  PERCENT_AXIS_STEPS,
+  type AvgIndicator,
+  type Point
+} from "./chart-kit";
 import type { ModalHoursBucket } from "./modal-data";
 
 // One series in the hours-density chart. The Overview card stacks two
@@ -86,12 +97,7 @@ export function renderHoursDensity(
   // baseline curve, but won't break the SVG).
   const flatPcts = seriesPcts.flat().filter((n) => Number.isFinite(n));
   const maxPct = flatPcts.length > 0 ? Math.max(...flatPcts) : 0;
-  const niceStep = (max: number): number => {
-    const targets = [2, 5, 10, 20, 25, 50];
-    for (const t of targets) if (max / t <= 4) return t;
-    return 50;
-  };
-  const step = niceStep(maxPct);
+  const step = niceStep(maxPct, [...PERCENT_AXIS_STEPS]);
   const yMax = Math.max(step, Math.ceil(maxPct / step) * step) || step;
   const ticks: number[] = [];
   for (let v = 0; v <= yMax; v += step) ticks.push(v);
@@ -108,11 +114,11 @@ export function renderHoursDensity(
   // anchored to baseline at the first and last bucket centers (not the plot
   // edges) so the fill doesn't sweep down to the chart's left/right padding
   // and create misleading wings beyond the data.
-  const buildPath = (
+  const baseline = PT + innerH;
+  const seriesPath = (
     pcts: number[]
-  ): { path: string; pts: [number, number][] } => {
-    const baseline = PT + innerH;
-    const pts = pcts.map<[number, number]>((pct, i) => {
+  ): { path: string; pts: Point[] } => {
+    const pts: Point[] = pcts.map<Point>((pct, i) => {
       const safePct = Number.isFinite(pct) ? pct : 0;
       const x = xMid(i);
       const y = baseline - (safePct / yMax) * innerH;
@@ -121,25 +127,7 @@ export function renderHoursDensity(
         Number.isFinite(y) ? y : baseline
       ];
     });
-    if (pts.length === 0) return { path: "", pts };
-    const firstX = pts[0]![0];
-    const lastX = pts[pts.length - 1]![0];
-    const segs: string[] = [];
-    segs.push(`M ${firstX} ${baseline}`);
-    segs.push(`L ${firstX} ${pts[0]![1]}`);
-    for (let i = 0; i < pts.length - 1; i++) {
-      const p0 = pts[i - 1] ?? pts[i]!;
-      const p1 = pts[i]!;
-      const p2 = pts[i + 1]!;
-      const p3 = pts[i + 2] ?? p2;
-      const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-      const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-      const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-      const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-      segs.push(`C ${cp1x} ${cp1y} ${cp2x} ${cp2y} ${p2[0]} ${p2[1]}`);
-    }
-    segs.push(`L ${lastX} ${baseline} Z`);
-    return { path: segs.join(" "), pts };
+    return buildLinePath(pts, { baseline });
   };
 
   // Mean position along the bucket strip. Each bucket label is parsed for
@@ -167,59 +155,21 @@ export function renderHoursDensity(
   svg.setAttribute("class", "bc-paper-ctec-modal-hours-density-svg");
 
   // Gradient fill (used by primary series only).
-  const defs = doc.createElementNS(SVG_NS, "defs");
-  const gradId = `bc-paper-ctec-hours-grad-${Math.random().toString(36).slice(2, 8)}`;
-  const grad = doc.createElementNS(SVG_NS, "linearGradient");
-  grad.setAttribute("id", gradId);
-  grad.setAttribute("x1", "0");
-  grad.setAttribute("y1", "0");
-  grad.setAttribute("x2", "0");
-  grad.setAttribute("y2", "1");
-  const stopTop = doc.createElementNS(SVG_NS, "stop");
-  stopTop.setAttribute("offset", "0%");
-  stopTop.style.stopColor = "var(--bc-color-accent-fill-45)";
-  const stopBot = doc.createElementNS(SVG_NS, "stop");
-  stopBot.setAttribute("offset", "100%");
-  stopBot.style.stopColor = "var(--bc-color-accent-fill-05)";
-  grad.append(stopTop, stopBot);
-  defs.append(grad);
-  svg.append(defs);
+  const gradId = appendVerticalGradient(doc, svg, {
+    idPrefix: "bc-paper-ctec-hours-grad",
+    topColor: "var(--bc-color-accent-fill-45)",
+    bottomColor: "var(--bc-color-accent-fill-05)"
+  });
 
-  // Y-axis ticks + horizontal gridlines.
-  for (const v of ticks) {
-    const line = doc.createElementNS(SVG_NS, "line");
-    line.setAttribute("x1", String(PL));
-    line.setAttribute("x2", String(PL + innerW));
-    line.setAttribute("y1", String(yPct(v)));
-    line.setAttribute("y2", String(yPct(v)));
-    line.style.stroke = "var(--bc-color-border)";
-    line.setAttribute("stroke-width", "1");
-    if (v !== 0) line.setAttribute("stroke-dasharray", "2 3");
-    if (v !== 0) line.setAttribute("opacity", "0.6");
-    svg.append(line);
-
-    const tickLabel = doc.createElementNS(SVG_NS, "text");
-    tickLabel.setAttribute("x", String(PL - 6));
-    tickLabel.setAttribute("y", String(yPct(v) + 3));
-    tickLabel.setAttribute("text-anchor", "end");
-    tickLabel.setAttribute("font-size", "9");
-    tickLabel.style.fill = "var(--bc-color-text-muted)";
-    tickLabel.textContent = `${v}%`;
-    svg.append(tickLabel);
-  }
-
-  // Y-axis title (rotated).
-  const yTitle = doc.createElementNS(SVG_NS, "text");
-  yTitle.setAttribute("x", "10");
-  yTitle.setAttribute("y", String(PT + innerH / 2));
-  yTitle.setAttribute("text-anchor", "middle");
-  yTitle.setAttribute("font-size", "8.5");
-  yTitle.style.fill = "var(--bc-color-text-subtle)";
-  yTitle.setAttribute("letter-spacing", "0.6");
-  yTitle.setAttribute("font-weight", "600");
-  yTitle.setAttribute("transform", `rotate(-90 10 ${PT + innerH / 2})`);
-  yTitle.textContent = "% OF RESPONSES";
-  svg.append(yTitle);
+  // Y-axis ticks + horizontal gridlines + rotated title.
+  appendYAxis(doc, svg, {
+    ticks,
+    yAt: yPct,
+    PL,
+    innerW,
+    title: "% OF RESPONSES",
+    titleY: PT + innerH / 2
+  });
 
   // Draw secondary series first so the primary's filled curve sits on top.
   const drawOrder = usable
@@ -231,7 +181,7 @@ export function renderHoursDensity(
     });
   for (const i of drawOrder) {
     const s = usable[i]!;
-    const { path, pts } = buildPath(seriesPcts[i]!);
+    const { path, pts } = seriesPath(seriesPcts[i]!);
     if (!path) continue;
 
     const isPrimary = s.style === "primary";
@@ -262,84 +212,39 @@ export function renderHoursDensity(
   // AVG pills + dashed mean lines, stacked from the top of the SVG. Pills
   // are emitted in input order so the latest term's amber pill sits on
   // top with the multi-term average's slate pill below.
-  let pillSlot = 0;
+  const indicators: AvgIndicator[] = [];
   for (const s of usable) {
     const frac = meanFracFor(s.mean);
     if (frac == null) continue;
     const meanX = PL + (Math.max(0, Math.min(100, frac)) / 100) * innerW;
-    const pillTop = pillSlot * PILL_STEP;
-    pillSlot++;
     const isPrimary = s.style === "primary";
-    // Pill + mean line take the curve's stroke color so each pill visually
-    // belongs to its curve. Primary uses maroon (filled-curve color);
-    // secondary uses slate (dashed-line color).
-    const pillColor = isPrimary
-      ? "var(--bc-color-accent)"
-      : "var(--bc-color-chart-axis-cool)";
-
-    const meanLine = doc.createElementNS(SVG_NS, "line");
-    meanLine.setAttribute("x1", String(meanX));
-    meanLine.setAttribute("x2", String(meanX));
-    meanLine.setAttribute("y1", String(pillTop + PILL_H + 1));
-    meanLine.setAttribute("y2", String(PT + innerH));
-    meanLine.style.stroke = pillColor;
-    meanLine.setAttribute("stroke-width", "1.5");
-    meanLine.setAttribute("stroke-dasharray", "3 3");
-    svg.append(meanLine);
-
-    // Width grows with label length so longer text doesn't clip; clamp to
-    // chart bounds so the pill stays visible when the mean is near an edge.
-    const pillW = Math.max(60, s.label.length * 5.5 + 12);
-    const pillX = Math.max(
-      PL,
-      Math.min(PL + innerW - pillW, meanX - pillW / 2)
-    );
-
-    const pill = doc.createElementNS(SVG_NS, "rect");
-    pill.setAttribute("x", String(pillX));
-    pill.setAttribute("y", String(pillTop));
-    pill.setAttribute("width", String(pillW));
-    pill.setAttribute("height", String(PILL_H));
-    pill.setAttribute("rx", "3");
-    pill.style.fill = pillColor;
-    svg.append(pill);
-
-    const pillLabel = doc.createElementNS(SVG_NS, "text");
-    pillLabel.setAttribute("x", String(pillX + pillW / 2));
-    pillLabel.setAttribute("y", String(pillTop + 10));
-    pillLabel.setAttribute("text-anchor", "middle");
-    pillLabel.setAttribute("font-size", "9");
-    pillLabel.setAttribute("font-weight", "700");
-    pillLabel.style.fill = "var(--bc-color-accent-on)";
-    pillLabel.setAttribute("letter-spacing", "0.5");
-    pillLabel.textContent = s.label;
-    svg.append(pillLabel);
+    indicators.push({
+      x: meanX,
+      label: s.label,
+      // Pill + mean line take the curve's stroke color so each pill visually
+      // belongs to its curve. Primary uses maroon (filled-curve color);
+      // secondary uses slate (dashed-line color).
+      color: isPrimary
+        ? "var(--bc-color-accent)"
+        : "var(--bc-color-chart-axis-cool)"
+    });
   }
+  appendStackedAvgPills(doc, svg, indicators, {
+    PILL_H,
+    PILL_STEP,
+    PL,
+    innerW,
+    baselineY: PT + innerH
+  });
 
-  // X-axis bucket labels.
-  for (let i = 0; i < numBuckets; i++) {
-    const x = xMid(i);
-    const label = doc.createElementNS(SVG_NS, "text");
-    label.setAttribute("x", String(x));
-    label.setAttribute("y", String(H - 12));
-    label.setAttribute("text-anchor", "middle");
-    label.setAttribute("font-size", "9");
-    label.style.fill = "var(--bc-color-text-muted)";
-    label.textContent = axisLabels[i]!;
-    svg.append(label);
-  }
-
-  // X-axis title.
-  const xTitle = doc.createElementNS(SVG_NS, "text");
-  xTitle.setAttribute("x", String(W / 2));
-  xTitle.setAttribute("y", String(H - 1));
-  xTitle.setAttribute("text-anchor", "middle");
-  xTitle.setAttribute("font-size", "8.5");
-  xTitle.style.fill = "var(--bc-color-text-subtle)";
-  xTitle.setAttribute("letter-spacing", "0.6");
-  xTitle.setAttribute("font-weight", "600");
-  xTitle.textContent = "HOURS PER WEEK";
-  svg.append(xTitle);
+  // X-axis bucket labels + title.
+  appendXAxis(doc, svg, {
+    labels: axisLabels,
+    xAt: xMid,
+    H,
+    W,
+    title: "HOURS PER WEEK"
+  });
 
   wrapper.append(svg);
   return wrapper;
