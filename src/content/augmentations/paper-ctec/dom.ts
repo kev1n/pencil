@@ -2,8 +2,15 @@ import { isFeatureEnabled } from "../../settings";
 import { extractSubjectAndCatalog } from "../ctec-links/helpers";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
+  ANALYTICS_MODAL_ID,
+  AUTH_MODAL_ID,
   COMPACT_CARD_FEATURE_ID,
+  NO_HOVER_LIFT_CLASS,
+  SIDECARD_ANALYTICS_PANEL_CLASS,
+  SIDECARD_TABS_CLASS,
   SINGLE_SUMMARY_CARD_FEATURE_ID,
+  STATUS_BAR_ID,
+  STYLE_ID,
   WIDGET_CLASS
 } from "./constants";
 import { buildCourseKey, buildInstructorLastNameLabel } from "./identity";
@@ -12,6 +19,18 @@ import type { PaperCtecSideCardContext, PaperCtecTarget } from "./types";
 type PaperCtecCandidate = Omit<PaperCtecTarget, "widget"> & {
   content: HTMLElement;
 };
+
+// Locate every live chip widget that currently represents `key`. paper.nu
+// remounts schedule cards on every drag/scroll, so a key can map to zero,
+// one, or many widget nodes at any moment. Used by the chip-fetch and
+// chip-cart coordinators to repaint after async work resolves.
+export function findWidgetsByKey(doc: Document, key: string): HTMLElement[] {
+  return Array.from(
+    doc.querySelectorAll<HTMLElement>(
+      `.${WIDGET_CLASS}[data-bc-paper-ctec-key="${CSS.escape(key)}"]`
+    )
+  );
+}
 
 export function collectScheduleTargets(doc: Document): PaperCtecTarget[] {
   const candidates: PaperCtecCandidate[] = [];
@@ -246,6 +265,53 @@ export function teardownCardForCleanup(card: HTMLElement): void {
   for (const line of [courseLine, titleLine, instructorLine]) {
     if (line) delete line.dataset.bcPaperRole;
   }
+}
+
+// Full-page teardown for cleanup(): walk every schedule card, every
+// orphaned widget/anchor/preview node, every grid hover-lift class, every
+// side-panel tab/analytics-panel addition, and every singleton overlay
+// (status bar, auth modal, analytics modal, style block). Restores the
+// host page to its never-augmented state.
+export function teardownPageForCleanup(doc: Document): void {
+  for (const card of Array.from(
+    doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.scheduleCard)
+  )) {
+    teardownCardForCleanup(card);
+  }
+
+  // Strip lingering widget/anchor/preview nodes that aren't anchored to a
+  // card we currently see (e.g. cards that were unmounted between renders).
+  for (const orphan of Array.from(
+    doc.querySelectorAll<HTMLElement>(
+      `.${WIDGET_CLASS}, .${WIDGET_CLASS}-actions-anchor, .${WIDGET_CLASS}-preview`
+    )
+  )) {
+    orphan.remove();
+  }
+
+  // Schedule grid hover-lift override.
+  for (const grid of Array.from(
+    doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.scheduleGrid)
+  )) {
+    grid.classList.remove(NO_HOVER_LIFT_CLASS);
+  }
+
+  // Side panel: drop our tabs + analytics panel and unhide any paper.nu
+  // children that were hidden while the Analytics tab was active.
+  for (const panel of Array.from(
+    doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.sideCardPanel)
+  )) {
+    panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
+    panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
+    for (const child of Array.from(panel.children)) {
+      if (child instanceof HTMLElement && child.hidden) child.hidden = false;
+    }
+  }
+
+  doc.getElementById(STATUS_BAR_ID)?.remove();
+  doc.getElementById(AUTH_MODAL_ID)?.remove();
+  doc.getElementById(ANALYTICS_MODAL_ID)?.remove();
+  doc.getElementById(STYLE_ID)?.remove();
 }
 
 function cleanupCardWidget(card: HTMLElement): void {

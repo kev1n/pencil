@@ -6,7 +6,7 @@ import {
 } from "../../cart-cache";
 import type { Augmentation } from "../../framework";
 import { getRecentAggregationTerms, isFeatureEnabled } from "../../settings";
-import { resolveChipSection } from "./cart-flow";
+import { resolveChipSection, addChipSectionToCart } from "./cart-flow";
 import { ctecCreditPool, psCreditPool } from "../../../shared/credit-pool";
 import { showToast } from "../../../shared/toast";
 import { CTEC_ERROR_TOAST_MESSAGE } from "../ctec-links/rate-limit";
@@ -17,32 +17,21 @@ import {
   hasCachedReportAggregate
 } from "../ctec-links/reports";
 import { AuthFlow } from "./auth-flow";
-import { buildModalDisplayData, type ModalDisplayData } from "./modal-data";
+import { buildModalDisplayData } from "./modal-data";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
-  ANALYTICS_MODAL_ID,
-  AUTH_MODAL_ID,
   CARD_BORDER_ON_HOVER_FEATURE_ID,
-  NO_HOVER_LIFT_CLASS,
-  SIDECARD_ANALYTICS_PANEL_CLASS,
-  SIDECARD_TABS_CLASS,
-  STATUS_BAR_ID,
-  STYLE_ID,
-  WIDGET_CLASS
+  NO_HOVER_LIFT_CLASS
 } from "./constants";
 import {
   collectScheduleTargets,
   extractSideCardContext,
-  teardownCardForCleanup
+  findWidgetsByKey,
+  teardownPageForCleanup
 } from "./dom";
 import { ModalController } from "./modal-controller";
 import { buildStatusBarData, clearAuthRequiredStates } from "./session";
-import type {
-  AnalyticsModalSource,
-  PaperCtecAnalyticsState,
-  PaperCtecTarget,
-  PaperCtecWidgetData
-} from "./types";
+import type { PaperCtecAnalyticsState } from "./types";
 import {
   injectStyles,
   renderIdle,
@@ -51,13 +40,24 @@ import {
   renderStatusBar,
   renderWidget
 } from "./ui";
-import { addChipSectionToCart } from "./cart-flow";
 import { attachCartAnchor } from "./schedule-ui";
 import {
   createChipCartCoordinator,
   type ChipCartCoordinator,
   type ChipIdentity
 } from "./chip-cart-coordinator";
+import {
+  createChipFetchCoordinator,
+  type ChipFetchCoordinator
+} from "./chip-fetch-coordinator";
+import {
+  createStatusBarCoordinator,
+  type StatusBarCoordinator
+} from "./status-bar-coordinator";
+import {
+  createSideCardCoordinator,
+  type SideCardCoordinator
+} from "./side-card-coordinator";
 
 function isPaperHost(): boolean {
   const host = window.location.hostname;
@@ -71,48 +71,26 @@ function isCustomScheduleCard(card: HTMLElement): boolean {
   return card.style.borderStyle === "dashed";
 }
 
-// Top-level orchestration for the paper.nu augmentation. Owns the schedule-
-// card widget state (front-page CTEC summaries) and the side-card / status-
-// bar lifecycle. Modal lifecycle is delegated to ModalController, which
-// shares a few maps with us via the constructor: front-page widget state
-// flows into the modal as auth-required/not-found mirroring, and a
-// successful background refresh flows back into the schedule chip via
-// renderForKey.
+// Top-level orchestration for the paper.nu augmentation. Wave 6d slimmed
+// this to a wiring layer over four coordinators (chip-fetch, chip-cart,
+// status-bar, side-card) plus AuthFlow + ModalController. State that
+// crosses coordinators (resolved / inFlight / loadingMessages, etc.)
+// lives on chip-fetch and is referenced by status-bar / modal via getter
+// callbacks.
 export class PaperCtecAugmentation implements Augmentation {
   readonly id = "paper-ctec";
 
-  private readonly inFlight = new Map<string, Promise<PaperCtecWidgetData>>();
-  private readonly resolved = new Map<string, PaperCtecWidgetData>();
-  private readonly analyticsResolved = new Map<string, PaperCtecAnalyticsState>();
-  // Owned here (not on the controller) because syncStatusBar needs to count
-  // active analytics fetches alongside front-page fetches. Shared by reference
-  // with the modal controller, which writes to it.
-  private readonly analyticsInFlight = new Map<string, Promise<PaperCtecAnalyticsState>>();
-  private readonly loadingMessages = new Map<
-    string,
-    { message: string; updatedAt: number }
-  >();
-  // Keys the user has explicitly asked to load (clicked "Load CTEC" on the
-  // schedule chip). Survives invalidateAndRerun so the fetch resumes
-  // automatically after a login retry without requiring another click.
-  private readonly userActivated = new Set<string>();
-
-  private visibleKeys = new Set<string>();
-  private readonly selectedTabs = new Map<string, "paper" | "analytics">();
-
-  // Per-card "+ Cart" button state lives in the chip-cart coordinator —
-  // it owns the cart state machine, in-flight set, reset timers, chip-
-  // section memo, optimistic-write path, and the cart-cache subscription.
+  private readonly chipFetch: ChipFetchCoordinator;
   private readonly chipCart: ChipCartCoordinator;
-
-  // Per-key snapshot of the data needed to open the modal. syncTargets
-  // populates this from currently-visible targets so renderForKey /
-  // renderLoadingForKey can wire the analytics-button callback even when
-  // they don't have direct access to a PaperCtecTarget.
-  private readonly targetSources = new Map<string, AnalyticsModalSource>();
+  private readonly statusBar: StatusBarCoordinator;
+  private readonly sideCard: SideCardCoordinator;
+  // analyticsResolved + analyticsInFlight are owned by ModalController but
+  // shared by reference here so the status-bar derivation can count
+  // analytics fetches alongside front-page fetches.
+  private readonly analyticsResolved = new Map<string, PaperCtecAnalyticsState>();
+  private readonly analyticsInFlight = new Map<string, Promise<PaperCtecAnalyticsState>>();
 
   private focusListenerAttached = false;
-  private syncingStatusBar = false;
   private readonly auth?: AuthFlow;
   private readonly modal: ModalController;
 
@@ -126,11 +104,7 @@ export class PaperCtecAugmentation implements Augmentation {
     void initCartCache();
 
     this.chipCart = createChipCartCoordinator({
-      psCreditPool: {
-        tryConsume: (owner) => psCreditPool.tryConsume(owner),
-        format: () => psCreditPool.format(),
-        formatLimitReached: (waitMs) => psCreditPool.formatLimitReached(waitMs)
-      },
+      psCreditPool,
       showToast,
       addChipSectionToCart,
       resolveChipSection,
@@ -138,35 +112,94 @@ export class PaperCtecAugmentation implements Augmentation {
       recordOptimisticAdd,
       subscribeCartCache,
       attachToWidgets: (key, state, onClick) => {
-        for (const widget of this.findWidgetsByKey(document, key)) {
+        for (const widget of findWidgetsByKey(document, key)) {
           attachCartAnchor(widget, state, onClick);
         }
       }
     });
-    // Cart-cache changes (CAESAR cart-page reconcile, optimistic add from
-    // another tab, popup clear) need to push fresh state into every chip
-    // we've already resolved. The coordinator owns the subscription
-    // lifecycle.
-    this.chipCart.start();
+
+    this.chipFetch = createChipFetchCoordinator({
+      ctecCreditPool,
+      showToast,
+      fetchAggregate: fetchCtecReportAggregate,
+      getCachedAggregate: getCachedReportAggregate,
+      getCourseAnalyticsSnapshot: getCtecCourseAnalyticsSnapshot,
+      getAggregateLimit: getRecentAggregationTerms,
+      getFetchLimit: () => PAPER_CTEC_CONFIG.aggregate.recentTerms,
+      buildModalDisplayData,
+      ctecErrorToastMessage: CTEC_ERROR_TOAST_MESSAGE,
+      attachCartButton: (target) => {
+        const chip: ChipIdentity = {
+          key: target.key,
+          params: target.params,
+          titleHint: target.titleHint
+        };
+        attachCartAnchor(
+          target.widget,
+          this.chipCart.getState(target.key) ?? { kind: "idle" },
+          () => this.chipCart.kickChipCart(chip)
+        );
+        // Lazy: resolve once per chip, then if the cart cache has an entry
+        // for this section, surface "in cart" / "enrolled" immediately.
+        void this.chipCart.seedCartStateFromCache(chip);
+      },
+      isCustomScheduleCard,
+      openAuthModal: () => this.openAuthModal(),
+      openAnalyticsModal: (source) => this.modal.openModal(source),
+      renderIdle,
+      renderLoading,
+      renderWidget,
+      generation: () => this.generation(),
+      setProgress: (key, message) => this.setProgress(key, message),
+      syncStatusBar: () => this.statusBar.syncStatusBar(document),
+      syncSideCard: () => this.sideCard.syncSideCard(document),
+      syncModal: () => this.modal.sync(document),
+      modalHasInFlight: (key) => this.modal.hasInFlight(key)
+    });
+
+    this.statusBar = createStatusBarCoordinator({
+      getVisibleKeys: () => this.chipFetch.state.visibleKeys,
+      getResolved: () => this.chipFetch.state.resolved,
+      getAnalyticsResolved: () => this.analyticsResolved,
+      getInFlight: () => this.chipFetch.state.inFlight,
+      getAnalyticsInFlight: () => this.analyticsInFlight,
+      getLoadingMessages: () => this.chipFetch.state.loadingMessages,
+      authFlow: () => this.auth,
+      buildStatusBarData,
+      renderStatusBar
+    });
+
+    this.sideCard = createSideCardCoordinator({
+      extractSideCardContext,
+      modalController: () => this.modal,
+      hasUserActivated: (key) => this.chipFetch.hasUserActivated(key),
+      getResolved: () => this.chipFetch.state.resolved,
+      getInFlight: () => this.chipFetch.state.inFlight,
+      hasCachedReportAggregate,
+      getAggregateLimit: () => getRecentAggregationTerms(),
+      renderSideCardAnalytics
+    });
 
     this.modal = new ModalController(
       {
-        resolved: this.resolved,
-        inFlight: this.inFlight,
+        resolved: this.chipFetch.state.resolved,
+        inFlight: this.chipFetch.state.inFlight,
         analyticsResolved: this.analyticsResolved,
         analyticsInFlight: this.analyticsInFlight,
-        loadingMessages: this.loadingMessages
+        loadingMessages: this.chipFetch.state.loadingMessages
       },
       {
         generation: () => this.generation(),
         isAwaitingRetry: () => this.auth?.isAwaitingRetry() ?? false,
         markAwaitingRetry: () => this.auth?.markAwaitingRetry(),
         setProgress: (key, message) => this.setProgress(key, message),
-        syncStatusBar: () => this.syncStatusBar(document),
-        syncSideCard: () => this.syncSideCard(document),
-        renderForKey: (key, data) => this.renderForKey(key, data)
+        syncStatusBar: () => this.statusBar.syncStatusBar(document),
+        syncSideCard: () => this.sideCard.syncSideCard(document),
+        renderForKey: (key, data) => this.chipFetch.renderForKey(key, data)
       }
     );
+
+    this.chipCart.start();
   }
 
   run(doc: Document = document): void {
@@ -177,69 +210,24 @@ export class PaperCtecAugmentation implements Augmentation {
     this.syncCardHoverStyle(doc);
 
     const targets = collectScheduleTargets(doc);
-    this.visibleKeys = new Set(targets.map((target) => target.key));
-
-    this.syncTargets(targets);
-    this.syncStatusBar(doc);
-    this.syncSideCard(doc);
+    this.chipFetch.syncTargets(targets);
+    this.statusBar.syncStatusBar(doc);
+    this.sideCard.syncSideCard(doc);
     this.modal.sync(doc);
   }
 
   cleanup(doc: Document = document): void {
     // Clear in-memory state so a re-enable doesn't carry stale chip data
     // forward without verifying the underlying cache is still valid.
-    this.inFlight.clear();
-    this.resolved.clear();
+    this.chipFetch.stop();
+    this.chipCart.stop();
+    this.sideCard.stop(doc);
+    this.statusBar.stop(doc);
     this.analyticsResolved.clear();
     this.analyticsInFlight.clear();
-    this.loadingMessages.clear();
-    this.userActivated.clear();
-    this.visibleKeys.clear();
-    this.selectedTabs.clear();
-    this.chipCart.stop();
-    this.targetSources.clear();
     this.modal.invalidate();
 
-    // Per-card teardown: widgets, anchors, hover preview, dense-card flatten.
-    for (const card of Array.from(
-      doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.scheduleCard)
-    )) {
-      teardownCardForCleanup(card);
-    }
-
-    // Strip lingering widget/anchor/preview nodes that aren't anchored to a
-    // card we currently see (e.g. cards that were unmounted between renders).
-    for (const orphan of Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        `.${WIDGET_CLASS}, .${WIDGET_CLASS}-actions-anchor, .${WIDGET_CLASS}-preview`
-      )
-    )) {
-      orphan.remove();
-    }
-
-    // Schedule grid hover-lift override.
-    for (const grid of Array.from(
-      doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.scheduleGrid)
-    )) {
-      grid.classList.remove(NO_HOVER_LIFT_CLASS);
-    }
-
-    // Side panel: drop our tabs + analytics panel and unhide any paper.nu
-    // children that were hidden while the Analytics tab was active.
-    for (const panel of Array.from(
-      doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.sideCardPanel)
-    )) {
-      panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
-      panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
-      for (const child of Array.from(panel.children)) {
-        if (child instanceof HTMLElement && child.hidden) child.hidden = false;
-      }
-    }
-
-    doc.getElementById(STATUS_BAR_ID)?.remove();
-    doc.getElementById(AUTH_MODAL_ID)?.remove();
-    doc.getElementById(ANALYTICS_MODAL_ID)?.remove();
-    doc.getElementById(STYLE_ID)?.remove();
+    teardownPageForCleanup(doc);
   }
 
   private appliesToPage(doc: Document): boolean {
@@ -257,324 +245,25 @@ export class PaperCtecAugmentation implements Augmentation {
   }
 
   private invalidateAndRerun(doc: Document): void {
-    clearAuthRequiredStates(this.resolved, this.analyticsResolved);
-    this.inFlight.clear();
+    clearAuthRequiredStates(this.chipFetch.state.resolved, this.analyticsResolved);
+    this.chipFetch.invalidateAfterAuth();
     this.modal.invalidate();
-    this.loadingMessages.clear();
     this.run(doc);
-  }
-
-  private syncTargets(targets: PaperCtecTarget[]): void {
-    for (const target of targets) {
-      target.widget.dataset.bcPaperCtecKey = target.key;
-      const source: AnalyticsModalSource = {
-        key: target.key,
-        params: target.params,
-        titleHint: target.titleHint
-      };
-      this.targetSources.set(target.key, source);
-      const openAnalytics = () => this.modal.openModal(source);
-
-      // Independent of CTEC fetch state — always render the cart button so
-      // the user can add to cart without ever loading CTECs first. Skip
-      // user-created custom sections (paper.nu marks them with a dashed
-      // border): they have no instructor to disambiguate against and don't
-      // correspond to anything in CAESAR.
-      if (!isCustomScheduleCard(target.card)) {
-        const chip: ChipIdentity = {
-          key: target.key,
-          params: target.params,
-          titleHint: target.titleHint
-        };
-        attachCartAnchor(
-          target.widget,
-          this.chipCart.getState(target.key) ?? { kind: "idle" },
-          () => this.chipCart.kickChipCart(chip)
-        );
-        // Lazy: resolve once per chip, then if the cart cache has an entry
-        // for this section (we added it in a prior session, or the user
-        // added it directly through CAESAR), surface "in cart" / "enrolled"
-        // immediately instead of leaving the chip idle until they re-add.
-        void this.chipCart.seedCartStateFromCache(chip);
-      }
-
-      const getPreviewData = this.previewDataCallbackFor(target.key);
-
-      const resolved = this.resolved.get(target.key);
-      if (resolved) {
-        renderWidget(
-          target.widget,
-          resolved,
-          () => this.openAuthModal(),
-          openAnalytics,
-          getPreviewData
-        );
-        continue;
-      }
-
-      if (this.inFlight.has(target.key)) {
-        if (!target.widget.textContent?.trim()) {
-          renderLoading(target.widget, "CTEC…", openAnalytics);
-        }
-        continue;
-      }
-
-      // Sync cache hit: render without touching the network. This covers
-      // repeat visits where the subject index already has parsed reports
-      // for the recent terms.
-      const cachedAggregate = getCachedReportAggregate(
-        target.params,
-        target.titleHint,
-        getRecentAggregationTerms()
-      );
-      if (cachedAggregate) {
-        const widgetData: PaperCtecWidgetData = {
-          state: "found",
-          aggregate: cachedAggregate
-        };
-        this.resolved.set(target.key, widgetData);
-        renderWidget(
-          target.widget,
-          widgetData,
-          () => this.openAuthModal(),
-          openAnalytics,
-          getPreviewData
-        );
-        continue;
-      }
-
-      // User previously clicked "Load CTEC" on this card and the fetch was
-      // interrupted (e.g. auth-required → invalidateAndRerun). Resume.
-      if (this.userActivated.has(target.key)) {
-        this.kickTargetFetch(target);
-        continue;
-      }
-
-      // Not cached — wait for an explicit user click before hitting CAESAR.
-      // No Analytics button until the user actually loads CTECs.
-      renderIdle(target.widget, () => this.kickTargetFetch(target));
-    }
-  }
-
-  private kickTargetFetch(target: PaperCtecTarget): void {
-    if (this.inFlight.has(target.key)) return;
-    if (this.resolved.has(target.key)) return;
-
-    const credit = ctecCreditPool.tryConsume("paper-ctec-chip-fetch");
-    if (!credit.allowed) {
-      showToast(ctecCreditPool.formatLimitReached(credit.waitMs), {
-        tone: "warn",
-        durationMs: 6000
-      });
-      return;
-    }
-
-    this.userActivated.add(target.key);
-
-    this.setProgress(target.key, "Connecting to Northwestern CTEC…");
-    renderLoading(target.widget);
-
-    const jobGeneration = this.generation();
-    const job = this.loadTarget(target);
-    this.inFlight.set(target.key, job);
-    void job.finally(() => {
-      if (jobGeneration !== this.generation()) return;
-      this.inFlight.delete(target.key);
-      if (!this.modal.hasInFlight(target.key)) {
-        this.loadingMessages.delete(target.key);
-      }
-      this.syncStatusBar(document);
-      this.syncSideCard(document);
-      this.modal.sync(document);
-    });
-  }
-
-  private async loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData> {
-    const generation = this.generation();
-    const isStale = () => generation !== this.generation();
-    try {
-      const data = await fetchCtecReportAggregate(
-        target.params,
-        target.titleHint,
-        (message) => {
-          if (isStale()) return;
-          this.renderLoadingForKey(target.key, message);
-        },
-        {
-          fetchLimit: PAPER_CTEC_CONFIG.aggregate.recentTerms,
-          aggregateLimit: getRecentAggregationTerms()
-        }
-      );
-
-      const widgetData: PaperCtecWidgetData =
-        data.state === "found"
-          ? { state: "found", aggregate: data.aggregate }
-          : data;
-
-      if (isStale()) return widgetData;
-      this.resolved.set(target.key, widgetData);
-      this.renderForKey(target.key, widgetData);
-      if (widgetData.state === "error") {
-        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
-      } else {
-        const warning = ctecCreditPool.format();
-        if (warning) {
-          showToast(`Loaded CTEC. ${warning}.`, { tone: "warn", durationMs: 5000 });
-        }
-      }
-      return widgetData;
-    } catch (error) {
-      const widgetData: PaperCtecWidgetData = {
-        state: "error",
-        message: error instanceof Error ? error.message : String(error)
-      };
-      if (isStale()) return widgetData;
-      this.resolved.set(target.key, widgetData);
-      this.renderForKey(target.key, widgetData);
-      showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
-      return widgetData;
-    }
-  }
-
-  private renderLoadingForKey(key: string, message: string): void {
-    this.setProgress(key, message);
-    const openAnalytics = this.openAnalyticsCallbackFor(key);
-    for (const widget of this.findWidgetsByKey(document, key)) {
-      renderLoading(widget, message, openAnalytics);
-    }
-  }
-
-  private renderForKey(key: string, data: PaperCtecWidgetData): void {
-    const openAnalytics = this.openAnalyticsCallbackFor(key);
-    const getPreviewData = this.previewDataCallbackFor(key);
-    for (const widget of this.findWidgetsByKey(document, key)) {
-      renderWidget(
-        widget,
-        data,
-        () => this.openAuthModal(),
-        openAnalytics,
-        getPreviewData
-      );
-    }
-    this.syncStatusBar(document);
-    this.syncSideCard(document);
-    this.modal.sync(document);
-  }
-
-  private openAnalyticsCallbackFor(key: string): (() => void) | undefined {
-    const source = this.targetSources.get(key);
-    if (!source) return undefined;
-    return () => this.modal.openModal(source);
-  }
-
-  // Lazy snapshot reader for the schedule-chip hover preview. Reads from
-  // the in-memory subject index — no network — and converts to ModalDisplayData
-  // so the popup can reuse the modal's hours-density renderer. Returns null
-  // when nothing usable is cached yet (e.g. the chip is showing a stale
-  // aggregate but the index has been wiped).
-  private previewDataCallbackFor(
-    key: string
-  ): (() => ModalDisplayData | null) | undefined {
-    const source = this.targetSources.get(key);
-    if (!source) return undefined;
-    return () => {
-      const snapshot = getCtecCourseAnalyticsSnapshot(
-        source.params,
-        source.titleHint,
-        PAPER_CTEC_CONFIG.aggregate.recentTerms
-      );
-      if (!snapshot || snapshot.entries.length === 0) return null;
-      return buildModalDisplayData(snapshot, source.params, source.titleHint);
-    };
-  }
-
-  private findWidgetsByKey(doc: Document, key: string): HTMLElement[] {
-    return Array.from(
-      doc.querySelectorAll<HTMLElement>(
-        `.${WIDGET_CLASS}[data-bc-paper-ctec-key="${CSS.escape(key)}"]`
-      )
-    );
-  }
-
-  // Re-entrancy guard: status-bar / modal renders mutate document.body,
-  // which can trip listeners (paper.nu's React tree, our own focus retry,
-  // third-party extensions) into firing synchronous callbacks back into the
-  // augmentation. Without this guard those rare loops blow the stack.
-  private syncStatusBar(doc: Document): void {
-    if (this.syncingStatusBar) return;
-    this.syncingStatusBar = true;
-    try {
-      const status = buildStatusBarData({
-        visibleKeys: this.visibleKeys,
-        resolved: this.resolved,
-        analyticsResolved: this.analyticsResolved,
-        inFlight: this.inFlight,
-        analyticsInFlight: this.analyticsInFlight,
-        loadingMessages: this.loadingMessages,
-        awaitingAuthRetry: this.auth?.isAwaitingRetry() ?? false
-      });
-      if (status) renderStatusBar(doc, status);
-      this.auth?.syncFromStatus(doc, status);
-    } finally {
-      this.syncingStatusBar = false;
-    }
   }
 
   private openAuthModal(): void {
     if (!this.auth) return;
     this.auth.openManually();
-    this.syncStatusBar(document);
+    this.statusBar.syncStatusBar(document);
   }
 
   private generation(): number {
     return this.auth?.getGeneration() ?? 0;
   }
 
-  private syncSideCard(doc: Document): void {
-    const context = extractSideCardContext(doc);
-    if (!context) return;
-
-    this.modal.mirrorFrontPageState(context);
-    this.modal.resumeIfNeeded(context);
-
-    const analyticsAvailable =
-      this.userActivated.has(context.key) ||
-      this.resolved.has(context.key) ||
-      this.inFlight.has(context.key) ||
-      hasCachedReportAggregate(
-        context.params,
-        context.titleHint,
-        getRecentAggregationTerms()
-      );
-
-    // Reset the selected tab back to "paper" if Analytics is no longer
-    // surfaced — otherwise a stale "analytics" choice would leave the panel
-    // in an empty state.
-    const requestedTab = this.selectedTabs.get(context.key) ?? "paper";
-    const selectedTab = analyticsAvailable ? requestedTab : "paper";
-
-    renderSideCardAnalytics(
-      context,
-      { selectedTab, analyticsAvailable },
-      (tab) => {
-        this.selectedTabs.set(context.key, tab);
-        // Selecting the CTEC Analytics tab opens the modal. The side panel
-        // itself just hosts a launcher button now — all rich content lives
-        // in the modal.
-        if (tab === "analytics") {
-          this.modal.openModal(context);
-        }
-        this.syncSideCard(document);
-      },
-      () => {
-        this.modal.openModal(context);
-      }
-    );
-  }
-
   private setProgress(key: string, message: string): void {
-    this.loadingMessages.set(key, { message, updatedAt: Date.now() });
-    this.syncStatusBar(document);
+    this.chipFetch.state.loadingMessages.set(key, { message, updatedAt: Date.now() });
+    this.statusBar.syncStatusBar(document);
   }
 
   private ensureFocusRetry(): void {
