@@ -1,6 +1,10 @@
 import type { CaesarSearchResult } from "./caesar-search";
 import type { CartButtonRegistry } from "./cart-button-registry";
+import type { CartCachePainter } from "./controllers/cart-cache-painter";
+import type { LiveDataPainter } from "./controllers/live-data-painter";
+import type { ResultsRenderer } from "./controllers/results-renderer";
 import type { SearchOrchestrator } from "./controllers/search-orchestrator";
+import type { SectionDetailController } from "./controllers/section-detail-controller";
 import type { TabController } from "./controllers/tab-controller";
 import type { LiveDataStore } from "./live-data-store";
 import type {
@@ -90,6 +94,18 @@ export type MountedState = {
   // `cart-button-registry.ts`; keyed by the cart-cache signature so a
   // subscribe-driven repaint can find them without walking the whole DOM.
   cartButtons: CartButtonRegistry;
+  // Live-data ⇄ DOM painter. Owns `ensureLiveData` / `refreshLiveData` /
+  // `applyLiveDataToCard`. Constructed once per mount.
+  liveDataPainter: LiveDataPainter;
+  // Cart-cache ⇄ Add button painter. Owns the lookup-and-apply path used
+  // by initial render, by post-live-data repaint, and by the cart-cache
+  // subscribe callback.
+  cartCachePainter: CartCachePainter;
+  // Inline section-detail panel orchestrator. Owns toggle / fetch + render.
+  detailController: SectionDetailController;
+  // Course-card + section-row composer. Routes click events back into the
+  // controllers above and writes results into `resultsEl`.
+  resultsRenderer: ResultsRenderer;
   // Unsubscribe from cart-cache change notifications. Called on unmount so
   // the listener doesn't leak across mount cycles.
   cartUnsubscribe: (() => void) | null;
