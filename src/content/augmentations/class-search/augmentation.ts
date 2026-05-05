@@ -5,7 +5,6 @@ import {
   readTermCart,
   recordOptimisticAdd,
   subscribe as subscribeCartCache,
-  type CartEntry,
   type CartLookupHit
 } from "../../cart-cache";
 import type { Augmentation } from "../../framework";
@@ -21,7 +20,6 @@ import {
 } from "../seats-notes/storage";
 import { toSeatsNotesResult, toFailure as seatsNotesFailure } from "../seats-notes/parser";
 import { showToast } from "../../../shared/toast";
-import type { SeatsNotesResult, SeatsNotesSuccess } from "../seats-notes/types";
 
 import {
   addSectionToCart,
@@ -49,11 +47,7 @@ import {
 } from "./catalog-cache";
 import {
   applyFilters,
-  buildCatalogIndex,
-  formatInstructors,
-  formatMeetingPattern,
-  formatRoom,
-  meetingPatternCount
+  buildCatalogIndex
 } from "./filter";
 import {
   getDataMapInfo,
@@ -65,7 +59,6 @@ import {
   type DataMapInfo,
   type PaperCourse,
   type PaperSection,
-  type PaperTermCourse,
   type SubjectInfo
 } from "./paper-data";
 import {
@@ -78,13 +71,19 @@ import {
 } from "./page-detection";
 import { STYLE_ID as CLASS_SEARCH_STYLE_ID, ensureStyles } from "./styles";
 import {
-  PAPER_DISCIPLINE_LABELS,
-  PAPER_DISTRO_LABELS,
   type MountedState,
   type ResultRow,
   type SearchFilters,
   type TabId
 } from "./types";
+import { renderMyClassesView } from "./views/my-classes-view";
+import { applyLiveDataToCard, renderCourseCard } from "./views/course-card";
+import { renderSectionRow } from "./views/section-row";
+import {
+  renderSectionDetail,
+  renderSectionDetailLoading,
+  type SectionDetailData
+} from "./views/section-detail";
 
 const ROOT_ID = "better-caesar-class-search-root";
 const TABS_ID = "better-caesar-class-search-tabs";
@@ -509,16 +508,13 @@ export class ClassSearchAugmentation implements Augmentation {
       return;
     }
 
-    if (enrolled.length > 0) {
-      state.resultsEl.appendChild(
-        this.buildMyClassesSection(state, "Enrolled", enrolled, "enrolled")
-      );
-    }
-    if (inCart.length > 0) {
-      state.resultsEl.appendChild(
-        this.buildMyClassesSection(state, "In your cart", inCart, "in-cart")
-      );
-    }
+    state.resultsEl.appendChild(
+      renderMyClassesView(doc, {
+        paperCourses: courses ?? [],
+        enrolled,
+        inCart
+      })
+    );
 
     const total = enrolled.length + inCart.length;
     this.setStatus(
@@ -528,186 +524,35 @@ export class ClassSearchAugmentation implements Augmentation {
     );
   }
 
-  private buildMyClassesSection(
-    state: MountedState,
-    label: string,
-    entries: CartEntry[],
-    status: "in-cart" | "enrolled"
-  ): HTMLElement {
-    const { doc } = state;
-    const wrap = doc.createElement("section");
-    wrap.className = "bc-cs-myclasses";
-
-    const heading = doc.createElement("div");
-    heading.className = "bc-cs-myclasses-heading";
-    const left = doc.createElement("span");
-    left.className = "bc-cs-myclasses-label";
-    left.textContent = label;
-    const count = doc.createElement("span");
-    count.className = "bc-cs-myclasses-count";
-    count.textContent = `${entries.length}`;
-    heading.append(left, count);
-    wrap.appendChild(heading);
-
-    const grid = doc.createElement("div");
-    grid.className = "bc-cs-myclasses-grid";
-    for (const entry of entries) {
-      grid.appendChild(this.buildMyClassesCard(state, entry, status));
-    }
-    wrap.appendChild(grid);
-    return wrap;
-  }
-
-  private buildMyClassesCard(
-    state: MountedState,
-    entry: CartEntry,
-    status: "in-cart" | "enrolled"
-  ): HTMLElement {
-    const { doc } = state;
-    const card = doc.createElement("div");
-    card.className = "bc-cs-myclass-card";
-    card.dataset.status = status;
-
-    const header = doc.createElement("div");
-    header.className = "bc-cs-myclass-head";
-    const id = doc.createElement("span");
-    id.className = "bc-cs-myclass-id";
-    id.textContent = formatCourseIdForDisplay(entry.subject, entry.catalog);
-    const sec = doc.createElement("span");
-    sec.className = "bc-cs-myclass-section";
-    sec.textContent = entry.sectionLabel;
-    header.append(id, sec);
-
-    const meta = doc.createElement("div");
-    meta.className = "bc-cs-myclass-meta";
-    const badge = doc.createElement("span");
-    badge.className = "bc-cs-myclass-badge";
-    badge.dataset.status = status;
-    badge.textContent = status === "enrolled" ? "Enrolled" : "In cart";
-    meta.append(badge);
-
-    // Enrich with paper.nu data when we have it loaded — title at minimum,
-    // plus instructor + meeting pattern if the section resolves cleanly.
-    const courses = state.loadedTerms.get(state.filters.termId);
-    const paper = courses ? findPaperSection(courses, entry) : null;
-    if (paper?.course.title) {
-      const title = doc.createElement("div");
-      title.className = "bc-cs-myclass-title";
-      title.textContent = paper.course.title;
-      card.append(header, title, meta);
-    } else {
-      card.append(header, meta);
-    }
-
-    if (paper?.section) {
-      const detail = doc.createElement("div");
-      detail.className = "bc-cs-myclass-detail";
-      const lines: string[] = [];
-      const patterns = meetingPatternCount(paper.section);
-      const meetings: string[] = [];
-      for (let i = 0; i < patterns; i += 1) {
-        const m = formatMeetingPattern(paper.section, i);
-        if (m) meetings.push(m);
-      }
-      if (meetings.length > 0) lines.push(meetings.join(" · "));
-      const instr = formatInstructors(paper.section);
-      if (instr) lines.push(instr);
-      if (lines.length > 0) {
-        detail.textContent = lines.join(" — ");
-        card.appendChild(detail);
-      }
-    }
-
-    return card;
-  }
-
   // ── Course card ──────────────────────────────────────────────────────────
 
   private buildCourseCard(state: MountedState, row: ResultRow): HTMLElement {
     const { doc } = state;
-    const card = doc.createElement("div");
-    card.className = "bc-cs-course";
+    const planEntry = state.catalogIndex.get(`${row.course.subject} ${row.course.catalog}`) ?? null;
 
-    const head = doc.createElement("div");
-    head.className = "bc-cs-course-head";
-    const id = doc.createElement("div");
-    id.className = "bc-cs-course-id";
-    id.textContent = formatCourseIdForDisplay(row.course.subject, row.course.catalog);
-    const title = doc.createElement("div");
-    title.className = "bc-cs-course-title";
-    title.textContent = row.course.title;
-    const planEntry = state.catalogIndex.get(`${row.course.subject} ${row.course.catalog}`);
-    const units = doc.createElement("div");
-    units.className = "bc-cs-course-units";
-    if (planEntry?.units) {
-      units.textContent = `${planEntry.units} unit${planEntry.units === "1.00" ? "" : "s"}`;
-    }
-    head.append(id, title, units);
-
-    const tags = doc.createElement("div");
-    tags.className = "bc-cs-course-tags";
-    if (row.course.school) {
-      const t = doc.createElement("span");
-      t.className = "bc-cs-tag";
-      t.dataset.kind = "school";
-      t.textContent = row.course.school;
-      tags.appendChild(t);
-    }
-    if (planEntry?.distros) {
-      for (const code of planEntry.distros) {
-        const label = PAPER_DISTRO_LABELS[code];
-        if (!label) continue;
-        const t = doc.createElement("span");
-        t.className = "bc-cs-tag";
-        t.dataset.kind = "distro";
-        t.textContent = `Dist ${code} · ${label}`;
-        tags.appendChild(t);
-      }
-    }
-    if (planEntry?.disciplines) {
-      for (const code of planEntry.disciplines) {
-        const label = PAPER_DISCIPLINE_LABELS[code];
-        if (!label) continue;
-        const t = doc.createElement("span");
-        t.className = "bc-cs-tag";
-        t.dataset.kind = "discipline";
-        t.textContent = `Disc ${code} · ${label}`;
-        tags.appendChild(t);
-      }
-    }
-
-    // Refresh button — hidden until live data is loaded. Lets the user
-    // bypass the 15-min catalog cache when they want fresher seat status.
-    const refreshBtn = doc.createElement("button");
-    refreshBtn.type = "button";
-    refreshBtn.className = "bc-cs-refresh-btn";
-    refreshBtn.dataset.role = "refresh-live";
-    refreshBtn.title = "Refresh seat status from CAESAR";
-    refreshBtn.setAttribute("aria-label", "Refresh seat status from CAESAR");
-    refreshBtn.textContent = "↻";
-    refreshBtn.style.display = "none";
-    refreshBtn.addEventListener("click", () => {
-      if (!this.consumePsCredit("refresh-live")) return;
-      void this.refreshLiveData(state, row, card, refreshBtn);
-    });
-    tags.appendChild(refreshBtn);
-
-    card.appendChild(head);
-    card.appendChild(tags);
-
-    if (planEntry?.description) {
-      const desc = doc.createElement("div");
-      desc.className = "bc-cs-course-desc";
-      desc.textContent = planEntry.description;
-      card.appendChild(desc);
-    }
-
-    const sectionList = doc.createElement("ul");
-    sectionList.className = "bc-cs-section-list";
+    const sectionRows: HTMLLIElement[] = [];
     for (const section of row.sections) {
-      sectionList.appendChild(this.buildSectionRow(state, row, section));
+      sectionRows.push(this.buildSectionRow(state, row, section));
     }
-    card.appendChild(sectionList);
+
+    // Holder pattern: `onRefresh` closes over `cardRef.el` so it can resolve
+    // the card after `renderCourseCard` returns. The callback only fires on
+    // user click, by which point we've populated cardRef.el.
+    const cardRef: { el: HTMLElement | null } = { el: null };
+    const onRefresh = (): void => {
+      if (!cardRef.el) return;
+      if (!this.consumePsCredit("refresh-live")) return;
+      const refreshBtn = cardRef.el.querySelector<HTMLButtonElement>(".bc-cs-refresh-btn");
+      if (!refreshBtn) return;
+      void this.refreshLiveData(state, row, cardRef.el, refreshBtn);
+    };
+    const card = renderCourseCard(doc, {
+      row,
+      planEntry,
+      sectionRows,
+      onRefresh
+    });
+    cardRef.el = card;
 
     // Eagerly paint live data on render. Try the in-memory cache first
     // (warmed by an earlier action this session), then fall back to the
@@ -735,86 +580,43 @@ export class ClassSearchAugmentation implements Augmentation {
 
   // ── Section row ──────────────────────────────────────────────────────────
 
-  private buildSectionRow(state: MountedState, row: ResultRow, section: PaperSection): HTMLLIElement {
+  private buildSectionRow(
+    state: MountedState,
+    row: ResultRow,
+    section: PaperSection
+  ): HTMLLIElement {
     const { doc } = state;
-    const li = doc.createElement("li");
-    li.className = "bc-cs-section";
-    li.dataset.sectionNumber = section.section;
-    li.dataset.component = section.component;
-
-    const idCell = doc.createElement("div");
-    idCell.className = "bc-cs-section-id";
-    idCell.textContent = section.section;
-
-    const compCell = doc.createElement("div");
-    compCell.className = "bc-cs-section-component";
-    compCell.textContent = section.component;
-
-    const timeCell = doc.createElement("div");
-    timeCell.className = "bc-cs-section-time";
-    const patterns = meetingPatternCount(section);
-    for (let i = 0; i < patterns; i += 1) {
-      const line = doc.createElement("div");
-      line.textContent = formatMeetingPattern(section, i);
-      timeCell.appendChild(line);
-    }
-    if (section.start_date && section.end_date) {
-      const range = doc.createElement("div");
-      range.className = "bc-cs-mute";
-      range.textContent = `${section.start_date} – ${section.end_date}`;
-      timeCell.appendChild(range);
-    }
-
-    const instructorCell = doc.createElement("div");
-    instructorCell.className = "bc-cs-section-instructor";
-    instructorCell.textContent = formatInstructors(section);
-
-    const roomCell = doc.createElement("div");
-    roomCell.className = "bc-cs-section-room";
-    const rooms = new Set<string>();
-    for (let i = 0; i < patterns; i += 1) {
-      const room = formatRoom(section, i);
-      if (room) rooms.add(room);
-    }
-    roomCell.textContent = rooms.size > 0 ? Array.from(rooms).join(" · ") : "";
-
-    const liveCell = doc.createElement("div");
-    liveCell.className = "bc-cs-section-live";
-    liveCell.dataset.role = "live";
-    liveCell.textContent = "";
-
-    const actions = doc.createElement("div");
-    actions.className = "bc-cs-section-actions";
-
-    const detailsBtn = doc.createElement("button");
-    detailsBtn.type = "button";
-    detailsBtn.className = "bc-cs-details-btn";
-    detailsBtn.textContent = "Details";
-    detailsBtn.addEventListener("click", () => {
-      void this.toggleSectionDetails(state, row, section, li, detailsBtn);
-    });
-
-    const addBtn = doc.createElement("button");
-    addBtn.type = "button";
-    addBtn.className = "bc-cs-add";
-    addBtn.textContent = "Add to cart";
-    addBtn.addEventListener("click", () => {
-      void this.handleAdd(state, row, section, addBtn);
-    });
-
     const sigKey = state.cartButtons.encodeSigKey({
       termId: state.filters.termId,
       subject: row.course.subject,
       catalog: row.course.catalog,
       sectionLabel: `${section.section}-${section.component}`
     });
-    addBtn.dataset.sigKey = sigKey;
-    state.cartButtons.register(sigKey, addBtn);
-    this.applyCartStateToButton(state, row, section, addBtn);
 
-    actions.append(detailsBtn, addBtn);
-
-    li.append(idCell, compCell, timeCell, instructorCell, roomCell, liveCell, actions);
+    // Holder so the click callbacks can find their own row after render —
+    // the row needs its own ref to pass to `toggleSectionDetails`.
+    const liRef: { el: HTMLLIElement | null } = { el: null };
+    const li = renderSectionRow(doc, {
+      section,
+      sigKey,
+      registerAddButton: (button) => {
+        state.cartButtons.register(sigKey, button);
+        this.applyCartStateToButton(state, row, section, button);
+      },
+      onAddToCart: () => {
+        if (!liRef.el) return;
+        const addBtn = liRef.el.querySelector<HTMLButtonElement>(".bc-cs-add");
+        if (addBtn) void this.handleAdd(state, row, section, addBtn);
+      },
+      onToggleDetails: () => {
+        if (!liRef.el) return;
+        const detailsBtn = liRef.el.querySelector<HTMLButtonElement>(".bc-cs-details-btn");
+        if (detailsBtn) {
+          void this.toggleSectionDetails(state, row, section, liRef.el, detailsBtn);
+        }
+      }
+    });
+    liRef.el = li;
     return li;
   }
 
@@ -958,40 +760,14 @@ export class ClassSearchAugmentation implements Augmentation {
     card: HTMLElement,
     result: CaesarSearchResult
   ): void {
-    // Live data exists for this course → reveal the refresh affordance
-    // (kept hidden until first paint so cold cards aren't cluttered).
-    const refreshBtn = card.querySelector<HTMLButtonElement>(".bc-cs-refresh-btn");
-    if (refreshBtn) refreshBtn.style.display = "";
-    const matchingGroup = matchCaesarGroup(result.groups, row.course.catalog);
-    const sectionLis = card.querySelectorAll<HTMLLIElement>("li.bc-cs-section");
-
-    sectionLis.forEach((li) => {
-      const live = li.querySelector<HTMLElement>("[data-role='live']");
-      if (!live) return;
-      const number = li.dataset.sectionNumber ?? "";
-      const component = li.dataset.component ?? "";
-      const caesar = matchingGroup ? matchCaesarSection(matchingGroup, number, component) : null;
-
-      live.innerHTML = "";
-      if (!caesar) {
-        live.textContent = matchingGroup ? "(no CAESAR row)" : "(course not on CAESAR)";
-        live.dataset.tone = "muted";
-        return;
-      }
-
-      const status = state.doc.createElement("span");
-      status.className = "bc-cs-status-pill";
-      status.dataset.status = caesar.status;
-      status.textContent = caesar.status;
-      live.appendChild(status);
-
-      // Live data resolved this section's class number — re-evaluate the
-      // cart-cache state with the canonical key so the badge reflects any
-      // hits that signature-only matching missed. The class number itself
-      // is internal-only and never surfaced to the user.
+    const touched = applyLiveDataToCard(card, result, row.course.catalog);
+    // Live data resolved each touched section's class number — re-evaluate
+    // its cart-cache state with the canonical key so the badge reflects
+    // any hits that signature-only matching missed.
+    for (const li of touched) {
       const addBtn = li.querySelector<HTMLButtonElement>(".bc-cs-add");
       if (addBtn) this.applyCartStateBySigKey(state, addBtn);
-    });
+    }
   }
 
   // ── Per-section detail (seats / notes / requirements) ────────────────────
@@ -1103,73 +879,31 @@ export class ClassSearchAugmentation implements Augmentation {
   }
 
   private renderDetailLoading(state: MountedState, detailRow: HTMLLIElement): void {
-    const { doc } = state;
     detailRow.innerHTML = "";
-    const wrap = doc.createElement("div");
-    wrap.className = "bc-cs-detail";
-    const spinner = doc.createElement("span");
-    spinner.className = "bc-cs-spinner";
-    const text = doc.createElement("span");
-    text.textContent = "Fetching seats and notes from CAESAR…";
-    text.style.color = "var(--bc-text-muted)";
-    wrap.append(spinner, text);
-    detailRow.appendChild(wrap);
+    detailRow.appendChild(renderSectionDetailLoading(state.doc));
   }
 
   private renderDetailRow(
     state: MountedState,
     detailRow: HTMLLIElement,
     caesar: CaesarSection,
-    result: SeatsNotesResult,
+    result: SectionDetailData,
     fetchedAt: number,
     onRefresh: () => void
   ): void {
-    const { doc } = state;
     detailRow.innerHTML = "";
-    const wrap = doc.createElement("div");
-    wrap.className = "bc-cs-detail";
-
-    const header = doc.createElement("div");
-    header.className = "bc-cs-detail-header";
-    const headerBits: string[] = [];
-    if (caesar.sectionLabel) headerBits.push(`<strong>${escapeHtml(caesar.sectionLabel)}</strong>`);
-    if (caesar.daysTime) headerBits.push(escapeHtml(caesar.daysTime));
-    if (caesar.room) headerBits.push(escapeHtml(caesar.room));
-    header.innerHTML = headerBits.join(" · ");
-    wrap.appendChild(header);
-
-    if (!result.ok) {
-      const err = doc.createElement("div");
-      err.className = "bc-cs-detail-error";
-      err.textContent = result.error ?? "Couldn't load CAESAR detail.";
-      wrap.appendChild(err);
-      wrap.appendChild(buildDetailFooter(doc, fetchedAt, onRefresh));
-      detailRow.appendChild(wrap);
-      return;
-    }
-
-    const stats = doc.createElement("div");
-    stats.className = "bc-cs-detail-stats";
-    appendStat(doc, stats, "Capacity", result.classCapacity);
-    appendStat(doc, stats, "Enrolled", result.enrollmentTotal);
-    appendStat(doc, stats, "Open seats", result.availableSeats);
-    appendStat(doc, stats, "Wait cap", result.waitListCapacity);
-    appendStat(doc, stats, "Wait total", result.waitListTotal);
-    if (stats.children.length > 0) wrap.appendChild(stats);
-
-    appendDetailBlock(doc, wrap, "Class Attributes", result.classAttributes);
-    appendDetailBlock(doc, wrap, "Enrollment Requirements", result.enrollmentRequirements);
-    appendDetailBlock(doc, wrap, "Class Notes", result.classNotes);
-
-    if (result.classCapacity === null && hasNoEnrichedFields(result)) {
-      const note = doc.createElement("div");
-      note.className = "bc-cs-detail-note";
-      note.textContent = "CAESAR did not return a detail panel for this section. Status from search-results page is shown above.";
-      wrap.appendChild(note);
-    }
-
-    wrap.appendChild(buildDetailFooter(doc, fetchedAt, onRefresh));
-    detailRow.appendChild(wrap);
+    detailRow.appendChild(
+      renderSectionDetail(state.doc, {
+        header: {
+          sectionLabel: caesar.sectionLabel,
+          daysTime: caesar.daysTime,
+          room: caesar.room
+        },
+        detail: result,
+        fetchedAt,
+        onRefresh
+      })
+    );
   }
 
   // ── Add to cart ──────────────────────────────────────────────────────────
@@ -1573,41 +1307,6 @@ function isGradCatalog(bareCatalog: string): boolean {
   return Number.isFinite(num) && num >= 400;
 }
 
-// Look up the paper.nu course + section that a cart entry points to so
-// the "Your classes" cards can render title + instructor + meetings.
-// Tolerates paper.nu's catalog ("111") vs CAESAR's ("111-0") drift the
-// same way `matchCaesarGroup` does.
-function findPaperSection(
-  courses: PaperTermCourse[],
-  entry: CartEntry
-): { course: PaperTermCourse; section: PaperSection } | null {
-  const wantSubject = entry.subject;
-  const wantCatalog = entry.catalog.toLowerCase();
-  const wantStripped = wantCatalog.replace(/-0$/, "");
-  const [wantSecNum, wantComp] = entry.sectionLabel.split("-");
-  const normSec = (wantSecNum ?? "").replace(/^0+/, "") || "0";
-  const normComp = (wantComp ?? "").toUpperCase();
-
-  for (const course of courses) {
-    if (course.subject !== wantSubject) continue;
-    const have = course.catalog.toLowerCase();
-    if (
-      have !== wantCatalog &&
-      have !== wantStripped &&
-      have.replace(/-0$/, "") !== wantStripped
-    ) {
-      continue;
-    }
-    for (const section of course.sections) {
-      const sNum = (section.section ?? "").replace(/^0+/, "") || "0";
-      if (sNum !== normSec) continue;
-      if ((section.component ?? "").toUpperCase() !== normComp) continue;
-      return { course, section };
-    }
-  }
-  return null;
-}
-
 // Decodes a `${termId}|${subject}|${bareCatalog}` live-cache key — the
 // inverse of `liveCacheKey`. Used by the LiveDataStore deps so the store
 // itself can stay generic.
@@ -1621,95 +1320,6 @@ function parseLiveCacheKey(
     subject: parts[1]!,
     bareCatalog: parts[2]!
   };
-}
-
-function buildDetailFooter(
-  doc: Document,
-  fetchedAt: number,
-  onRefresh: () => void
-): HTMLElement {
-  const footer = doc.createElement("div");
-  footer.className = "bc-cs-detail-footer";
-
-  const stamp = doc.createElement("span");
-  stamp.className = "bc-cs-detail-stamp";
-  stamp.textContent = `Loaded ${formatRelativeTime(fetchedAt)}`;
-  stamp.title = new Date(fetchedAt).toLocaleString();
-  footer.appendChild(stamp);
-
-  const refresh = doc.createElement("button");
-  refresh.type = "button";
-  refresh.className = "bc-cs-detail-refresh";
-  refresh.textContent = "Refresh";
-  refresh.addEventListener("click", () => {
-    refresh.disabled = true;
-    refresh.textContent = "Refreshing…";
-    void Promise.resolve(onRefresh());
-  });
-  footer.appendChild(refresh);
-
-  return footer;
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const deltaSec = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
-  if (deltaSec < 5) return "just now";
-  if (deltaSec < 60) return `${deltaSec}s ago`;
-  const deltaMin = Math.round(deltaSec / 60);
-  if (deltaMin < 60) return `${deltaMin}m ago`;
-  const deltaHr = Math.round(deltaMin / 60);
-  if (deltaHr < 24) return `${deltaHr}h ago`;
-  const deltaDay = Math.round(deltaHr / 24);
-  return `${deltaDay}d ago`;
-}
-
-function appendStat(
-  doc: Document,
-  parent: HTMLElement,
-  label: string,
-  value: string | null
-): void {
-  if (!value) return;
-  const cell = doc.createElement("div");
-  cell.className = "bc-cs-stat";
-  const v = doc.createElement("div");
-  v.className = "bc-cs-stat-value";
-  v.textContent = value;
-  const l = doc.createElement("div");
-  l.className = "bc-cs-stat-label";
-  l.textContent = label;
-  cell.append(v, l);
-  parent.appendChild(cell);
-}
-
-function appendDetailBlock(
-  doc: Document,
-  parent: HTMLElement,
-  label: string,
-  text: string | null
-): void {
-  if (!text) return;
-  const block = doc.createElement("div");
-  block.className = "bc-cs-detail-block";
-  const heading = doc.createElement("div");
-  heading.className = "bc-cs-detail-block-label";
-  heading.textContent = label;
-  const body = doc.createElement("div");
-  body.className = "bc-cs-detail-block-body";
-  body.textContent = text;
-  block.append(heading, body);
-  parent.appendChild(block);
-}
-
-function hasNoEnrichedFields(result: SeatsNotesSuccess): boolean {
-  return (
-    result.classCapacity === null &&
-    result.enrollmentTotal === null &&
-    result.availableSeats === null &&
-    result.classAttributes === null &&
-    result.enrollmentRequirements === null &&
-    result.classNotes === null
-  );
 }
 
 function ensureRoot(doc: Document): HTMLDivElement {
