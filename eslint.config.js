@@ -1,12 +1,17 @@
-// ESLint v9 flat config. Three layers:
+// ESLint v9 flat config. Four layers:
 //   1. typescript-eslint recommended (parsing + sane defaults)
 //   2. project-wide rules: no-empty (no silent catches), no-empty-function,
 //      no-console (only log.ts, background.ts, build-config.d.ts are exempt)
 //   3. raw color-literal ban for src/content/** (except design/tokens.ts,
 //      which legitimately defines them).
+//   4. bc-rules/no-raw-action-button — AST replacement for the legacy regex
+//      script. Enforces createActionButton/bindActionButton routing for every
+//      async-action button. See eslint-rules/no-raw-action-button.js for the
+//      pattern catalogue and limitations.
 import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import noOnlyTests from "eslint-plugin-no-only-tests";
+import bcRules from "./eslint-rules/index.js";
 
 // Hex color = exactly 3, 4, 6, or 8 hex chars. Restricting to those lengths
 // avoids false-positives like `#1234` in user-facing text.
@@ -41,7 +46,8 @@ export default [
   ...tseslint.configs.recommended,
   {
     plugins: {
-      "no-only-tests": noOnlyTests
+      "no-only-tests": noOnlyTests,
+      "bc-rules": bcRules
     },
     languageOptions: {
       globals: {
@@ -135,6 +141,7 @@ export default [
       "no-empty": ["error", { allowEmptyCatch: false }],
       "@typescript-eslint/no-empty-function": "error",
       "no-only-tests/no-only-tests": "error",
+      "bc-rules/no-raw-action-button": "error",
       // Console use is forbidden in production code; specific files unblock it.
       "no-console": "error",
       // Tame the most common churn-noise. None of these block correctness.

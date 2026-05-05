@@ -79,8 +79,11 @@ const DEFAULT_SUCCESS_FLASH_MS = 2000;
 
 /**
  * Marker attached to every button created via this factory. The
- * lint:buttons script greps for `[data-bc-action-button]` to allowlist
- * a button as the safe path.
+ * `bc-rules/no-raw-action-button` ESLint rule (eslint-rules/) checks for
+ * `[ACTION_BUTTON_MARKER_ATTR]: "controller"` on raw `el(...)` button calls
+ * to recognize the controller-managed exception, and refuses raw
+ * `setAttribute("data-bc-action-button", …)` stamps in files that don't
+ * import this factory.
  */
 export const ACTION_BUTTON_MARKER_ATTR = "data-bc-action-button";
 

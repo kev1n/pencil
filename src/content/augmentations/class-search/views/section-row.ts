@@ -117,9 +117,11 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
   // their full state machine — sync-disable on click, re-entry guard,
   // multi-step pickers, optimistic cart-cache writes. Those controllers
   // are exhaustively tested. We mark the elements with the action-button
-  // attribute so lint:buttons recognizes them as having gone through an
-  // enforced click-once contract and the default `[data-state="…"]`
-  // styling from `framework/styles/action-button.ts` applies.
+  // attribute and the formalized "controller" sentinel value so the
+  // `bc-rules/no-raw-action-button` ESLint rule recognizes them as the
+  // controller-managed exception (rather than the factory's "1" output)
+  // and the default `[data-state="…"]` styling from
+  // `framework/styles/action-button.ts` applies.
   const detailsBtn = el(doc, "button", {
     class: "bc-cs-details-btn",
     text: "Details",

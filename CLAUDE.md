@@ -23,8 +23,7 @@ npm run build:chrome   # Chrome only
 npm run build:firefox  # Firefox only
 npm run dev            # Watch mode (Chrome)
 npm run typecheck      # tsc --noEmit
-npm run lint           # eslint src + lint:buttons — must be 0 errors
-npm run lint:buttons   # action-button enforcement (no raw async click handlers)
+npm run lint           # eslint src eslint-rules — must be 0 errors
 npm run test           # vitest run (jsdom env)
 npm run test:watch     # vitest watch mode
 ```
@@ -59,9 +58,11 @@ Every async-action button (one whose click triggers a network request, computati
 - AbortSignal plumbed into `onClick`, fires when `destroy()` runs mid-flight.
 - Result-driven state machine: `void` → idle, `{ kind: "success", sticky: true }` → terminal locked, `{ kind: "success" }` → flash then idle, `{ kind: "error", retryable }` → re-enabled for retry, thrown error → retryable error.
 
-Pure-DOM buttons (Cancel, Close, Toggle visibility) can stay as `el(doc, "button", ...)` — they don't have async work to gate. Only buttons whose click handler is `async` (or returns a Promise) need the factory.
+Pure-DOM buttons (Cancel, Close, Toggle visibility) can stay as `el(doc, "button", ...)` — they don't have async work to gate. Only buttons whose click handler is `async` (or returns a Promise) need the factory. Fire-and-forget storage writes can opt out by wrapping the call in `void` (e.g. `() => void persistDismissal()`); the lint rule treats `void` as the documented escape hatch.
 
-The `npm run lint:buttons` script (`scripts/check-action-buttons.mjs`, wired into `npm run lint`) flags raw async click handlers on buttons that don't import `createActionButton`. Adding a new button that does network/storage/multi-step work without going through the factory will fail CI.
+A few raw `<button>` elements stay outside the factory because a dedicated controller owns the full state machine externally (today: `class-search/views/section-row.ts` Add-to-cart + Details). Those buttons must carry `[ACTION_BUTTON_MARKER_ATTR]: "controller"` so the lint rule recognizes them as the formalized controller-managed exception. The factory's own output uses the value `"1"`.
+
+Enforcement lives in the local ESLint plugin under `eslint-rules/` (rule `bc-rules/no-raw-action-button`). It's an AST rule wired into `npm run lint`. It catches `addEventListener("click", async …)`, `.onclick = async …`, `el(doc, "button", { on: { click: async … } })`, the same patterns with bodies that contain `await` or top-level `.then`/`.catch`/`.finally` chains, and raw `setAttribute("data-bc-action-button", …)` stamps in files that don't import the factory. See the rule's header comment for the full pattern catalogue and known limitations. Adding a new button that does network/storage/multi-step work without going through the factory will fail CI.
 
 ## Pre-theme gate tokens
 
