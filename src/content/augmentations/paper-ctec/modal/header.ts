@@ -1,7 +1,7 @@
 import { html, type TemplateResult } from "lit-html";
 
 import type { ModalDisplayData } from "../modal-data";
-import { attachTooltip, preventAndStop, stopPropagation } from "../ui-shared";
+import { preventAndStop, stopPropagation } from "../ui-shared";
 import type { Section } from "./section";
 import type {
   AnalyticsModalCallbacks,
@@ -22,7 +22,7 @@ export type HeaderSectionProps = {
 // optional refresh-flash banner, optional tab strip. The tab strip only
 // appears when data is loaded — otherwise the body shows a status card.
 export const HeaderSection: Section<HeaderSectionProps> = {
-  render({ doc, input, state, callbacks }) {
+  render({ doc: _doc, input, state, callbacks }) {
     return html`<header class="bc-paper-ctec-modal-header">
       <button
         type="button"
@@ -53,7 +53,7 @@ export const HeaderSection: Section<HeaderSectionProps> = {
               : ""}
           </div>
         </div>
-        ${renderActions(doc, input, callbacks)}
+        ${renderActions(input, callbacks)}
       </div>
       ${input.refreshFlash ? renderRefreshFlash(input.refreshFlash, callbacks) : ""}
       ${input.data
@@ -63,82 +63,78 @@ export const HeaderSection: Section<HeaderSectionProps> = {
   }
 };
 
+const REFRESH_TOOLTIP =
+  "Use this when a new round of CTECs comes out each quarter. Asks Northwestern for any newly-published evaluations for this course and adds them to your view. Runs in the background — your existing data stays visible the whole time.";
+
 // Right side: Refresh + Load-more + Open-original-report. These are the
 // controls that used to live in the side panel; they're now part of the
-// modal header so the analytics view is self-contained. Built imperatively
-// so we can use attachTooltip (DOM-attached helper) on the refresh button.
+// modal header so the analytics view is self-contained. Templated via
+// lit-html — the refresh-button tooltip is just a styled `<span>` child of
+// the host (the tip-host class is what styles.ts reads to render hover
+// behavior), so it inlines cleanly.
 function renderActions(
-  doc: Document,
   input: AnalyticsModalInput,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult | string {
-  const children: HTMLElement[] = [];
+  const showLoadMore = input.canLoadMore || input.loading;
+  const showRefresh = input.canRefresh;
+  const reportUrl = input.data?.course.reportUrl;
 
-  if (input.canLoadMore || input.loading) {
-    const loadMore = doc.createElement("button");
-    loadMore.type = "button";
-    loadMore.className = "bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-loadmore";
-    loadMore.disabled = input.loading || !input.canLoadMore;
-    const batch =
-      input.remainingTerms > 0
-        ? Math.min(input.loadMoreBatchSize, input.remainingTerms)
-        : input.loadMoreBatchSize;
-    loadMore.textContent = input.loading
-      ? `Loading ${batch}…`
-      : `Load ${batch} more term${batch === 1 ? "" : "s"}${
-          input.remainingTerms > 0 ? ` (${input.remainingTerms} left)` : ""
-        }`;
-    loadMore.title = `${input.parsedTermCount} loaded · ${input.remainingTerms} remaining. CTEC term reports load on demand to keep traffic on Northwestern's servers low.`;
-    loadMore.addEventListener("click", (event) => {
-      preventAndStop(event);
-      if (loadMore.disabled) return;
-      callbacks.onLoadMore();
-    });
-    children.push(loadMore);
-  }
+  if (!showLoadMore && !showRefresh && !reportUrl) return "";
 
-  if (input.canRefresh) {
-    const refresh = doc.createElement("button");
-    refresh.type = "button";
-    refresh.className = "bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-refresh";
-    refresh.disabled = input.backgroundRefreshing;
-    const refreshLabel = doc.createElement("span");
-    refreshLabel.textContent = input.backgroundRefreshing
-      ? "Checking Northwestern…"
-      : "↻ Check for new CTECs";
-    refresh.append(refreshLabel);
-    const refreshInfo = doc.createElement("span");
-    refreshInfo.className = "bc-paper-ctec-modal-info-icon";
-    refreshInfo.setAttribute("aria-hidden", "true");
-    refreshInfo.append(doc.createTextNode("i"));
-    refresh.append(doc.createTextNode(" "), refreshInfo);
-    attachTooltip(
-      doc,
-      refresh,
-      "Use this when a new round of CTECs comes out each quarter. Asks Northwestern for any newly-published evaluations for this course and adds them to your view. Runs in the background — your existing data stays visible the whole time.",
-      { align: "right" }
-    );
-    refresh.addEventListener("click", (event) => {
-      preventAndStop(event);
-      if (refresh.disabled) return;
-      callbacks.onRefresh();
-    });
-    children.push(refresh);
-  }
+  const batch =
+    input.remainingTerms > 0
+      ? Math.min(input.loadMoreBatchSize, input.remainingTerms)
+      : input.loadMoreBatchSize;
+  const loadMoreLabel = input.loading
+    ? `Loading ${batch}…`
+    : `Load ${batch} more term${batch === 1 ? "" : "s"}${
+        input.remainingTerms > 0 ? ` (${input.remainingTerms} left)` : ""
+      }`;
+  const loadMoreTitle = `${input.parsedTermCount} loaded · ${input.remainingTerms} remaining. CTEC term reports load on demand to keep traffic on Northwestern's servers low.`;
+  const loadMoreDisabled = input.loading || !input.canLoadMore;
 
-  if (input.data?.course.reportUrl) {
-    const link = doc.createElement("a");
-    link.className = "bc-paper-ctec-modal-report-link";
-    link.href = input.data.course.reportUrl;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "↗ Open original CTEC report";
-    link.addEventListener("click", stopPropagation);
-    children.push(link);
-  }
-
-  if (children.length === 0) return "";
-  return html`<div class="bc-paper-ctec-modal-actions">${children}</div>`;
+  return html`<div class="bc-paper-ctec-modal-actions">
+    ${showLoadMore
+      ? html`<button
+          type="button"
+          class="bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-loadmore"
+          ?disabled=${loadMoreDisabled}
+          title=${loadMoreTitle}
+          @click=${(event: Event) => {
+            preventAndStop(event);
+            if (loadMoreDisabled) return;
+            callbacks.onLoadMore();
+          }}
+        >${loadMoreLabel}</button>`
+      : ""}
+    ${showRefresh
+      ? html`<button
+          type="button"
+          class="bc-paper-ctec-modal-action-btn bc-paper-ctec-modal-action-refresh bc-paper-ctec-modal-tip-host"
+          ?disabled=${input.backgroundRefreshing}
+          @click=${(event: Event) => {
+            preventAndStop(event);
+            if (input.backgroundRefreshing) return;
+            callbacks.onRefresh();
+          }}
+        ><span
+          >${input.backgroundRefreshing
+            ? "Checking Northwestern…"
+            : "↻ Check for new CTECs"}</span
+          > <span class="bc-paper-ctec-modal-info-icon" aria-hidden="true">i</span
+          ><span class="bc-paper-ctec-modal-tip is-right">${REFRESH_TOOLTIP}</span></button>`
+      : ""}
+    ${reportUrl
+      ? html`<a
+          class="bc-paper-ctec-modal-report-link"
+          href=${reportUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          @click=${stopPropagation}
+        >↗ Open original CTEC report</a>`
+      : ""}
+  </div>`;
 }
 
 // Persistent header note clarifying what trend deltas mean and the project's

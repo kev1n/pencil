@@ -5,13 +5,10 @@
 export { scaleLinear, niceStep, PERCENT_AXIS_STEPS } from "./scale";
 export {
   buildLinePath,
-  curveCatmullRom,
-  line,
   type Point,
   type BuildLinePathOptions,
   type BuildLinePathResult
 } from "./path";
-export { extent, bisector, bin } from "./array";
 export {
   appendYAxis,
   appendXAxis,

@@ -345,6 +345,14 @@ function renderKpiStrip(
   </div>`;
 }
 
+// Returns an imperative HTMLElement (not a TemplateResult) because the card's
+// children are themselves imperative artifacts: `renderSparkline` paints an
+// SVG via the chart-kit primitives, `renderKpiPill` builds an HTMLElement
+// (CSS custom properties + `createRatingStars` SVG composition), and
+// `appendBandLabel` mutates the host. Wrapping that mix in lit-html would
+// just splat all three back as `${child}` interpolations with no real win.
+// The caller (`renderKpiStrip`) splats the returned button via
+// `${group.cards}` inside its lit-html template.
 function renderKpiCard(
   doc: Document,
   kind: ModalMetricKind,
@@ -401,6 +409,11 @@ function renderKpiCard(
 // most-recent N terms (matches the chip aggregation), plus a sparkline
 // of the same per-term average so the trend is visible at a glance.
 // Clicking switches the body to the global view.
+//
+// Imperative for the same reason as `renderKpiCard` above (sparkline SVG +
+// pill + band-label all build DOM directly). Additionally calls
+// `attachTooltip` on the info icon — that helper writes a tip-host class
+// + appends a tip span, both of which need a live element to bind to.
 function renderGlobalKpiCard(
   doc: Document,
   data: ModalDisplayData,

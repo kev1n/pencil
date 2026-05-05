@@ -190,6 +190,39 @@ function renderTopicSentimentBar(
   </div>`;
 }
 
+// Host elements (count label + comment list) are persisted across modal
+// syncs via this per-document cache. ModalController.sync() runs on every
+// paper.nu mutation; without the cache each render would create fresh
+// hosts and lit-html's `${node}` interpolation would replace the
+// previously-mounted nodes (visible flicker + event-handler churn on the
+// "Show more" button). The `signature` field gates the imperative
+// `renderCommentList` rebuild so unrelated syncs (background refresh,
+// schedule mutation, …) don't repaint the list either.
+const commentsHostCache = new WeakMap<
+  Document,
+  { list: HTMLElement; count: HTMLElement; signature: string }
+>();
+
+// Fingerprint of everything `renderCommentList` branches on. Comment count
+// + term count proxies for "underlying CTEC data changed"; the state/query
+// pieces cover filters, sort, search, and pagination.
+function commentsListSignature(
+  data: ModalDisplayData,
+  state: AnalyticsModalState,
+  query: string
+): string {
+  return [
+    data.comments.length,
+    data.terms.length,
+    state.commentsSentimentFilter,
+    state.commentsActiveTopic ?? "",
+    state.commentsTermFilter,
+    state.commentsSortBy,
+    state.commentsVisibleCount,
+    query
+  ].join("\x1f");
+}
+
 function renderCommentsMain(
   doc: Document,
   data: ModalDisplayData,
@@ -198,14 +231,23 @@ function renderCommentsMain(
 ): TemplateResult {
   // Imperative comment list + count: keystroke-driven local re-renders avoid
   // the cost of running the full modal sync on every input event. lit-html
-  // splats the host elements via ${} interpolation, then we mount the
-  // comment-list view into them after they're attached.
-  const commentsList = doc.createElement("div");
-  commentsList.className = "bc-paper-ctec-modal-comments-list";
-  const countLabel = doc.createElement("div");
-  countLabel.className = "bc-paper-ctec-modal-comments-count";
+  // splats the host elements via ${} interpolation; the host cache keeps the
+  // same node identity across syncs so lit-html's diff doesn't replace them.
+  let cache = commentsHostCache.get(doc);
+  if (!cache) {
+    const list = doc.createElement("div");
+    list.className = "bc-paper-ctec-modal-comments-list";
+    const count = doc.createElement("div");
+    count.className = "bc-paper-ctec-modal-comments-count";
+    cache = { list, count, signature: "" };
+    commentsHostCache.set(doc, cache);
+  }
+  const { list: commentsList, count: countLabel } = cache;
 
   const draw = (query: string) => {
+    const sig = commentsListSignature(data, state, query);
+    if (cache!.signature === sig) return;
+    cache!.signature = sig;
     renderCommentList(commentsList, countLabel, data, state, query);
   };
   draw(state.commentsQuery);
@@ -384,6 +426,13 @@ function renderCommentList(
       );
       if (nextRendered >= filtered.length) more.remove();
       else renderMoreLabel(nextRendered);
+      // Patch the cached signature to match the new visibleCount so the
+      // next modal sync sees a no-op draw() instead of rebuilding from
+      // scratch (which would discard the just-appended cards).
+      const cached = commentsHostCache.get(doc);
+      if (cached) {
+        cached.signature = commentsListSignature(data, state, query);
+      }
     });
     container.append(more);
   }

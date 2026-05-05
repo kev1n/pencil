@@ -1,9 +1,9 @@
-// Path/curve primitives. Re-exports d3-shape essentials and provides the
-// shared Catmull-Rom-to-Bezier helper used by both the chart-histogram
-// distribution overlay and the hours-density area curve.
+// Path/curve primitives: the shared Catmull-Rom-to-Bezier helper used by
+// both the chart-histogram distribution overlay and the hours-density area
+// curve.
 //
 // We use the manual Catmull-Rom formula here (uniform parameterization,
-// alpha=0) rather than d3's `curveCatmullRom` because:
+// alpha=0) rather than reaching for d3-shape's `curveCatmullRom` because:
 //   1. The two existing chart files are byte-identical in their math, so
 //      lifting the formula is a strict dedupe with zero visual delta.
 //   2. The legacy code anchors the area's first/last segment to the
@@ -11,10 +11,10 @@
 //      that around d3's curve would leak more state through callbacks
 //      than the current 12-line helper costs.
 //
-// d3-shape's `line` and `curveCatmullRom` are still re-exported for
-// callers that want a plain polyline through a series.
-
-export { line, curveCatmullRom } from "d3-shape";
+// d3-shape was previously re-exported as an escape hatch (`line`,
+// `curveCatmullRom`) but nothing in production used it, so the dependency
+// has been dropped. Anyone tempted to "fix" this with a d3 call should
+// re-add the dep deliberately rather than silently leaning on a re-export.
 
 export type Point = [number, number];
 
