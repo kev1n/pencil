@@ -1,16 +1,18 @@
 import {
-  applyResponseState,
-  buildActionParams,
   buildSubjectResultsUrl,
   collectClassRowsFromText,
   collectCourseRows,
   dedupeEntries,
   extractBlueraUrl,
-  extractPostUrl,
-  normalizeSearch,
-  resolveActionUrl,
-  serializeForm
+  normalizeSearch
 } from "../ctec-navigation/helpers";
+import {
+  applyResponseState,
+  buildActionParams,
+  serializeForm
+} from "../../peoplesoft/params";
+import { extractPostUrl } from "../../peoplesoft/parsers";
+import { resolveActionUrl } from "../../peoplesoft/shared";
 import { readSubjectIndex, writeSubjectIndex } from "../ctec-navigation/storage";
 import type {
   CtecCourseDiscoveryState,

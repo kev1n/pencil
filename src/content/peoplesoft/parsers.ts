@@ -1,5 +1,5 @@
 import type { LookupClassSuccess } from "../../shared/messages";
-import { decodeEntities } from "./shared";
+import { decodeEntities, resolveActionUrl } from "./shared";
 
 export function buildLookupSummary(
   requestedClassNumber: string,
@@ -67,5 +67,35 @@ export function extractErrorMessage(responseText: string): string | null {
   if (!raw) return null;
   const text = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   return decodeEntities(text);
+}
+
+export function extractPostUrl(responseText: string): string | null {
+  const postUrl = responseText.match(/postUrl_win0\s*=\s*'([^']+)'/i)?.[1] ?? null;
+  if (!postUrl) return null;
+  return resolveActionUrl(postUrl);
+}
+
+export function extractActionIds(responseText: string, prefix: "MYLINK" | "MYLINK1"): string[] {
+  const pattern = new RegExp(
+    `submitAction_win0\\(document\\.win0,'(${prefix}\\$\\d+)\\s*'\\)`,
+    "gi"
+  );
+  const unique = new Set<string>();
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(responseText)) !== null) {
+    const actionId = (match[1] ?? "").trim();
+    if (!actionId) continue;
+    unique.add(actionId);
+  }
+
+  return Array.from(unique);
+}
+
+export function extractFieldValue(responseText: string, id: string): string {
+  const escapedId = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp(`id=['"]${escapedId}\\s*['"][\\s\\S]*?>\\s*([^<]+?)\\s*<`, "i");
+  const value = pattern.exec(responseText)?.[1] ?? "";
+  return decodeEntities(value);
 }
 

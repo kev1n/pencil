@@ -85,3 +85,90 @@ function setAllFieldsWithPrefix(
     params.set(key, value);
   }
 }
+
+export function buildActionParams(baseParams: URLSearchParams, actionId: string): URLSearchParams {
+  const params = new URLSearchParams(baseParams.toString());
+  params.set("ICAJAX", "1");
+  params.set("ICNAVTYPEDROPDOWN", "0");
+  params.set("ICType", "Panel");
+  params.set("ICElementNum", "0");
+  params.set("ICAction", actionId);
+  params.set("ICModelCancel", "0");
+  params.set("ICXPos", "0");
+  params.set("ICYPos", "0");
+  params.set("ResponsetoDiffFrame", "-1");
+  params.set("TargetFrameName", "None");
+  params.set("FacetPath", "None");
+  params.set("PrmtTbl", "");
+  params.set("PrmtTbl_fn", "");
+  params.set("PrmtTbl_fv", "");
+  params.set("TA_SkipFldNms", "");
+  params.set("ICFocus", "");
+  params.set("ICSaveWarningFilter", "0");
+  params.set("ICChanged", "0");
+  params.set("ICSkipPending", "0");
+  params.set("ICAutoSave", "0");
+  params.set("ICResubmit", "0");
+  params.set("ICActionPrompt", "false");
+  params.set("ICFind", "");
+  params.set("ICAddCount", "");
+  params.set("ICAppClsData", "");
+  return params;
+}
+
+export function applyResponseState(baseParams: URLSearchParams, responseText: string): URLSearchParams {
+  const params = new URLSearchParams(baseParams.toString());
+
+  const parsedStateNum = responseText.match(/ICStateNum\.value\s*=\s*'?(\d+)'?/i)?.[1] ?? null;
+  if (parsedStateNum) {
+    params.set("ICStateNum", parsedStateNum);
+  }
+
+  const hiddenValues = extractHiddenInputs(responseText);
+  hiddenValues.forEach((value, key) => {
+    params.set(key, value);
+  });
+
+  return params;
+}
+
+export function serializeForm(form: HTMLFormElement): URLSearchParams {
+  const params = new URLSearchParams();
+
+  for (const element of Array.from(form.elements)) {
+    if (
+      !(
+        element instanceof HTMLInputElement ||
+        element instanceof HTMLSelectElement ||
+        element instanceof HTMLTextAreaElement
+      )
+    ) {
+      continue;
+    }
+
+    if (!element.name || element.disabled) continue;
+
+    if (element instanceof HTMLInputElement) {
+      const type = element.type.toLowerCase();
+      if (type === "button" || type === "submit" || type === "reset" || type === "image") continue;
+
+      if (type === "radio") {
+        if (element.checked) params.set(element.name, element.value);
+        continue;
+      }
+
+      if (type === "checkbox") {
+        if (element.checked) {
+          params.set(element.name, element.value || "Y");
+        } else if (element.name.includes("$chk")) {
+          params.set(element.name, "");
+        }
+        continue;
+      }
+    }
+
+    params.set(element.name, element.value ?? "");
+  }
+
+  return params;
+}
