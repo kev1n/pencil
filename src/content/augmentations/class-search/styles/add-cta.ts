@@ -1,4 +1,5 @@
-// Primary "Add to cart" CTA + its loading / success / error / disabled states.
+// Primary "Add to cart" CTA + its loading / success / error / disabled +
+// persistent cart-state (in-cart / enrolled) styles.
 export function addCtaStyles(): string {
   return `
     /* ── Add-to-cart: primary CAESAR CTA ────────────────────────────────── */
@@ -39,6 +40,30 @@ export function addCtaStyles(): string {
     .bc-cs-add[data-state="error"] {
       background: var(--bc-color-danger);
       border-color: var(--bc-color-danger);
+    }
+    /* Persistent cart-state badges — match the canonical "mini viewer"
+       (.bc-cs-myclass-badge in styles/results.ts) so the section-row Add
+       button reads as the same status pill the user already sees in the
+       "Your classes" overview: subtle paper tint for in-cart, success
+       tint for enrolled. Both states arrive disabled (set by
+       cart-button-registry.applyCartStateToButton) so we have to win over
+       the gray [disabled] background above; selector is duplicated with
+       [disabled] for safe specificity. */
+    .bc-cs-add[data-state="in-cart"],
+    .bc-cs-add[disabled][data-state="in-cart"] {
+      background: var(--bc-color-paper-soft);
+      border-color: var(--bc-color-paper-soft);
+      color: var(--bc-color-paper);
+      cursor: default;
+      box-shadow: none;
+    }
+    .bc-cs-add[data-state="enrolled"],
+    .bc-cs-add[disabled][data-state="enrolled"] {
+      background: var(--bc-color-success-bg);
+      border-color: var(--bc-color-success-bg);
+      color: var(--bc-color-success);
+      cursor: default;
+      box-shadow: none;
     }
   `;
 }

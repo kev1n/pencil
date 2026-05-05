@@ -84,4 +84,20 @@ describe("classSearchStyles zone split", () => {
     const sectionStart = css.indexOf(".bc-cs-section-list");
     expect(responsiveStart).toBeGreaterThan(sectionStart);
   });
+
+  it("section-row Add button paints persistent cart-state with the canonical mini-viewer tokens", () => {
+    // Regression guard for the "In cart" / "Enrolled" badge unification:
+    // the add CTA must consume the same paper-soft + success-bg tokens the
+    // .bc-cs-myclass-badge mini viewer uses, so both surfaces read as one
+    // status-pill family.
+    const css = addCtaStyles();
+    const inCart = css.match(
+      /\.bc-cs-add\[data-state="in-cart"\][^{]*\{[^}]*--bc-color-paper-soft[^}]*--bc-color-paper[^}]*\}/
+    );
+    const enrolled = css.match(
+      /\.bc-cs-add\[data-state="enrolled"\][^{]*\{[^}]*--bc-color-success-bg[^}]*--bc-color-success[^}]*\}/
+    );
+    expect(inCart, "in-cart rule must use paper-soft + paper tokens").not.toBeNull();
+    expect(enrolled, "enrolled rule must use success-bg + success tokens").not.toBeNull();
+  });
 });
