@@ -98,5 +98,14 @@ export function sectionRowsStyles(): string {
       color: var(--bc-color-text);
       border-color: var(--bc-color-border-strong);
     }
+    .bc-cs-details-btn[disabled],
+    .bc-cs-details-btn[data-state="loading"] {
+      cursor: progress;
+      opacity: 0.7;
+    }
+    .bc-cs-details-btn[data-state="loading"] {
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text);
+    }
   `;
 }

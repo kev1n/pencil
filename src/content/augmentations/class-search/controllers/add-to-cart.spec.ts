@@ -427,6 +427,125 @@ describe("createAddToCartController — needs-related → picker recursion", () 
     expect(button.dataset.state).toBe("success");
   });
 
+  it("does not double-fire when the button is mid-flight (loading)", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    button.dataset.state = "loading";
+    const deps = makeDeps();
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+    expect(deps.consumeCredit).not.toHaveBeenCalled();
+    expect(deps.addSectionToCart).not.toHaveBeenCalled();
+  });
+
+  it("does not double-fire when the button is mid-flight (needs-related)", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    button.dataset.state = "needs-related";
+    const deps = makeDeps();
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+    expect(deps.consumeCredit).not.toHaveBeenCalled();
+    expect(deps.addSectionToCart).not.toHaveBeenCalled();
+  });
+
+  it("synchronous double-click only triggers one cart-add", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    type Resolver = (v: CartFlowResult) => void;
+    const resolverRef: { current: Resolver | null } = { current: null };
+    const groups: CaesarCourseGroup[] = [];
+    const successResult: CartFlowResult = {
+      ok: true,
+      classNumber: "12345",
+      sectionLabel: "20-LEC",
+      courseTitle: "Fundamentals",
+      searchGroups: groups
+    };
+    const deps = makeDeps({
+      addSectionToCart: vi.fn().mockImplementation(
+        () =>
+          new Promise<CartFlowResult>((res) => {
+            resolverRef.current = res;
+          })
+      )
+    });
+    const ctrl = createAddToCartController(deps);
+
+    // Fire two clicks back-to-back without yielding between them. The second
+    // call must be filtered by the dataset.state re-entry guard set by the
+    // first call's synchronous prefix.
+    const first = ctrl.onClick(button, makeCtx());
+    const second = ctrl.onClick(button, makeCtx());
+
+    // After the synchronous prefix, the button is locked and the state guard
+    // is armed.
+    expect(button.disabled).toBe(true);
+    expect(button.dataset.state).toBe("loading");
+
+    // Drain microtasks so the in-flight click reaches addSectionToCart and
+    // installs the resolver. Then unblock and let everything settle.
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    expect(resolverRef.current).not.toBeNull();
+    resolverRef.current?.(successResult);
+    await Promise.all([first, second]);
+
+    expect(deps.consumeCredit).toHaveBeenCalledTimes(1);
+    expect(deps.addSectionToCart).toHaveBeenCalledTimes(1);
+  });
+
+  it("button stays disabled throughout the loading state", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    type Resolver = (v: CartFlowResult) => void;
+    const resolverRef: { current: Resolver | null } = { current: null };
+    const successResult: CartFlowResult = {
+      ok: true,
+      classNumber: "12345",
+      sectionLabel: "20-LEC",
+      courseTitle: "Fundamentals",
+      searchGroups: []
+    };
+    const deps = makeDeps({
+      addSectionToCart: vi.fn().mockImplementation(
+        () =>
+          new Promise<CartFlowResult>((res) => {
+            resolverRef.current = res;
+          })
+      )
+    });
+    const ctrl = createAddToCartController(deps);
+
+    const settled = ctrl.onClick(button, makeCtx());
+    // Drain microtasks so the click reaches addSectionToCart and parks.
+    for (let i = 0; i < 5; i += 1) await Promise.resolve();
+    expect(button.disabled).toBe(true);
+    expect(button.dataset.state).toBe("loading");
+
+    resolverRef.current?.(successResult);
+    await settled;
+    expect(button.disabled).toBe(true);
+    expect(button.dataset.state).toBe("in-cart");
+  });
+
+  it("button is restored to enabled when an error returns to idle", async () => {
+    const doc = fresh();
+    const button = makeButton(doc);
+    const deps = makeDeps({
+      addSectionToCart: vi.fn().mockResolvedValue({
+        ok: false,
+        error: "CAESAR refused."
+      } as CartFlowResult)
+    });
+    const ctrl = createAddToCartController(deps);
+
+    await ctrl.onClick(button, makeCtx());
+    expect(button.dataset.state).toBe("error");
+    expect(button.disabled).toBe(false);
+  });
+
   it("continuation error: button shows Try again + error toast", async () => {
     const doc = fresh();
     const button = makeButton(doc);

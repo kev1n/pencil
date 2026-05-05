@@ -267,14 +267,30 @@ export function createAddToCartController(deps: AddToCartDeps): AddToCartControl
 
   return {
     async onClick(button, ctx): Promise<void> {
-      // The button state machine doubles as a re-entry guard: a button that
-      // already announced success/in-cart shouldn't accept another click.
-      if (button.dataset.state === "success" || button.dataset.state === "in-cart") return;
+      // The button state machine doubles as a re-entry guard. Bounce any
+      // click that lands while a previous chain is mid-flight (loading,
+      // mid-pick) or already terminal (success/in-cart/enrolled). This
+      // matters even though `button.disabled = true` is set synchronously
+      // on the first click: rapid double-clicks before the browser hop
+      // can hit the same listener twice in the same task tick, and
+      // cart-cache repaints could in principle drop disabled mid-flight.
+      const guarded = new Set([
+        "loading",
+        "needs-related",
+        "success",
+        "in-cart",
+        "enrolled"
+      ]);
+      if (guarded.has(button.dataset.state ?? "")) return;
 
       // One credit covers the whole click — including any internal live-data
       // load needed before the cart-add chain can resolve the class number.
       if (!deps.consumeCredit("add")) return;
 
+      // Lock the UI synchronously, before the first await, so a rapid
+      // re-click on the same task tick is filtered both by the
+      // `guarded.has(...)` early-return above AND by the browser's
+      // disabled-button click filter.
       button.disabled = true;
       button.dataset.state = "loading";
       button.textContent = "Loading…";

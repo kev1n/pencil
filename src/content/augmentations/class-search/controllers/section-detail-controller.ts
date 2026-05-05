@@ -111,20 +111,47 @@ export function createSectionDetailController(
       if (detailRow) {
         detailRow.remove();
         button.dataset.expanded = "false";
+        button.dataset.state = "";
+        button.disabled = false;
         button.textContent = "Details";
         return;
       }
 
+      // Re-entry guard: bounce a click that lands while a previous expand
+      // is still resolving. Without this, every rapid double-click would
+      // queue a fresh ensureLiveData + lookupClass round-trip.
+      if (button.dataset.state === "loading") return;
+
+      // Lock the UI synchronously *before* the first await so a fast
+      // re-click is filtered both by the guard above and by the browser's
+      // disabled-button click filter.
+      button.dataset.state = "loading";
+      button.disabled = true;
+      button.textContent = "Loading…";
+
+      // Restore the button when the expand bails out (credit exhaustion,
+      // missing data, network failure). The success path overrides this
+      // back to "Hide" + expanded once the panel mounts.
+      const restoreIdle = (): void => {
+        button.dataset.state = "";
+        button.disabled = false;
+        button.textContent = "Details";
+      };
+
       // Expansion is the entry point for one or more PS chains (live load +
       // detail lookup). One credit covers the whole click; the helpers below
       // run ungated.
-      if (!deps.consumePsCredit("details")) return;
+      if (!deps.consumePsCredit("details")) {
+        restoreIdle();
+        return;
+      }
 
       // Resolve the catalog search via cache (memory → disk → fetch).
       const card = li.closest<HTMLElement>(".bc-cs-course");
       const liveResult = await deps.ensureLiveData(row, card);
       if (!liveResult) {
         showToast("Could not load CAESAR data for this course.", { tone: "error" });
+        restoreIdle();
         return;
       }
 
@@ -134,6 +161,7 @@ export function createSectionDetailController(
         : null;
       if (!caesar) {
         showToast("No matching CAESAR section found.", { tone: "error" });
+        restoreIdle();
         return;
       }
 
@@ -153,6 +181,8 @@ export function createSectionDetailController(
       }
 
       button.dataset.expanded = "true";
+      button.dataset.state = "expanded";
+      button.disabled = false;
       button.textContent = "Hide";
     },
 
