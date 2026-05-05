@@ -185,9 +185,10 @@ export default [
     }
   },
   {
-    // Color-literal ban: anywhere under src/content/** EXCEPT design/tokens.ts.
+    // Color-literal ban: anywhere under src/content/** EXCEPT design/tokens.ts
+    // (the source of truth) and tokens.spec.ts (which asserts on those values).
     files: ["src/content/**/*.ts"],
-    ignores: ["src/content/design/tokens.ts"],
+    ignores: ["src/content/design/tokens.ts", "src/content/design/tokens.spec.ts"],
     rules: {
       "no-restricted-syntax": ["error", ...colorRuleSelectors]
     }
