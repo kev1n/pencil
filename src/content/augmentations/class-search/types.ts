@@ -65,9 +65,11 @@ export type CourseLiveCache = {
 // augmentation class for the lifetime of a single mount; rebuilt from
 // scratch when CAESAR navigates off and back onto the search page.
 //
-// NOTE: This is the canonical "god object" for class-search and will be
-// carved up in later waves (5b-5g). Keep as-is for now — the goal of 5a
-// is to relocate the type without changing its shape.
+// An orchestration record holding the concrete controller instances
+// (orchestrator, painters, registries, renderer, detail controller, tabs)
+// alongside the shared `filters`/`info`/`subjects` data and root DOM nodes.
+// Controllers receive only the deps they need; this type just bundles them
+// for the augmentation's lifecycle methods.
 export type MountedState = {
   doc: Document;
   root: HTMLDivElement;

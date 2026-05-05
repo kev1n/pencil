@@ -9,23 +9,32 @@ import {
   matchCaesarGroup,
   matchCaesarSection
 } from "../caesar-search";
+import type { LiveDataStore } from "../live-data-store";
 import type { PaperSection } from "../paper-data";
-import type { MountedState, ResultRow, TabId } from "../types";
+import type { ResultRow, TabId } from "../types";
 import type { AddToCartContext } from "./add-to-cart";
+import type { LiveDataPainter } from "./live-data-painter";
 import { makeLiveCacheKey } from "./live-data-painter";
 
+export interface AddCartContextDeps {
+  termId: string;
+  institution: string;
+  liveData: LiveDataStore;
+  liveDataPainter: LiveDataPainter;
+  switchTab: (id: TabId) => void;
+}
+
 export function createAddCartContext(
-  state: MountedState,
+  deps: AddCartContextDeps,
   row: ResultRow,
   section: PaperSection,
-  button: HTMLButtonElement,
-  switchTab: (id: TabId) => void
+  button: HTMLButtonElement
 ): AddToCartContext {
-  const { liveDataPainter } = state;
-  const liveKey = makeLiveCacheKey(state.filters.termId, row);
+  const { termId, institution, liveData, liveDataPainter, switchTab } = deps;
+  const liveKey = makeLiveCacheKey(termId, row);
   return {
-    termId: state.filters.termId,
-    institution: state.institution,
+    termId,
+    institution,
     row,
     section,
     resolveClassNumber: async () => {
@@ -39,9 +48,9 @@ export function createAddCartContext(
       return matchCaesarSection(group, section.section, section.component)?.classNumber ?? null;
     },
     mergeAndRepaint: (searchGroups) => {
-      state.liveData.mergeLiveCache(liveKey, searchGroups);
+      liveData.mergeLiveCache(liveKey, searchGroups);
       const card = button.closest<HTMLElement>(".bc-cs-course");
-      const merged = state.liveData.get(liveKey);
+      const merged = liveData.get(liveKey);
       if (card && merged?.status === "ready" && merged.result) {
         liveDataPainter.applyLiveDataToCard(row, card, merged.result);
       }

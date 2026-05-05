@@ -272,8 +272,17 @@ export class ClassSearchAugmentation implements Augmentation {
     section: PaperSection,
     button: HTMLButtonElement
   ): Promise<void> {
-    const ctx = createAddCartContext(state, row, section, button, (id) =>
-      this.switchTab(state, id)
+    const ctx = createAddCartContext(
+      {
+        termId: state.filters.termId,
+        institution: state.institution,
+        liveData: state.liveData,
+        liveDataPainter: state.liveDataPainter,
+        switchTab: (id) => this.switchTab(state, id)
+      },
+      row,
+      section,
+      button
     );
     await this.addToCartCtrl.onClick(button, ctx);
   }

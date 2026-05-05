@@ -8,7 +8,13 @@
 // single shared path instead of reaching into one another's folders.
 //
 // API surface mirrors what the original twin implementations exposed:
-// - tryConsume(): atomic decrement when there's headroom; returns next state.
+// - tryConsume(): single-tab atomic decrement when there's headroom; returns
+//   next state. Mutates the in-memory mirror first, then asynchronously
+//   persists via chrome.storage.local.set. Within a single tab this is
+//   effectively atomic (JS event loop). Across tabs, ordering is best-effort:
+//   chrome.storage.onChanged broadcasts updates, so concurrent consumers can
+//   race within ~storage-flush latency. Eventually consistent — acceptable
+//   for soft traffic gating, not a hard limiter.
 // - peek(): observe state without mutating.
 // - format(): "X of Y left, limit resets in N min" warning, only past the
 //   threshold (so normal use is silent).
