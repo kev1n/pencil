@@ -120,9 +120,14 @@ export interface PsCellGridRuntime {
   cleanup(doc?: Document): void;
 }
 
-const ROW_KEY_DATASET = "bcCellGridKey";
-const ROW_STATE_DATASET = "bcCellGridState";
-
+// Per-runtime dataset attribute names. Two runtimes can target the same rows
+// (seats-notes + ctec-links both decorate tr[bufnum] on the CAESAR cart page)
+// and they MUST NOT share dataset markers — otherwise every mutation cycle
+// they overwrite each other's keys and state, dragging loading/success rows
+// back to idle, which leaves the user clicking buttons whose fetch has
+// already been deduped against an in-flight request that no longer has any
+// UI representation. Namespacing both attributes by `config.id` gives each
+// runtime its own slot.
 export function createPsCellGridRuntime<TData, TKey extends string | number = string>(
   config: PsCellGridConfig<TData, TKey>
 ): PsCellGridRuntime {
@@ -132,6 +137,12 @@ export function createPsCellGridRuntime<TData, TKey extends string | number = st
 
   const matchesPage = buildPageMatcher(config.pageId);
   const ownerAttr = `bc-cell-grid-owner-${config.id}`;
+  // Convert "ctec-links" → "bcCellGridKeyCtecLinks" so dataset assignment
+  // produces `data-bc-cell-grid-key-ctec-links` — distinct per runtime.
+  const idSuffix = toCamelSuffix(config.id);
+  const ROW_KEY_DATASET = `bcCellGridKey${idSuffix}`;
+  const ROW_STATE_DATASET = `bcCellGridState${idSuffix}`;
+  const ROW_KEY_ATTR = camelToKebab(ROW_KEY_DATASET);
 
   function getRowCells(
     row: HTMLElement
@@ -310,15 +321,34 @@ export function createPsCellGridRuntime<TData, TKey extends string | number = st
       if (styleNode) styleNode.remove();
 
       // Drop dataset markers we wrote on rows so a re-enable doesn't see
-      // stale state.
+      // stale state. Selector is per-runtime so we don't trample markers
+      // belonging to a different runtime that shares the same row.
       for (const row of Array.from(
-        doc.querySelectorAll<HTMLElement>(`[data-bc-cell-grid-key]`)
+        doc.querySelectorAll<HTMLElement>(`[data-${ROW_KEY_ATTR}]`)
       )) {
         delete row.dataset[ROW_KEY_DATASET];
         delete row.dataset[ROW_STATE_DATASET];
       }
     }
   };
+}
+
+// "ctec-links" → "CtecLinks". Used to build per-runtime dataset attribute
+// names. The id is plugin-author-controlled, but in practice it's lowercase
+// kebab-case, so this lightweight conversion is enough.
+function toCamelSuffix(id: string): string {
+  return id
+    .split(/[^A-Za-z0-9]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join("");
+}
+
+// Converts a dataset camelCase key back to its kebab-case attribute form so
+// querySelectorAll can find rows we tagged. Mirrors the DOM's automatic
+// camel↔kebab translation for `data-*`.
+function camelToKebab(name: string): string {
+  return name.replace(/([A-Z])/g, (_, c: string) => `-${c.toLowerCase()}`);
 }
 
 function buildPageMatcher(
