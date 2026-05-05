@@ -36,6 +36,7 @@ npm run test:watch     # vitest watch mode
 - `src/content/index.ts` — entry for both CAESAR and Paper.nu. Registers the lookup message handler and starts the augmentation runner.
 - `src/content/framework/` — `Augmentation` interface and the `AugmentationRunner` (load + debounced mutation re-runs). `dom.ts` exports the shared `el()` / `ensureStyle()` builders. `ps-cell-grid.ts` exports `createPsCellGridRuntime`, the composable runtime that handles page-id gating, header / cell injection, in-flight dedupe, retry, ticker lifecycle, and lossless cleanup for any plugin that grafts extra columns onto a PeopleSoft grid (today seats-notes + ctec-links). The legacy `TemplateAugmentation` abstract class was deleted in Wave 4 — every plugin needed richer state than it modeled, and the new runtime covers the duplication that motivated it.
 - `src/content/augmentations/` — one folder per feature. Registered in `registry.ts`.
+- `src/content/ctec-index/` — shared CTEC index module (`storage.ts`, `helpers.ts`, `types.ts`, `constants.ts`). Sits outside `augmentations/` because it isn't a registered plugin; `ctec-links` and `paper-ctec` consume it. See "Shared CTEC index" below.
 - `src/content/peoplesoft/` — typed wrapper around CAESAR's PeopleSoft AJAX (context, http, params, parsers, lookup, traffic mutex).
 - `src/content/cart-cache/` — shared `chrome.storage.local`-backed snapshot of the user's CAESAR shopping cart and current enrollment, keyed by `STRM` (term). class-search and paper-ctec read it to render persistent "In cart" / "Enrolled" badges on Add-to-cart buttons (instead of a transient "Added!" flash) and write to it optimistically when their flow successfully adds. The `CartPageHydrator` augmentation (registered, no user toggle) parses `#SSR_REGFORM_VW$scroll$0` + `#STDNT_ENRL_SSVW$scroll$0` whenever the user lands on the live cart page and replaces the term's entry — this is the only path that drops sections. `reconcile.ts` runs once per CAESAR content-script load when the cache is older than 1hr: background-fetches `CART_URL`, parses, writes. Aborts silently on login-page response.
 - `src/content/settings.ts` — feature-toggle state, backed by `chrome.storage.local`. Defaults are on unless overridden in `DEFAULT_FEATURE_STATES`.
@@ -76,7 +77,7 @@ To add a new augmentation:
 
 ## Shared CTEC index
 
-`ctec-navigation/` is no longer a registered augmentation, but its `storage.ts`, `helpers.ts`, and `types.ts` remain as the home of the shared CTEC index module. `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write the `chrome.storage.local`-backed index through `readSubjectIndex`/`writeSubjectIndex`. The popup's "Clear CTEC cache" button wipes it.
+`src/content/ctec-index/` is the home of the shared CTEC index module — `storage.ts`, `helpers.ts`, `types.ts`, `constants.ts`. It lives outside `augmentations/` because it isn't a registered plugin; it's a sibling module that augmentations consume. `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write the `chrome.storage.local`-backed index through `readSubjectIndex`/`writeSubjectIndex`. The popup's "Clear CTEC cache" button wipes it.
 
 ## User preferences
 

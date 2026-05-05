@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// `reports.ts` transitively imports `ctec-navigation/storage.ts`, which fires
+// `reports.ts` transitively imports `ctec-index/storage.ts`, which fires
 // a `chrome.storage.local.get` at module load. jsdom doesn't ship `chrome` —
 // install a no-op stub before importing under test. (ESM imports are hoisted,
 // so this assignment must happen before the dynamic require below.)

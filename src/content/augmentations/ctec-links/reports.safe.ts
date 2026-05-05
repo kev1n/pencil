@@ -7,7 +7,7 @@
 import { logQuiet } from "../../../shared/log";
 import { parseCtecReportHtml } from "./reports";
 import { CtecReportSummarySchema, type ParseResult } from "./reports.schemas";
-import type { CtecReportSummary } from "../ctec-navigation/types";
+import type { CtecReportSummary } from "../../ctec-index/types";
 
 export function parseCtecReportHtmlSafe(
   html: string,

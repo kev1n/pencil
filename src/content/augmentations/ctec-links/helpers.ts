@@ -1,4 +1,4 @@
-import type { CtecIndexedEntry } from "../ctec-navigation/types";
+import type { CtecIndexedEntry } from "../../ctec-index/types";
 import { INSTRUCTOR_SELECTOR, NOT_FOUND_ACTION_ID } from "./constants";
 
 export function termToSortKey(term: string): number {

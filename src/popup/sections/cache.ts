@@ -1,5 +1,5 @@
 import { CART_CACHE_STORAGE_KEY } from "../../content/cart-cache/types";
-import { CTEC_INDEX_STORAGE_KEY } from "../../content/augmentations/ctec-navigation/storage";
+import { CTEC_INDEX_STORAGE_KEY } from "../../content/ctec-index/storage";
 import {
   NAME_FETCH_FAILED_AT_KEY,
   fetchAndCacheUserName

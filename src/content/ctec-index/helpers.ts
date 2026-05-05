@@ -1,5 +1,5 @@
-import { decodeEntities } from "../../peoplesoft/shared";
-import { extractActionIds, extractFieldValue } from "../../peoplesoft/parsers";
+import { decodeEntities } from "../peoplesoft/shared";
+import { extractActionIds, extractFieldValue } from "../peoplesoft/parsers";
 import { DEFAULT_CAREER_CODE, PAGE_ID } from "./constants";
 import type { CtecCourseSeed, CtecIndexedEntry, CtecRowSeed } from "./types";
 

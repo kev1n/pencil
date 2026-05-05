@@ -5,7 +5,7 @@ import {
   dedupeEntries,
   extractBlueraUrl,
   normalizeSearch
-} from "../ctec-navigation/helpers";
+} from "../../ctec-index/helpers";
 import {
   applyResponseState,
   buildActionParams,
@@ -13,13 +13,13 @@ import {
 } from "../../peoplesoft/params";
 import { extractPostUrl } from "../../peoplesoft/parsers";
 import { resolveActionUrl } from "../../peoplesoft/shared";
-import { readSubjectIndex, writeSubjectIndex } from "../ctec-navigation/storage";
+import { readSubjectIndex, writeSubjectIndex } from "../../ctec-index/storage";
 import type {
   CtecCourseDiscoveryState,
   CtecIndexedEntry,
   CtecRowSeed,
   CtecSubjectIndex
-} from "../ctec-navigation/types";
+} from "../../ctec-index/types";
 import {
   fetchPeopleSoftGetResult,
   fetchPeopleSoftResult

@@ -1,5 +1,5 @@
-import { normalizeSearch } from "../ctec-navigation/helpers";
-import { readSubjectIndex, writeSubjectIndex } from "../ctec-navigation/storage";
+import { normalizeSearch } from "../../ctec-index/helpers";
+import { readSubjectIndex, writeSubjectIndex } from "../../ctec-index/storage";
 import type {
   CtecIndexedEntry,
   CtecReportChart,
@@ -7,7 +7,7 @@ import type {
   CtecReportHoursMetric,
   CtecReportScalarMetric,
   CtecReportSummary
-} from "../ctec-navigation/types";
+} from "../../ctec-index/types";
 import { fetchTextResultViaBackground } from "../../remote-fetch";
 import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
 import { extractChartFromImage } from "../paper-ctec/chart-extract";

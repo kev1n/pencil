@@ -3,7 +3,7 @@ import {
   type CtecCourseAnalytics,
   type CtecCourseAnalyticsEntry
 } from "../ctec-links/reports";
-import type { CtecReportChart } from "../ctec-navigation/types";
+import type { CtecReportChart } from "../../ctec-index/types";
 import type { CtecLinkParams } from "../ctec-links/types";
 import { collectComments } from "./modal-comments";
 import { readModalCache, writeModalCache } from "./modal-cache";
