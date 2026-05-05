@@ -1,4 +1,3 @@
-import { logQuiet } from "../../../shared/log";
 import {
   initCartCache,
   lookupBySignature,
@@ -71,67 +70,32 @@ import {
   type PaperTermCourse,
   type SubjectInfo
 } from "./paper-data";
+import {
+  isSearchEntryPage,
+  readActiveTab,
+  readCareerFromNativeForm,
+  readInstitutionFromNativeForm,
+  readTermFromNativeForm,
+  writeActiveTab
+} from "./page-detection";
 import { STYLE_ID as CLASS_SEARCH_STYLE_ID, ensureStyles } from "./styles";
 import {
   PAPER_DISCIPLINE_LABELS,
   PAPER_DISTRO_LABELS,
+  type MountedState,
   type ResultRow,
-  type SearchFilters
+  type SearchFilters,
+  type TabId
 } from "./types";
 
 const ROOT_ID = "better-caesar-class-search-root";
 const TABS_ID = "better-caesar-class-search-tabs";
 const HIDE_NATIVE_STYLE_ID = "better-caesar-class-search-hide-native";
-const SEARCH_PAGE_ID = "SSR_CLSRCH_ENTRY";
-const SEARCH_COMPONENT = "CLASS_SEARCH";
-
-const TAB_STORAGE_KEY = "better-caesar:class-search:active-tab";
-type TabId = "better" | "classic";
 
 const INSTITUTION_DEFAULT = "NWUNV";
 
 const CART_URL =
   "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A";
-
-type CourseLiveCache = {
-  status: "loading" | "ready" | "error";
-  result?: CaesarSearchResult;
-  error?: string;
-};
-
-type MountedState = {
-  doc: Document;
-  root: HTMLDivElement;
-  panelEl: HTMLDivElement;
-  resultsEl: HTMLDivElement;
-  statusEl: HTMLDivElement;
-  filters: SearchFilters;
-  info: DataMapInfo;
-  subjects: Record<string, SubjectInfo>;
-  catalogIndex: Map<string, PaperCourse>;
-  career: string;
-  institution: string;
-  loadedTerms: Map<string, PaperTermCourse[]>;
-  searchDebounce: number | null;
-  // Per-course CAESAR live data, keyed by `${termId}|${subject}|${bareCatalog}`.
-  // Sections that share a bare catalog (e.g. "111-0" + "111-SG") come from
-  // the same CAESAR search response.
-  liveCache: Map<string, CourseLiveCache>;
-  activeTab: TabId;
-  // Per-section Add buttons currently mounted on screen. Keyed by
-  // `${termId}|${subject}|${catalog}|${sectionLabel}` (the signature the
-  // cart cache also uses) so a subscribe-driven repaint can find them
-  // without walking the whole DOM. Buttons remove themselves from this
-  // map when their <li> disconnects.
-  cartButtons: Map<string, HTMLButtonElement>;
-  // Unsubscribe from cart-cache change notifications. Called on unmount so
-  // the listener doesn't leak across mount cycles.
-  cartUnsubscribe: (() => void) | null;
-  // Last tab `applyTabVisibility` actually applied to the DOM. Without
-  // this, every mutation observer tick would re-toggle the native-hider
-  // style and panel display.
-  appliedTab: TabId | null;
-};
 
 export class ClassSearchAugmentation implements Augmentation {
   readonly id = "class-search";
@@ -1843,15 +1807,6 @@ function hasNoEnrichedFields(result: SeatsNotesSuccess): boolean {
   );
 }
 
-function isSearchEntryPage(doc: Document): boolean {
-  const pageInfo = doc.getElementById("pt_pageinfo_win0");
-  if (!pageInfo) return false;
-  return (
-    pageInfo.getAttribute("Component") === SEARCH_COMPONENT &&
-    pageInfo.getAttribute("Page") === SEARCH_PAGE_ID
-  );
-}
-
 function ensureRoot(doc: Document): HTMLDivElement {
   const existing = doc.getElementById(ROOT_ID) as HTMLDivElement | null;
   if (existing) return existing;
@@ -1893,49 +1848,6 @@ function ensureNativeHider(doc: Document): void {
 
 function removeNativeHider(doc: Document): void {
   doc.getElementById(HIDE_NATIVE_STYLE_ID)?.remove();
-}
-
-function readActiveTab(): TabId {
-  try {
-    const raw = window.sessionStorage.getItem(TAB_STORAGE_KEY);
-    if (raw === "classic") return "classic";
-    return "better";
-  } catch {
-    return "better";
-  }
-}
-
-function writeActiveTab(tab: TabId): void {
-  try {
-    window.sessionStorage.setItem(TAB_STORAGE_KEY, tab);
-  } catch (err) {
-    logQuiet("class-search.writeActiveTab", err);
-  }
-}
-
-function readCareerFromNativeForm(doc: Document): string | null {
-  const select = findSelectByPrefix(doc, "SSR_CLSRCH_WRK_ACAD_CAREER");
-  if (select?.value) return select.value;
-  const url = new URL(window.location.href);
-  return url.searchParams.get("ACAD_CAREER");
-}
-
-function readInstitutionFromNativeForm(doc: Document): string | null {
-  const select = findSelectByPrefix(doc, "CLASS_SRCH_WRK2_INSTITUTION");
-  return select?.value ?? null;
-}
-
-function readTermFromNativeForm(doc: Document): string | null {
-  const select = findSelectByPrefix(doc, "CLASS_SRCH_WRK2_STRM");
-  return select?.value || null;
-}
-
-function findSelectByPrefix(doc: Document, prefix: string): HTMLSelectElement | null {
-  const selects = doc.querySelectorAll<HTMLSelectElement>("select");
-  for (const select of Array.from(selects)) {
-    if (select.name?.startsWith(prefix)) return select;
-  }
-  return null;
 }
 
 function renderFatalError(root: HTMLElement, doc: Document, message: string): void {
