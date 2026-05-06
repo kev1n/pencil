@@ -1,6 +1,5 @@
-import { html, type TemplateResult } from "lit-html";
+import { html, svg, type SVGTemplateResult, type TemplateResult } from "lit-html";
 
-import { renderSparkline as paintSparkline } from "../chart-kit";
 import {
   renderHoursDensity,
   type HoursDensitySeries
@@ -19,9 +18,9 @@ import { getRecentAggregationTerms, isFeatureEnabled } from "../../../settings";
 import { PAPER_CTEC_CONFIG } from "../config";
 import { COMPACT_CARD_STARS_FEATURE_ID } from "../constants";
 import { formatChipRating, isRatingPercentMode } from "../rating-format";
-import { attachTooltip, createRatingStars, preventAndStop } from "../ui-shared";
+import { preventAndStop, ratingStarsTemplate } from "../ui-shared";
 import { pickMetricHue } from "../widget-chips";
-import { appendBandLabel } from "./band-labels";
+import { bandLabelFor } from "./band-labels";
 import { renderDistChart, renderTrendChart } from "./charts";
 import { abbrTerm } from "../term-format";
 import { cardTemplate, pickSelectedTerm } from "./common";
@@ -78,53 +77,53 @@ function kpiUnitText(kind: ModalMetricKind | "global"): string {
   return `/ ${max} avg`;
 }
 
-// Renders the value portion of a KPI as a chip-style pill. Returns an
-// imperative element rather than a template because createRatingStars
-// (the stars-mode branch) builds DOM nodes directly. lit-html splats the
-// element via ${pill} interpolation.
-function renderKpiPill(
-  doc: Document,
+// Value portion of a KPI as a chip-style pill. Pure template so lit-html
+// can diff in place across re-renders — important because the modal
+// re-syncs on every paper.nu DOM mutation tick (RAF-debounced) and
+// imperative DOM nodes splatted into templates would be replaced every
+// render, destroying click targets mid-click.
+function kpiPillTemplate(
   value: number,
   kind: ModalMetricKind | "global"
-): HTMLElement {
-  const pill = doc.createElement("span");
-  pill.className = "bc-paper-ctec-modal-kpi-mean";
-
+): TemplateResult {
   const isHours = kind === "hours";
   const isRating = !isHours;
   const showStars = isRating && value > 0 && isStarMode();
+  const isEmpty = value <= 0;
 
-  if (showStars) {
-    pill.classList.add("is-stars");
-    pill.append(createRatingStars(doc, value));
-  } else if (value > 0) {
-    pill.textContent = isHours ? value.toFixed(1) : formatChipRating(value);
-  } else {
-    pill.textContent = "—";
-    pill.classList.add("is-empty");
-  }
+  let className = "bc-paper-ctec-modal-kpi-mean";
+  if (showStars) className += " is-stars";
+  if (isEmpty) className += " is-empty";
 
   // Skip the colored chip background when stars are showing — the stars
   // already encode the value, and the tinted pill behind them visually
   // duplicates the signal. Mirrors the schedule-card chip behavior, which
   // also drops `tone` in stars mode (see widget-chips.ts metricChip).
+  let styleStr = "";
   if (value > 0 && !showStars) {
     const max = isHours
       ? PAPER_CTEC_CONFIG.aggregate.hoursGraphMax
       : PAPER_CTEC_CONFIG.aggregate.ratingScaleMax;
     const hue = pickMetricHue(value, max, isHours);
-    pill.style.setProperty("--bc-paper-ctec-kpi-bg", `hsla(${hue}, 96%, 68%, 0.98)`);
-    pill.style.setProperty("--bc-paper-ctec-kpi-bg-dark", `hsla(${hue}, 78%, 32%, 0.94)`);
-    pill.style.setProperty("--bc-paper-ctec-kpi-border", `hsla(${hue}, 82%, 24%, 0.38)`);
-    pill.style.setProperty("--bc-paper-ctec-kpi-border-dark", `hsla(${hue}, 90%, 78%, 0.28)`);
-    pill.style.setProperty("--bc-paper-ctec-kpi-fg", `hsl(${hue}, 62%, 18%)`);
-    pill.style.setProperty(
-      "--bc-paper-ctec-kpi-fg-dark",
-      "var(--bc-color-kpi-fg-dark)"
-    );
+    styleStr =
+      `--bc-paper-ctec-kpi-bg: hsla(${hue}, 96%, 68%, 0.98);` +
+      `--bc-paper-ctec-kpi-bg-dark: hsla(${hue}, 78%, 32%, 0.94);` +
+      `--bc-paper-ctec-kpi-border: hsla(${hue}, 82%, 24%, 0.38);` +
+      `--bc-paper-ctec-kpi-border-dark: hsla(${hue}, 90%, 78%, 0.28);` +
+      `--bc-paper-ctec-kpi-fg: hsl(${hue}, 62%, 18%);` +
+      `--bc-paper-ctec-kpi-fg-dark: var(--bc-color-kpi-fg-dark);`;
   }
 
-  return pill;
+  let inner: TemplateResult | string;
+  if (showStars) {
+    inner = ratingStarsTemplate(value);
+  } else if (value > 0) {
+    inner = isHours ? value.toFixed(1) : formatChipRating(value);
+  } else {
+    inner = "—";
+  }
+
+  return html`<span class=${className} style=${styleStr}>${inner}</span>`;
 }
 
 // Small explanatory line above the KPI strip so the user knows the
@@ -173,7 +172,7 @@ export const OverviewSection: Section<OverviewSectionProps> = {
     const recent = getRecentAggregationTerms();
     return html`<div class="bc-paper-ctec-modal-overview">
       ${renderKpiScopeNote(data, recent)}
-      ${renderKpiStrip(doc, data, state, callbacks, recent)}
+      ${renderKpiStrip(data, state, callbacks, recent)}
       ${state.activeMetric === "global"
         ? html`${renderGlobalSection(doc, data, state, callbacks)}${renderWorkloadCard(
             doc,
@@ -296,32 +295,31 @@ function renderWorkloadCard(doc: Document, data: ModalDisplayData): TemplateResu
 // The outer grid sizes each group proportionally to its card count so card
 // widths stay roughly consistent across groups.
 function renderKpiStrip(
-  doc: Document,
   data: ModalDisplayData,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks,
   recent: number
 ): TemplateResult {
-  const groups: Array<{ label: string; cards: HTMLElement[] }> = [
+  const groups: Array<{ label: string; cards: TemplateResult[] }> = [
     {
       label: "Overall",
-      cards: [renderGlobalKpiCard(doc, data, state, callbacks, recent)]
+      cards: [renderGlobalKpiCard(data, state, callbacks, recent)]
     },
     {
       label: "Quality",
       cards: (["instruction", "course", "learned"] as const).map((kind) =>
-        renderKpiCard(doc, kind, data, state, callbacks, recent)
+        renderKpiCard(kind, data, state, callbacks, recent)
       )
     },
     {
       label: "Character",
       cards: (["challenging", "stimulating"] as const).map((kind) =>
-        renderKpiCard(doc, kind, data, state, callbacks, recent)
+        renderKpiCard(kind, data, state, callbacks, recent)
       )
     },
     {
       label: "Workload",
-      cards: [renderKpiCard(doc, "hours", data, state, callbacks, recent)]
+      cards: [renderKpiCard("hours", data, state, callbacks, recent)]
     }
   ];
 
@@ -345,83 +343,56 @@ function renderKpiStrip(
   </div>`;
 }
 
-// Returns an imperative HTMLElement (not a TemplateResult) because the card's
-// children are themselves imperative artifacts: `renderSparkline` paints an
-// SVG via the chart-kit primitives, `renderKpiPill` builds an HTMLElement
-// (CSS custom properties + `createRatingStars` SVG composition), and
-// `appendBandLabel` mutates the host. Wrapping that mix in lit-html would
-// just splat all three back as `${child}` interpolations with no real win.
-// The caller (`renderKpiStrip`) splats the returned button via
-// `${group.cards}` inside its lit-html template.
+// Per-metric KPI card. Pure template — see kpiPillTemplate's comment for
+// why imperative DOM here would break clickability.
 function renderKpiCard(
-  doc: Document,
   kind: ModalMetricKind,
   data: ModalDisplayData,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks,
   recent: number
-): HTMLElement {
+): TemplateResult {
   const trend = trendValuesFor(data.trendTerms, kind);
   const meanValue = recentMean(data.terms, kind, recent);
   const isActive = state.activeMetric === kind;
-
-  const button = doc.createElement("button");
-  button.type = "button";
-  button.className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
-  button.addEventListener("click", (event) => {
-    preventAndStop(event);
-    callbacks.onMetricChange(kind);
-  });
-
-  const top = doc.createElement("div");
-  top.className = "bc-paper-ctec-modal-kpi-top";
-
-  const label = doc.createElement("span");
-  label.className = "bc-paper-ctec-modal-kpi-label";
-  label.textContent = MODAL_METRIC_LABELS[kind];
-  top.append(label);
-
-  if (trend.length >= 2) {
-    top.append(renderSparkline(doc, trend, 80, 20, kind));
-  }
-  button.append(top);
-
-  const value = doc.createElement("div");
-  value.className = "bc-paper-ctec-modal-kpi-value";
-  const big = renderKpiPill(doc, meanValue, kind);
-  value.append(big);
+  const className = `bc-paper-ctec-modal-kpi${isActive ? " is-active" : ""}`;
   const unitText = kpiUnitText(kind);
-  if (unitText) {
-    const unit = doc.createElement("span");
-    unit.className = "bc-paper-ctec-modal-kpi-scale";
-    unit.textContent = unitText;
-    value.append(unit);
-  }
-  button.append(value);
+  const band =
+    Number.isFinite(meanValue) && meanValue > 0 ? bandLabelFor(kind, meanValue) : null;
 
-  appendBandLabel(doc, button, kind, meanValue);
-
-  return button;
+  return html`<button
+    type="button"
+    class=${className}
+    @click=${(event: Event) => {
+      preventAndStop(event);
+      callbacks.onMetricChange(kind);
+    }}
+  ><div class="bc-paper-ctec-modal-kpi-top"><span
+        class="bc-paper-ctec-modal-kpi-label"
+        >${MODAL_METRIC_LABELS[kind]}</span
+      >${trend.length >= 2 ? sparklineTemplate(trend, 80, 20, kind) : ""}</div
+    ><div class="bc-paper-ctec-modal-kpi-value"
+      >${kpiPillTemplate(meanValue, kind)}${
+        unitText
+          ? html`<span class="bc-paper-ctec-modal-kpi-scale">${unitText}</span>`
+          : ""
+      }</div
+    >${
+      band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
+    }</button>`;
 }
 
-// Renders the "Global" KPI card alongside the per-metric ones. Value is
-// the avg of the Instruction / Course / Learned mean ratings across the
-// most-recent N terms (matches the chip aggregation), plus a sparkline
-// of the same per-term average so the trend is visible at a glance.
-// Clicking switches the body to the global view.
-//
-// Imperative for the same reason as `renderKpiCard` above (sparkline SVG +
-// pill + band-label all build DOM directly). Additionally calls
-// `attachTooltip` on the info icon — that helper writes a tip-host class
-// + appends a tip span, both of which need a live element to bind to.
+// "Global" KPI card. Value is the avg of the Instruction / Course / Learned
+// mean ratings across the most-recent N terms (matches the chip
+// aggregation), plus a sparkline of the same per-term average so the trend
+// is visible at a glance. Clicking switches the body to the global view.
 function renderGlobalKpiCard(
-  doc: Document,
   data: ModalDisplayData,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks,
   recent: number
-): HTMLElement {
-  const isActive: boolean = state.activeMetric === "global";
+): TemplateResult {
+  const isActive = state.activeMetric === "global";
 
   // Build the Global mean from each component metric's response-weighted
   // mean (the same `recentMean` the per-metric KPIs use), then average
@@ -441,72 +412,53 @@ function renderGlobalKpiCard(
     .map((term) => computeGlobalMean([term]))
     .filter((value) => value > 0);
 
-  const button = doc.createElement("button");
-  button.type = "button";
-  button.className = `bc-paper-ctec-modal-kpi is-global${isActive ? " is-active" : ""}`;
-  button.addEventListener("click", (event) => {
-    preventAndStop(event);
-    callbacks.onMetricChange("global" satisfies ModalActiveView);
-  });
-
-  const top = doc.createElement("div");
-  top.className = "bc-paper-ctec-modal-kpi-top";
-
-  const labelGroup = doc.createElement("span");
-  labelGroup.className = "bc-paper-ctec-modal-kpi-label-group";
-
-  const label = doc.createElement("span");
-  label.className = "bc-paper-ctec-modal-kpi-label";
-  label.textContent = "Global";
-  labelGroup.append(label);
-
-  const info = doc.createElement("span");
-  info.className = "bc-paper-ctec-modal-kpi-info";
-  info.setAttribute("aria-label", GLOBAL_KPI_TOOLTIP);
-  info.tabIndex = 0;
-  info.append(doc.createTextNode("i"));
-  attachTooltip(doc, info, GLOBAL_KPI_TOOLTIP);
-  // Don't propagate clicks on the info icon — it's just a tooltip target,
-  // not a separate action.
-  info.addEventListener("click", preventAndStop);
-  labelGroup.append(info);
-
-  top.append(labelGroup);
-
-  if (trend.length >= 2) {
-    top.append(renderSparkline(doc, trend, 80, 20, "global"));
-  }
-  button.append(top);
-
-  const value = doc.createElement("div");
-  value.className = "bc-paper-ctec-modal-kpi-value";
-  const big = renderKpiPill(doc, overallMean, "global");
-  value.append(big);
+  const className = `bc-paper-ctec-modal-kpi is-global${isActive ? " is-active" : ""}`;
   const unitText = kpiUnitText("global");
-  if (unitText) {
-    const unit = doc.createElement("span");
-    unit.className = "bc-paper-ctec-modal-kpi-scale";
-    unit.textContent = unitText;
-    value.append(unit);
-  }
-  button.append(value);
+  const band =
+    Number.isFinite(overallMean) && overallMean > 0
+      ? bandLabelFor("global", overallMean)
+      : null;
 
-  appendBandLabel(doc, button, "global", overallMean);
-
-  return button;
+  return html`<button
+    type="button"
+    class=${className}
+    @click=${(event: Event) => {
+      preventAndStop(event);
+      callbacks.onMetricChange("global" satisfies ModalActiveView);
+    }}
+  ><div class="bc-paper-ctec-modal-kpi-top"><span
+        class="bc-paper-ctec-modal-kpi-label-group"
+        ><span class="bc-paper-ctec-modal-kpi-label">Global</span><span
+          class="bc-paper-ctec-modal-kpi-info bc-tooltip-host"
+          aria-label=${GLOBAL_KPI_TOOLTIP}
+          tabindex="0"
+          @click=${preventAndStop}
+          >i<span class="bc-tooltip bc-tooltip--rich"
+            >${GLOBAL_KPI_TOOLTIP}</span
+          ></span
+        ></span
+      >${trend.length >= 2 ? sparklineTemplate(trend, 80, 20, "global") : ""}</div
+    ><div class="bc-paper-ctec-modal-kpi-value"
+      >${kpiPillTemplate(overallMean, "global")}${
+        unitText
+          ? html`<span class="bc-paper-ctec-modal-kpi-scale">${unitText}</span>`
+          : ""
+      }</div
+    >${
+      band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
+    }</button>`;
 }
 
-function renderSparkline(
-  doc: Document,
+// Padded scale: shows trend shape without faking magnitude. A 5.0 → 5.2
+// trend sits in the upper region rather than filling the whole chart.
+// The padding (1 rating unit, 4 hours) leaves visible breathing room
+// above and below the line, clamped to the metric's natural bounds.
+function sparklineTemplate(
   values: number[],
   width: number,
   height: number,
   kind: ModalMetricKind | "global"
-): SVGElement {
-  // Padded scale: shows trend shape without faking magnitude. A 5.0 → 5.2
-  // trend sits in the upper region rather than filling the whole chart.
-  // The padding (1 rating unit, 4 hours) leaves visible breathing room
-  // above and below the line, clamped to the metric's natural bounds.
+): SVGTemplateResult {
   const isHours = kind === "hours";
   const scaleMin = isHours ? 0 : 1;
   const scaleMax = isHours ? 20 : 6;
@@ -521,20 +473,28 @@ function renderSparkline(
   const yAt = (v: number) =>
     height - 1 - ((v - yMin) / span) * (height - 2);
 
-  const svg = doc.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("width", String(width));
-  svg.setAttribute("height", String(height));
-  svg.setAttribute("class", "bc-paper-ctec-modal-sparkline");
+  const points = values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
+  const lastIdx = values.length - 1;
+  const lastX = xAt(lastIdx);
+  const lastY = yAt(values[lastIdx]!);
 
-  const points = values.map((v, i) => ({ x: xAt(i), y: yAt(v) }));
-  paintSparkline(doc, svg, points, {
-    strokeColor: "var(--bc-color-accent)",
-    strokeWidth: 1.5,
-    lastDotOnly: true,
-    lastDotRadius: 2
-  });
-
-  return svg;
+  return svg`<svg
+    width=${width}
+    height=${height}
+    class="bc-paper-ctec-modal-sparkline"
+  ><polyline
+      fill="none"
+      style="stroke: var(--bc-color-accent)"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      points=${points}
+    ></polyline><circle
+      cx=${lastX}
+      cy=${lastY}
+      r="2"
+      style="fill: var(--bc-color-accent)"
+    ></circle></svg>`;
 }
 
 // Backwards-compat for callers still on the imperative entry point.

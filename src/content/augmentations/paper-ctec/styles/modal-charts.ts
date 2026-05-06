@@ -150,66 +150,10 @@ export function modalChartStyles(): string {
     }
     .bc-paper-ctec-modal-kpi-info:hover,
     .bc-paper-ctec-modal-kpi-info:focus-visible,
-    .bc-paper-ctec-modal-tip-host:hover .bc-paper-ctec-modal-info-icon,
-    .bc-paper-ctec-modal-tip-host:focus-visible .bc-paper-ctec-modal-info-icon {
+    .bc-tooltip-host:hover .bc-paper-ctec-modal-info-icon,
+    .bc-tooltip-host:focus-visible .bc-paper-ctec-modal-info-icon {
       opacity: 1;
       outline: none;
-    }
-    /* Generic tooltip component. Apply .bc-paper-ctec-modal-tip-host to the
-       trigger element and append a child <span class="bc-paper-ctec-modal-tip">.
-       Add .is-right when the host sits near the right edge of its container
-       so the popup hugs the right side instead of overflowing. */
-    .bc-paper-ctec-modal-tip-host {
-      position: relative;
-    }
-    .bc-paper-ctec-modal-tip {
-      position: absolute;
-      top: calc(100% + 8px);
-      left: -8px;
-      width: min(260px, calc(100vw - 32px));
-      padding: 10px 12px;
-      border-radius: var(--bc-radius-lg);
-      background: var(--bc-color-text);
-      color: var(--bc-color-text-on-tooltip);
-      font-family: ui-sans-serif, system-ui, sans-serif;
-      font-size: var(--bc-font-11);
-      font-weight: var(--bc-fw-medium);
-      font-style: normal;
-      line-height: 1.45;
-      letter-spacing: 0;
-      text-transform: none;
-      text-align: left;
-      white-space: normal;
-      word-break: normal;
-      overflow-wrap: anywhere;
-      box-shadow: var(--bc-shadow-tooltip);
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: opacity var(--bc-tx-base) var(--bc-easing), visibility var(--bc-tx-base) var(--bc-easing);
-      z-index: 2147483647;
-    }
-    .bc-paper-ctec-modal-tip.is-right {
-      left: auto;
-      right: 0;
-    }
-    .bc-paper-ctec-modal-tip::before {
-      content: "";
-      position: absolute;
-      bottom: 100%;
-      left: 14px;
-      border: 6px solid transparent;
-      border-bottom-color: var(--bc-color-text);
-    }
-    .bc-paper-ctec-modal-tip.is-right::before {
-      left: auto;
-      right: 14px;
-    }
-    .bc-paper-ctec-modal-tip-host:hover .bc-paper-ctec-modal-tip,
-    .bc-paper-ctec-modal-tip-host:focus-visible .bc-paper-ctec-modal-tip,
-    .bc-paper-ctec-modal-tip-host:focus-within .bc-paper-ctec-modal-tip {
-      opacity: 1;
-      visibility: visible;
     }
     .bc-paper-ctec-modal-kpi-value {
       display: flex;
@@ -218,7 +162,7 @@ export function modalChartStyles(): string {
     }
     /* Value pill — mirrors the schedule-card chip style (see styles/cards.ts
        .bc-paper-ctec-chip + .bc-paper-ctec-chip-value): pill border-radius,
-       same hue-driven bg/border/fg vars set per-card in renderKpiPill. The
+       same hue-driven bg/border/fg vars set per-card in kpiPillTemplate. The
        font-size is the only intentional departure: the chip uses 10px, but
        this is a KPI strip so we keep it ~24px (36px for Global). */
     .bc-paper-ctec-modal-kpi-mean {
