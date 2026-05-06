@@ -1,6 +1,12 @@
 // Public types for the class-search → CAESAR cart flow. Kept here so
 // parser.ts, forms.ts, and flow.ts can all import without cycles.
 
+import { LANDING_PAGE_URL } from "../../../auth/silent-recovery";
+
+// Re-export so existing call sites that import LANDING_PAGE_URL from this
+// module (e.g. paper-ctec) keep compiling. Source of truth is silent-recovery.
+export { LANDING_PAGE_URL };
+
 export type CaesarStatus = "Open" | "Closed" | "Wait List" | "Unknown";
 
 // CAESAR row, parsed from the search results page. We keep enough info to
@@ -107,15 +113,6 @@ export type CartFlowContinuationInput = {
   courseTitle: string;
   searchGroups: CaesarCourseGroup[];
 };
-
-// Hitting this URL silently re-handshakes through NetID SSO when the CAESAR
-// session cookie has expired but the IdP cookie is still alive — the redirect
-// chain mints a fresh PS_TOKEN without any user interaction. Also reused as
-// the popup `loginUrl` when the silent re-handshake fails: opening it in a
-// real tab walks the user through Duo, then bounces them back through the
-// `psc/` post-auth pattern that `background.ts` watches.
-export const LANDING_PAGE_URL =
-  "https://caesar.ent.northwestern.edu/psc/csnu/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?";
 
 export const INSTITUTION_DEFAULT = "NWUNV";
 

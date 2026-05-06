@@ -16,6 +16,10 @@ import {
   getCtecCourseAnalyticsSnapshot,
   hasCachedReportAggregate
 } from "../ctec-links/reports";
+import {
+  createAuthRecovery,
+  type AuthRecovery
+} from "../class-search/auth-recovery";
 import { AuthFlow } from "./auth-flow";
 import { buildModalDisplayData } from "./modal-data";
 import { PAPER_CTEC_CONFIG } from "./config";
@@ -92,6 +96,14 @@ export class PaperCtecAugmentation implements Augmentation {
 
   private focusListenerAttached = false;
   private readonly auth?: AuthFlow;
+  // Drives the "open SSO popup tab + auto-retry" handshake for chip
+  // add-to-cart (cart-flow.ts wraps the cart chain in withAuthRecovery).
+  // Distinct from `auth` (the modal-driven CTEC fetch flow): this one is
+  // class-search-style — toast + popup + automatic retry, no modal.
+  private readonly authRecovery: AuthRecovery = createAuthRecovery({
+    chromeRuntime: chrome.runtime,
+    windowLocation: { assign: (url: string | URL) => window.location.assign(url) }
+  });
   private readonly modal: ModalController;
 
   constructor() {
@@ -106,7 +118,8 @@ export class PaperCtecAugmentation implements Augmentation {
     this.chipCart = createChipCartCoordinator({
       psCreditPool,
       showToast,
-      addChipSectionToCart,
+      addChipSectionToCart: (params, titleHint, onProgress) =>
+        addChipSectionToCart(this.authRecovery, params, titleHint, onProgress),
       resolveChipSection,
       lookupBySignature,
       recordOptimisticAdd,
@@ -226,6 +239,7 @@ export class PaperCtecAugmentation implements Augmentation {
     this.analyticsResolved.clear();
     this.analyticsInFlight.clear();
     this.modal.invalidate();
+    this.authRecovery.dispose();
 
     teardownPageForCleanup(doc);
   }

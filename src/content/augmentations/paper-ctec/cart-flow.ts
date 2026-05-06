@@ -5,6 +5,11 @@ import {
   searchCaesarCatalog,
   type CartFlowResult
 } from "../class-search/caesar-search";
+import { isCaesarAuthRequiredError } from "../class-search/caesar-search/types";
+import {
+  withAuthRecovery,
+  type AuthRecovery
+} from "../class-search/auth-recovery";
 import { bareCatalogNumber } from "../class-search/catalog-format";
 import {
   getDataMapInfo,
@@ -42,87 +47,112 @@ const INSTITUTION_DEFAULT = "NWUNV";
 //
 // This avoids any new permissions and reuses paper-data's existing cache
 // so we never touch paper.nu's IndexedDB.
+//
+// CAESAR auth is handled the same way class-search's add-to-cart on the
+// CAESAR page handles it: `withAuthRecovery` runs the silent SSO walk
+// (Layer 1 + 2) before falling back to a popup tab, and re-runs the whole
+// cart chain after recovery succeeds. The same `withAuthRecovery` helper
+// also fires for `searchCaesarCatalog` since both share `getEntryFormState()`.
 export async function addChipSectionToCart(
+  authRecovery: AuthRecovery,
   params: CtecLinkParams,
   titleHint: string,
   onProgress?: (message: string) => void
 ): Promise<CartChipResult> {
   try {
-    onProgress?.("Loading paper.nu term data…");
-    const info = await getDataMapInfo();
-    const { termId } = await getActivePaperTermId();
-    if (!termId) {
-      return { ok: false, error: "Couldn't determine the active paper.nu term." };
+    const result = await withAuthRecovery(
+      authRecovery,
+      isCaesarAuthRequiredError,
+      () => addChipSectionToCartCore(params, titleHint, onProgress)
+    );
+    if (result === null) {
+      // User canceled the popup or it couldn't open — withAuthRecovery
+      // already toasted; surface a clean error so the chip resets.
+      return { ok: false, error: "CAESAR sign-in was canceled." };
     }
-
-    const courses = await getTermCourses(termId);
-    const match = findSection(courses, params, titleHint);
-    if (!match) {
-      return {
-        ok: false,
-        error: `No section of ${params.subject} ${params.catalogNumber} taught by ${params.instructor || "this instructor"} found in ${info.terms[termId]?.name ?? termId}.`
-      };
-    }
-
-    onProgress?.(`Searching CAESAR for ${params.subject} ${params.catalogNumber}…`);
-    const search = await searchCaesarCatalog({
-      termId,
-      institution: INSTITUTION_DEFAULT,
-      subject: params.subject,
-      bareCatalog: bareCatalogNumber(params.catalogNumber)
-    });
-
-    // CTEC links carry only the bare number ("105"); paper.nu's resolved
-    // section knows the full catalog including the suffix ("105-8"). Use
-    // the resolved value so `matchCaesarGroup` lands on the right group.
-    const group = matchCaesarGroup(search.groups, match.catalog ?? params.catalogNumber);
-    const caesarSection = group
-      ? matchCaesarSection(group, match.section, match.component)
-      : null;
-    if (!caesarSection) {
-      return {
-        ok: false,
-        error: `CAESAR didn't return section ${match.section}-${match.component} for ${params.subject} ${params.catalogNumber} in ${info.terms[termId]?.name ?? termId}.`
-      };
-    }
-
-    onProgress?.(`Adding #${caesarSection.classNumber}…`);
-    const result: CartFlowResult = await addSectionToCart({
-      classNumber: caesarSection.classNumber,
-      termId,
-      institution: INSTITUTION_DEFAULT,
-      bareCatalog: bareCatalogNumber(params.catalogNumber)
-    });
-
-    if (result.ok) {
-      return {
-        ok: true,
-        classNumber: result.classNumber,
-        sectionLabel: result.sectionLabel,
-        termId
-      };
-    }
-    if ("needsRelatedSection" in result) {
-      // paper-ctec's cart flow can't show an inline picker — bail with a
-      // pointer to the class-search UI which has the picker wired up.
-      return {
-        ok: false,
-        error: `${params.subject} ${params.catalogNumber} requires picking a discussion/lab. Add it from Class Search.`,
-        classNumber: result.classNumber
-      };
-    }
-    return {
-      ok: false,
-      error: result.error,
-      alreadyInCart: result.alreadyInCart,
-      classNumber: result.classNumber ?? caesarSection.classNumber
-    };
+    return result;
   } catch (error) {
     return {
       ok: false,
       error: error instanceof Error ? error.message : String(error)
     };
   }
+}
+
+async function addChipSectionToCartCore(
+  params: CtecLinkParams,
+  titleHint: string,
+  onProgress?: (message: string) => void
+): Promise<CartChipResult> {
+  onProgress?.("Loading paper.nu term data…");
+  const info = await getDataMapInfo();
+  const { termId } = await getActivePaperTermId();
+  if (!termId) {
+    return { ok: false, error: "Couldn't determine the active paper.nu term." };
+  }
+
+  const courses = await getTermCourses(termId);
+  const match = findSection(courses, params, titleHint);
+  if (!match) {
+    return {
+      ok: false,
+      error: `No section of ${params.subject} ${params.catalogNumber} taught by ${params.instructor || "this instructor"} found in ${info.terms[termId]?.name ?? termId}.`
+    };
+  }
+
+  onProgress?.(`Searching CAESAR for ${params.subject} ${params.catalogNumber}…`);
+  const search = await searchCaesarCatalog({
+    termId,
+    institution: INSTITUTION_DEFAULT,
+    subject: params.subject,
+    bareCatalog: bareCatalogNumber(params.catalogNumber)
+  });
+
+  // CTEC links carry only the bare number ("105"); paper.nu's resolved
+  // section knows the full catalog including the suffix ("105-8"). Use
+  // the resolved value so `matchCaesarGroup` lands on the right group.
+  const group = matchCaesarGroup(search.groups, match.catalog ?? params.catalogNumber);
+  const caesarSection = group
+    ? matchCaesarSection(group, match.section, match.component)
+    : null;
+  if (!caesarSection) {
+    return {
+      ok: false,
+      error: `CAESAR didn't return section ${match.section}-${match.component} for ${params.subject} ${params.catalogNumber} in ${info.terms[termId]?.name ?? termId}.`
+    };
+  }
+
+  onProgress?.(`Adding #${caesarSection.classNumber}…`);
+  const result: CartFlowResult = await addSectionToCart({
+    classNumber: caesarSection.classNumber,
+    termId,
+    institution: INSTITUTION_DEFAULT,
+    bareCatalog: bareCatalogNumber(params.catalogNumber)
+  });
+
+  if (result.ok) {
+    return {
+      ok: true,
+      classNumber: result.classNumber,
+      sectionLabel: result.sectionLabel,
+      termId
+    };
+  }
+  if ("needsRelatedSection" in result) {
+    // paper-ctec's cart flow can't show an inline picker — bail with a
+    // pointer to the class-search UI which has the picker wired up.
+    return {
+      ok: false,
+      error: `${params.subject} ${params.catalogNumber} requires picking a discussion/lab. Add it from Class Search.`,
+      classNumber: result.classNumber
+    };
+  }
+  return {
+    ok: false,
+    error: result.error,
+    alreadyInCart: result.alreadyInCart,
+    classNumber: result.classNumber ?? caesarSection.classNumber
+  };
 }
 
 // Resolves a chip's identity (subject + catalog + instructor + topic) to a

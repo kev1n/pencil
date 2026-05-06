@@ -22,7 +22,6 @@ import {
 } from "./parser";
 import {
   CaesarAuthRequiredError,
-  LANDING_PAGE_URL,
   type CaesarCourseGroup,
   type CaesarSearchInput,
   type CaesarSearchResult,
@@ -134,19 +133,13 @@ async function searchCaesarCatalogInternal(
 // so every operation begins with a clean ICStateNum regardless of what
 // happened in earlier operations or other tabs.
 //
-// If the first GET comes back without ICSID, the PS session is dead. We
-// hit the portal landing page once to give NetID SSO a chance to silently
-// re-handshake (works when the IdP cookie is still alive), then re-fetch
-// the entry page. If that still has no ICSID, throw `CaesarAuthRequiredError`
-// so the caller can open the SSO popup flow.
+// If the GET comes back without ICSID, the PS session is dead — throw
+// `CaesarAuthRequiredError` and let the outer `withSilentAuthRecovery`
+// wrapper drive the silent SSO walk + retry (and after that, the popup
+// handshake if both silent layers can't recover).
 async function getEntryFormState(): Promise<URLSearchParams> {
   const params = await fetchEntryFormParams();
   if (params.has("ICSID")) return params;
-
-  await fetchPeopleSoftGet(LANDING_PAGE_URL).catch(() => undefined);
-  const refreshed = await fetchEntryFormParams();
-  if (refreshed.has("ICSID")) return refreshed;
-
   throw new CaesarAuthRequiredError();
 }
 

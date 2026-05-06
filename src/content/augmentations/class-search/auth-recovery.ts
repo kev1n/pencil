@@ -16,6 +16,7 @@ import type {
   OpenAuthPopupMessage,
   OpenAuthPopupResponse
 } from "../../../shared/messages";
+import { withSilentAuthRecovery } from "../../auth/silent-recovery";
 
 export type AuthRecoveryDeps = {
   chromeRuntime: typeof chrome.runtime;
@@ -114,13 +115,20 @@ export function createAuthRecovery(deps: AuthRecoveryDeps): AuthRecovery {
 }
 
 /**
- * Wrap a CAESAR action with auth recovery. Re-throws the original error
- * unchanged when it's not an auth-required error; on auth failures, runs
- * the recovery handshake and retries `action` once. Returns `null` when
- * the user cancels sign-in.
+ * Wrap a CAESAR action with the full auth-recovery cascade:
  *
- * `getLoginUrl` extracts the login URL from the error so the popup tab
- * lands on the right SSO endpoint (matches the original behavior where
+ *   1. Run `action`.
+ *   2. On auth failure, attempt the silent layers (background fetch, then
+ *      inactive tab) via `withSilentAuthRecovery`. Each successful layer
+ *      retries `action` automatically.
+ *   3. If both silent layers fail, fall back to the user-visible popup
+ *      handshake and retry `action` once after the user signs in.
+ *
+ * Re-throws the original error when it's not an auth-required error.
+ * Returns `null` when the user cancels sign-in or the popup couldn't open.
+ *
+ * `isAuthError` extracts the login URL so the popup tab lands on the right
+ * SSO endpoint (matches the original behavior where
  * `CaesarAuthRequiredError.loginUrl` flowed straight through).
  */
 export async function withAuthRecovery<T>(
@@ -129,7 +137,7 @@ export async function withAuthRecovery<T>(
   action: () => Promise<T>
 ): Promise<T | null> {
   try {
-    return await action();
+    return await withSilentAuthRecovery(action, isAuthError);
   } catch (error) {
     if (!isAuthError(error)) throw error;
     try {

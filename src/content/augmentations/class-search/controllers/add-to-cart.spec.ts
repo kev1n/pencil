@@ -176,9 +176,16 @@ describe("createAddToCartController — credit + auth gating", () => {
       courseTitle: "Fundamentals",
       searchGroups: groups
     };
-    // First call rejects with auth-required; second call (after recovery) succeeds.
+    // withAuthRecovery now runs the silent SSO walk (Layer 1 + Layer 2)
+    // before falling back to the popup. In jsdom the silent layers can't
+    // succeed (chrome.runtime.sendMessage is stubbed to return `{}`, so
+    // both Layer 1's background fetch and Layer 2's silent-tab handshake
+    // return falsy), so action() is invoked twice (once initially, once
+    // after the Layer 1 silent fetch retry) and only after both silent
+    // layers fail does the popup recovery fire and trigger the third call.
     const addSpy = vi
       .fn()
+      .mockRejectedValueOnce(new CaesarAuthRequiredError("https://example.org/login"))
       .mockRejectedValueOnce(new CaesarAuthRequiredError("https://example.org/login"))
       .mockResolvedValueOnce(successResult);
     const recovery = makeAuthRecovery();
@@ -188,7 +195,7 @@ describe("createAddToCartController — credit + auth gating", () => {
     await ctrl.onClick(button, makeCtx());
 
     expect(recovery.ensure).toHaveBeenCalledWith("https://example.org/login");
-    expect(addSpy).toHaveBeenCalledTimes(2);
+    expect(addSpy).toHaveBeenCalledTimes(3);
     expect(button.dataset.state).toBe("in-cart");
   });
 

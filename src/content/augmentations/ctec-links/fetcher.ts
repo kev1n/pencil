@@ -25,6 +25,11 @@ import {
   fetchPeopleSoftResult
 } from "../../peoplesoft/http";
 import { runPeopleSoftTask } from "../../peoplesoft";
+import {
+  CaesarAuthRequiredError,
+  isCaesarAuthRequiredError
+} from "../class-search/caesar-search/types";
+import { withSilentAuthRecovery } from "../../auth/silent-recovery";
 import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
 import {
   descriptionMatchesCatalog,
@@ -83,6 +88,30 @@ export function clearCtecCacheForCourse(
 }
 
 async function fetchCtecLinksInternal(
+  params: CtecLinkParams,
+  forceRefresh: boolean,
+  onProgress?: (msg: string) => void
+): Promise<CtecLinkData> {
+  // Wrap the core in the shared silent-recovery cascade. Inner code throws
+  // `CaesarAuthRequiredError` whenever PeopleSoft hands us an SSO page; the
+  // wrapper retries through Layer 1 (background fetch to landing page) then
+  // Layer 2 (inactive 10s tab) before giving up. If both silent layers
+  // fail, we surface the legacy `{ state: "auth-required" }` shape so
+  // paper-ctec's AuthFlow can render its visible modal.
+  try {
+    return await withSilentAuthRecovery(
+      () => fetchCtecLinksCore(params, forceRefresh, onProgress),
+      isCaesarAuthRequiredError
+    );
+  } catch (error) {
+    if (isCaesarAuthRequiredError(error)) {
+      return { state: "auth-required", loginUrl: CTEC_AUTH_URL };
+    }
+    throw error;
+  }
+}
+
+async function fetchCtecLinksCore(
   params: CtecLinkParams,
   forceRefresh: boolean,
   onProgress?: (msg: string) => void
@@ -161,9 +190,9 @@ async function fetchCtecLinksInternal(
     if (fetchResult.type !== "not-found") break;
   }
 
-  if (fetchResult.type === "auth") {
-    return { state: "auth-required", loginUrl: fetchResult.loginUrl };
-  }
+  // Auth-required cases are surfaced as `CaesarAuthRequiredError` thrown
+  // from `fetchCourseEntries`, caught by the outer `withSilentAuthRecovery`
+  // wrapper. They never reach this switch.
   if (fetchResult.type === "error") {
     return { state: "error", message: fetchResult.message };
   }
@@ -302,10 +331,13 @@ function writeSentinel(
 
 type FetchCourseResult =
   | { type: "entries"; entries: CtecIndexedEntry[]; pendingRowCount: number }
-  | { type: "auth"; loginUrl: string }
   | { type: "not-found" }
   | { type: "error"; message: string };
 
+// Throws `CaesarAuthRequiredError` whenever PeopleSoft signals auth-required
+// (4xx status or SSO-shaped HTML). The outer `fetchCtecLinksInternal`
+// wraps this in `withSilentAuthRecovery`, which retries through Layer 1 +
+// Layer 2 and only escalates to a visible modal as a last resort.
 async function fetchCourseEntries(
   subject: string,
   catalogNumber: string,
@@ -320,14 +352,15 @@ async function fetchCourseEntries(
   try {
     const response = await fetchPeopleSoftGetResult(resultsUrl);
     if (isUnauthorizedStatus(response.status)) {
-      return { type: "auth", loginUrl: CTEC_AUTH_URL };
+      throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
     }
     html = response.text;
   } catch (e) {
+    if (isCaesarAuthRequiredError(e)) throw e;
     return { type: "error", message: e instanceof Error ? e.message : "Failed to load CTEC page." };
   }
 
-  if (isAuthResponse(html)) return { type: "auth", loginUrl: CTEC_AUTH_URL };
+  if (isAuthResponse(html)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   const form = doc.forms.namedItem("win0");
@@ -352,14 +385,15 @@ async function fetchCourseEntries(
       buildActionParams(baseParams, targetCourse.actionId)
     );
     if (isUnauthorizedStatus(response.status)) {
-      return { type: "auth", loginUrl: CTEC_AUTH_URL };
+      throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
     }
     courseResponse = response.text;
   } catch (e) {
+    if (isCaesarAuthRequiredError(e)) throw e;
     return { type: "error", message: e instanceof Error ? e.message : "Failed to load course." };
   }
 
-  if (isAuthResponse(courseResponse)) return { type: "auth", loginUrl: CTEC_AUTH_URL };
+  if (isAuthResponse(courseResponse)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
 
   const allClassRows = collectClassRowsFromText(courseResponse);
   if (allClassRows.length === 0) return { type: "not-found" };
@@ -403,10 +437,11 @@ async function fetchCourseEntries(
         buildActionParams(classParams, row.actionId)
       );
       if (isUnauthorizedStatus(response.status)) {
-        return { type: "auth", loginUrl: CTEC_AUTH_URL };
+        throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
       }
       classResponse = response.text;
-    } catch {
+    } catch (e) {
+      if (isCaesarAuthRequiredError(e)) throw e;
       resultEntries.push({
         actionId: row.actionId,
         term: row.term,
@@ -419,7 +454,7 @@ async function fetchCourseEntries(
       continue;
     }
 
-    if (isAuthResponse(classResponse)) return { type: "auth", loginUrl: CTEC_AUTH_URL };
+    if (isAuthResponse(classResponse)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
 
     const blueraUrl = extractBlueraUrl(classResponse);
     resultEntries.push({

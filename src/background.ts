@@ -5,7 +5,9 @@ import type {
   FetchBinaryMessage,
   FetchTextMessage,
   OpenAuthPopupMessage,
-  OpenAuthPopupResponse
+  OpenAuthPopupResponse,
+  OpenSilentAuthTabMessage,
+  OpenSilentAuthTabResponse
 } from "./shared/messages";
 
 const FETCH_TIMEOUT_MS = 30_000;
@@ -77,6 +79,19 @@ type TrackedPopup = {
 const trackedPopups = new Map<number, TrackedPopup>();
 const ownerToPopup = new Map<number, number>();
 
+// Layer-2 silent-tab tracking. Separate from `trackedPopups` because the
+// resolution path differs: silent tabs are inactive, time-limited, and
+// resolve a single in-flight Promise rather than broadcast a runtime
+// message. They never "succeed silently" past the timeout — if the user
+// somehow notices and closes the tab manually, we treat it as a failure.
+type TrackedSilentTab = {
+  tabId: number;
+  resolve: (response: OpenSilentAuthTabResponse) => void;
+  timeoutHandle: ReturnType<typeof setTimeout>;
+};
+
+const trackedSilentTabs = new Map<number, TrackedSilentTab>();
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log("pencil.nu extension installed.");
 });
@@ -92,6 +107,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message.type === "open-auth-popup") {
     void handleOpenAuthPopup(message as OpenAuthPopupMessage, sender, sendResponse);
+    return true;
+  }
+  if (message.type === "open-silent-auth-tab") {
+    void handleOpenSilentAuthTab(
+      message as OpenSilentAuthTabMessage,
+      sendResponse as (response: OpenSilentAuthTabResponse) => void
+    );
     return true;
   }
   if (message.type === "abort-fetch") {
@@ -110,12 +132,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  const currentUrl = tab.url ?? "";
+  const isPostAuth = POST_AUTH_URL_PATTERNS.some((pattern) => pattern.test(currentUrl));
+
+  const silent = trackedSilentTabs.get(tabId);
+  if (silent) {
+    if (info.status !== "complete") return;
+    if (!isPostAuth) return;
+    finishSilentTab(tabId, { ok: true, recovered: true });
+    return;
+  }
+
   const tracked = trackedPopups.get(tabId);
   if (!tracked) return;
   if (info.status !== "complete") return;
-
-  const currentUrl = tab.url ?? "";
-  if (!POST_AUTH_URL_PATTERNS.some((pattern) => pattern.test(currentUrl))) return;
+  if (!isPostAuth) return;
 
   forgetPopup(tabId);
   void chrome.tabs.update(tracked.ownerTabId, { active: true }).catch(() => undefined);
@@ -124,6 +155,15 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  const silent = trackedSilentTabs.get(tabId);
+  if (silent) {
+    // Tab removed before we got there ourselves — could be the user closing
+    // it manually, or our own remove() call from the success/timeout path.
+    // Either way, resolve as not-recovered if we haven't already.
+    finishSilentTab(tabId, { ok: true, recovered: false }, /* alreadyClosed */ true);
+    return;
+  }
+
   const tracked = trackedPopups.get(tabId);
   if (!tracked) return;
   forgetPopup(tabId);
@@ -165,6 +205,56 @@ async function handleOpenAuthPopup(
       error: error instanceof Error ? error.message : String(error)
     });
   }
+}
+
+async function handleOpenSilentAuthTab(
+  message: OpenSilentAuthTabMessage,
+  sendResponse: (response: OpenSilentAuthTabResponse) => void
+): Promise<void> {
+  let tab: chrome.tabs.Tab;
+  try {
+    tab = await chrome.tabs.create({ url: message.loginUrl, active: false });
+  } catch (error) {
+    sendResponse({
+      ok: false,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return;
+  }
+
+  if (tab.id === undefined) {
+    sendResponse({ ok: false, error: "Tab created without id" });
+    return;
+  }
+
+  const tabId = tab.id;
+  const timeoutHandle = setTimeout(() => {
+    finishSilentTab(tabId, { ok: true, recovered: false });
+  }, message.timeoutMs);
+
+  trackedSilentTabs.set(tabId, {
+    tabId,
+    resolve: sendResponse,
+    timeoutHandle
+  });
+}
+
+// Resolves the in-flight Promise for `tabId` and tears down the tab. Safe
+// to call multiple times — only the first call has any effect (subsequent
+// onRemoved callbacks for the same tab become no-ops).
+function finishSilentTab(
+  tabId: number,
+  response: OpenSilentAuthTabResponse,
+  alreadyClosed = false
+): void {
+  const tracked = trackedSilentTabs.get(tabId);
+  if (!tracked) return;
+  trackedSilentTabs.delete(tabId);
+  clearTimeout(tracked.timeoutHandle);
+  if (!alreadyClosed) {
+    void chrome.tabs.remove(tabId).catch(() => undefined);
+  }
+  tracked.resolve(response);
 }
 
 function forgetPopup(tabId: number): void {

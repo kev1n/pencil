@@ -89,6 +89,23 @@ export type AuthPopupClosedMessage = {
   reason: "succeeded" | "user-closed";
 };
 
+// Layer 2 of the silent SSO walk. Opens an INACTIVE background tab to
+// `loginUrl` (typically the CAESAR landing page) so the browser's JS engine
+// can complete any SAML POST-binding auto-submit step that `fetch()` can't
+// follow. Background watches for the tab to settle on a `/psc/` URL and
+// closes it as soon as it does. If the tab doesn't reach `/psc/` within
+// `timeoutMs`, background closes it and reports `recovered: false` so the
+// caller can fall back to a user-visible popup.
+export type OpenSilentAuthTabMessage = {
+  type: "open-silent-auth-tab";
+  loginUrl: string;
+  timeoutMs: number;
+};
+
+export type OpenSilentAuthTabResponse =
+  | { ok: true; recovered: boolean }
+  | { ok: false; error: string };
+
 // Fire-and-forget telemetry from content scripts: a credit was just burned
 // from one of the rate-limit pools. Logged in the background worker so the
 // service-worker devtools show a persistent, cross-tab record of usage.
