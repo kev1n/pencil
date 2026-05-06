@@ -152,9 +152,9 @@ export function defineCreditPool(config: CreditPoolConfig): CreditPoolApi {
           cap: config.cap,
           owner
         })
-        .catch(() => undefined);
-    } catch {
-      // Extension context invalidated mid-session — drop the broadcast.
+        .catch((err: unknown) => logQuiet(`credit-pool.${config.name}.notify`, err));
+    } catch (err) {
+      logQuiet(`credit-pool.${config.name}.notify`, err);
     }
   }
 

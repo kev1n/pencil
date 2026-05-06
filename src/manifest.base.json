@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "pencil.nu",
   "description": "Sharpens Paper.nu and CAESAR with inline CTECs, seat counts, and faster term navigation.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "icons": {
     "16": "assets/icons/pencil-16.png",
     "32": "assets/icons/pencil-32.png",
