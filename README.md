@@ -1,5 +1,7 @@
 # pencil.nu
 
+![pencil.nu — paper.nu and CAESAR, sharpened](docs/marquee.png)
+
 pencil.nu is a Northwestern course-planning browser extension for CAESAR and Paper.
 
 ## Students: get pencil.nu
