@@ -96,21 +96,52 @@ function buildComponentCell(doc: Document, section: PaperSection): HTMLElement {
 
 function buildTimeCell(doc: Document, section: PaperSection): HTMLElement {
   const cell = el(doc, "div", { class: "bc-cs-section-time" });
-  const patterns = meetingPatternCount(section);
-  for (let i = 0; i < patterns; i += 1) {
-    cell.appendChild(
-      el(doc, "div", { text: formatMeetingPattern(section, i) })
-    );
-  }
   if (section.start_date && section.end_date) {
     cell.appendChild(
       el(doc, "div", {
-        class: "bc-cs-mute",
-        text: `${section.start_date} – ${section.end_date}`
+        class: "bc-cs-section-time-dates",
+        text: formatDateRange(section.start_date, section.end_date)
+      })
+    );
+  }
+  const patterns = meetingPatternCount(section);
+  for (let i = 0; i < patterns; i += 1) {
+    cell.appendChild(
+      el(doc, "div", {
+        class: "bc-cs-section-time-pattern",
+        text: formatMeetingPattern(section, i)
       })
     );
   }
   return cell;
+}
+
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+function formatDateRange(start: string, end: string): string {
+  const startParts = parseIsoDate(start);
+  const endParts = parseIsoDate(end);
+  if (!startParts || !endParts) return `${start} – ${end}`;
+  const sameYear = startParts.year === endParts.year;
+  const startLabel = `${MONTH_LABELS[startParts.month]} ${startParts.day}`;
+  const endLabel = `${MONTH_LABELS[endParts.month]} ${endParts.day}`;
+  if (sameYear) {
+    return `${startLabel} – ${endLabel}, ${endParts.year}`;
+  }
+  return `${startLabel}, ${startParts.year} – ${endLabel}, ${endParts.year}`;
+}
+
+function parseIsoDate(input: string): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIdx = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  if (monthIdx < 0 || monthIdx > 11) return null;
+  return { year, month: monthIdx, day };
 }
 
 function buildInstructorCell(doc: Document, section: PaperSection): HTMLElement {
@@ -180,7 +211,7 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
   // mounts to the DOM.
   props.registerAddButton(addBtn, props.sigKey);
 
-  return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn, addBtn]);
+  return el(doc, "div", { class: "bc-cs-section-actions" }, [addBtn, detailsBtn]);
 }
 
 /**

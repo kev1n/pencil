@@ -77,12 +77,14 @@ export function renderSectionDetail(
 }
 
 export function renderSectionDetailLoading(doc: Document): HTMLElement {
-  return el(doc, "div", { class: "bc-cs-detail" }, [
-    el(doc, "span", { class: "bc-cs-spinner" }),
-    el(doc, "span", {
-      text: "Fetching seats and notes from CAESAR…",
-      style: { color: "var(--bc-text-muted)" }
-    })
+  return el(doc, "div", { class: "bc-cs-detail bc-cs-detail--loading" }, [
+    el(doc, "div", { class: "bc-cs-detail-loading-row" }, [
+      el(doc, "span", { class: "bc-cs-spinner" }),
+      el(doc, "span", {
+        class: "bc-cs-detail-loading-label",
+        text: "Fetching seats and notes from CAESAR…"
+      })
+    ])
   ]);
 }
 

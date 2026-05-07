@@ -161,6 +161,15 @@ export function createSectionDetailController(
     },
 
     async toggle(row, section, li, button) {
+      // Re-entry guard: bounce a click that lands while a previous expand
+      // is still resolving. Without this, every rapid double-click would
+      // queue a fresh ensureLiveData + lookupClass round-trip. Must run
+      // before the open-panel check below, because the loading shell now
+      // mounts as a `.bc-cs-detail-row` synchronously on first click —
+      // without ordering this first, the second click would treat the
+      // in-flight loading shell as "already open" and tear it down.
+      if (button.dataset.state === "loading") return;
+
       let detailRow = li.nextElementSibling instanceof HTMLLIElement && li.nextElementSibling.classList.contains("bc-cs-detail-row")
         ? (li.nextElementSibling as HTMLLIElement)
         : null;
@@ -173,11 +182,6 @@ export function createSectionDetailController(
         button.textContent = "Details";
         return;
       }
-
-      // Re-entry guard: bounce a click that lands while a previous expand
-      // is still resolving. Without this, every rapid double-click would
-      // queue a fresh ensureLiveData + lookupClass round-trip.
-      if (button.dataset.state === "loading") return;
 
       // Cache-warm fast path: if both the catalog and seats-notes caches
       // are already populated, render the panel synchronously without any
@@ -192,10 +196,22 @@ export function createSectionDetailController(
       button.disabled = true;
       paintButtonLoading(doc, button, "Loading…");
 
-      // Restore the button when the expand bails out (credit exhaustion,
-      // missing data, network failure). The success path overrides this
-      // back to "Hide" + expanded once the panel mounts.
+      // Mount the loading shell synchronously so "Fetching seats and notes
+      // from CAESAR…" paints in the same frame as the click — without this
+      // the user stares at an unchanged row while ensureLiveData resolves
+      // (cold catalog cache → multi-second disk/network round-trip).
+      detailRow = doc.createElement("li");
+      detailRow.className = "bc-cs-detail-row";
+      li.parentElement?.insertBefore(detailRow, li.nextSibling);
+      renderLoading(deps, detailRow);
+
+      // Restore the button + tear down the loading shell when the expand
+      // bails out (credit exhaustion, missing data, network failure). The
+      // success path overrides this back to "Hide" + expanded once the
+      // panel mounts.
       const restoreIdle = (): void => {
+        if (detailRow?.parentNode) detailRow.parentNode.removeChild(detailRow);
+        detailRow = null;
         button.dataset.state = "";
         button.disabled = false;
         button.textContent = "Details";
@@ -236,10 +252,6 @@ export function createSectionDetailController(
           return;
         }
 
-        detailRow = doc.createElement("li");
-        detailRow.className = "bc-cs-detail-row";
-        li.parentElement?.insertBefore(detailRow, li.nextSibling);
-
         const bareCatalog = bareCatalogNumber(row.course.catalog);
         const cachedDisk = readSeatsNotesCache(caesar.classNumber);
         if (cachedDisk?.result) {
@@ -259,7 +271,6 @@ export function createSectionDetailController(
         // Reset to a retryable idle state. Skip the toast on canceled tasks
         // (a higher-priority action took over) and keep the panel torn down
         // so the next click can re-trigger cleanly.
-        if (detailRow && detailRow.isConnected) detailRow.remove();
         restoreIdle();
         if (!isRetryablePeopleSoftTaskError(error)) {
           const msg = error instanceof Error ? error.message : String(error);

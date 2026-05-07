@@ -15,6 +15,16 @@ export function detailStyles(): string {
       flex-direction: column;
       gap: 12px;
     }
+    .bc-cs-detail-loading-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: var(--bc-font-12);
+      color: var(--bc-color-text-muted);
+    }
+    .bc-cs-detail-loading-label {
+      line-height: 1.3;
+    }
     .bc-cs-detail-header {
       font-size: var(--bc-font-12);
       color: var(--bc-color-text-muted);

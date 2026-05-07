@@ -128,7 +128,7 @@ describe("renderSectionRow", () => {
     expect(btn).toBe(li.querySelector(".bc-cs-add"));
   });
 
-  it("renders a date range below the meeting line when start/end_date are present", () => {
+  it("renders a readable date range above the meeting line when start/end_date are present", () => {
     const doc = fresh();
     const li = renderSectionRow(doc, {
       section: makeSection(),
@@ -138,8 +138,13 @@ describe("renderSectionRow", () => {
       onAddToCart: vi.fn(),
       onToggleDetails: vi.fn()
     });
-    const range = li.querySelector(".bc-cs-section-time .bc-cs-mute");
-    expect(range?.textContent).toBe("2026-09-15 – 2026-12-09");
+    const time = li.querySelector<HTMLElement>(".bc-cs-section-time");
+    const dates = time?.querySelector(".bc-cs-section-time-dates");
+    const pattern = time?.querySelector(".bc-cs-section-time-pattern");
+    expect(dates?.textContent).toBe("Sep 15 – Dec 9, 2026");
+    // Dates should appear before the meeting pattern in DOM order.
+    expect(time?.firstElementChild).toBe(dates ?? null);
+    expect(pattern?.textContent).toContain("MoWeFr");
   });
 
   it("renders an empty actions cell with no buttons when showActions is false", () => {

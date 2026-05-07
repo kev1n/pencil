@@ -28,7 +28,15 @@ export function sectionRowsStyles(): string {
     }
     .bc-cs-section-component { color: var(--bc-color-text-muted); font-size: var(--bc-font-12); }
     .bc-cs-section-time { color: var(--bc-color-text); font-size: var(--bc-font-12); line-height: 1.4; }
-    .bc-cs-section-time .bc-cs-mute { color: var(--bc-color-text-subtle); font-size: var(--bc-font-11); }
+    .bc-cs-section-time-dates {
+      color: var(--bc-color-text);
+      font-size: var(--bc-font-12);
+      font-weight: var(--bc-fw-semibold);
+    }
+    .bc-cs-section-time-pattern {
+      color: var(--bc-color-text-muted);
+      font-size: var(--bc-font-11);
+    }
     .bc-cs-section-instructor {
       color: var(--bc-color-text);
       font-size: var(--bc-font-12);
@@ -39,9 +47,8 @@ export function sectionRowsStyles(): string {
     .bc-cs-section-room {
       color: var(--bc-color-text-muted);
       font-size: var(--bc-font-11);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
     }
     .bc-cs-section-live {
       font-size: var(--bc-font-11);
@@ -85,16 +92,19 @@ export function sectionRowsStyles(): string {
       min-width: 188px;
     }
     .bc-cs-details-btn {
-      background: transparent;
-      border: 1px solid var(--bc-color-border-strong);
+      background: var(--bc-color-accent);
+      color: var(--bc-color-accent-on);
+      border: 1px solid var(--bc-color-accent);
       border-radius: var(--bc-radius-lg);
+      /* Match .bc-cs-add (the secondary sibling) on padding, font size,
+         and weight — the two should read as a paired button cluster, with
+         primary/secondary distinction carried only by fill vs outline. */
       padding: 5px 10px;
       font: inherit;
       font-size: var(--bc-font-11);
       font-weight: var(--bc-fw-semibold);
-      color: var(--bc-color-text-muted);
       cursor: pointer;
-      transition: color var(--bc-tx-fast), border-color var(--bc-tx-fast), background-color var(--bc-tx-fast);
+      transition: background-color 100ms, transform var(--bc-tx-fast), box-shadow 100ms, border-color var(--bc-tx-fast);
       /* Inline-flex so a spinner span sits next to the label text inside
          the button when data-state="loading". min-width keeps the button
          a stable size across "Details" / "Loading…" / "Hide" so the row's
@@ -107,23 +117,25 @@ export function sectionRowsStyles(): string {
       min-width: 76px;
     }
     .bc-cs-details-btn:hover {
-      color: var(--bc-color-text);
-      border-color: var(--bc-color-border-strong);
-      background: var(--bc-color-surface-hover);
+      background: var(--bc-color-accent-hover);
+      border-color: var(--bc-color-accent-hover);
+      box-shadow: var(--bc-shadow-add-cta);
     }
+    .bc-cs-details-btn:active { transform: translateY(1px); box-shadow: none; }
     .bc-cs-details-btn[data-expanded="true"] {
-      background: var(--bc-color-surface-hover-strong);
-      color: var(--bc-color-text);
-      border-color: var(--bc-color-border-strong);
+      background: var(--bc-color-accent-hover);
+      border-color: var(--bc-color-accent-hover);
+      box-shadow: none;
     }
     .bc-cs-details-btn[disabled],
     .bc-cs-details-btn[data-state="loading"] {
       cursor: progress;
-      opacity: 0.7;
     }
     .bc-cs-details-btn[data-state="loading"] {
-      background: var(--bc-color-surface-hover);
-      color: var(--bc-color-text);
+      background: var(--bc-color-disabled-bg);
+      border-color: var(--bc-color-disabled-bg);
+      color: var(--bc-color-text-muted);
+      box-shadow: none;
     }
 
     /* Inline button spinner — used inside .bc-cs-details-btn and

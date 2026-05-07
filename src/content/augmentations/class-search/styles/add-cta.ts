@@ -2,19 +2,20 @@
 // persistent cart-state (in-cart / enrolled) styles.
 export function addCtaStyles(): string {
   return `
-    /* ── Add-to-cart: primary CAESAR CTA ────────────────────────────────── */
+    /* ── Add-to-cart: secondary CAESAR action (Details is the primary) ──── */
     .bc-cs-add {
-      background: var(--bc-color-accent);
-      color: var(--bc-color-accent-on);
-      border: 1px solid var(--bc-color-accent);
+      background: transparent;
+      color: var(--bc-color-text-muted);
+      border: 1px solid var(--bc-color-border-strong);
       border-radius: var(--bc-radius-lg);
-      padding: 6px 12px;
+      padding: 5px 10px;
       font: inherit;
-      font-size: var(--bc-font-12);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-wide);
+      font-size: var(--bc-font-11);
+      font-weight: var(--bc-fw-semibold);
       cursor: pointer;
-      transition: background-color 100ms, transform var(--bc-tx-fast), box-shadow 100ms;
+      transition: color var(--bc-tx-fast), background-color var(--bc-tx-fast),
+                  border-color var(--bc-tx-fast), box-shadow var(--bc-tx-fast),
+                  transform var(--bc-tx-fast);
       /* Inline-flex so the spinner span (added when data-state="loading")
          sits next to the label inside the button. */
       display: inline-flex;
@@ -23,21 +24,21 @@ export function addCtaStyles(): string {
       gap: 6px;
     }
     .bc-cs-add:hover {
-      background: var(--bc-color-accent-hover);
-      border-color: var(--bc-color-accent-hover);
-      box-shadow: var(--bc-shadow-add-cta);
+      color: var(--bc-color-text);
+      background: var(--bc-color-surface-hover);
+      border-color: var(--bc-color-border-strong);
     }
     .bc-cs-add:active { transform: translateY(1px); box-shadow: none; }
     .bc-cs-add[disabled] {
       background: var(--bc-color-disabled-bg);
       border-color: var(--bc-color-disabled-bg);
+      color: var(--bc-color-text-muted);
       cursor: progress;
       box-shadow: none;
     }
-    /* Loading state must read as clearly disabled — accent-vs-accent-hover
-       was nearly imperceptible and tempted users to click again. Drop to
-       the shared disabled-bg + muted text so the locked state is obvious
-       even before the inline spinner spins up. */
+    /* Loading state must read as clearly disabled — drop to the shared
+       disabled-bg + muted text so the locked state is obvious even before
+       the inline spinner spins up. */
     .bc-cs-add[data-state="loading"],
     .bc-cs-add[disabled][data-state="loading"] {
       background: var(--bc-color-disabled-bg);
@@ -49,10 +50,12 @@ export function addCtaStyles(): string {
     .bc-cs-add[data-state="success"] {
       background: var(--bc-color-success);
       border-color: var(--bc-color-success);
+      color: var(--bc-color-accent-on);
     }
     .bc-cs-add[data-state="error"] {
       background: var(--bc-color-danger);
       border-color: var(--bc-color-danger);
+      color: var(--bc-color-accent-on);
     }
     /* Persistent cart-state badges — match the canonical "mini viewer"
        (.bc-cs-myclass-badge in styles/results.ts) so the section-row Add
