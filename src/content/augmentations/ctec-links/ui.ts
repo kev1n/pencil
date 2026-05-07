@@ -99,6 +99,17 @@ export function renderNoAccess(container: HTMLElement): void {
   container.appendChild(root);
 }
 
+export function renderDisabled(container: HTMLElement): void {
+  container.innerHTML = "";
+  const root = document.createElement("div");
+  root.className = "bc-ctec-widget";
+  const msg = document.createElement("div");
+  msg.className = "bc-ctec-muted";
+  msg.textContent = "—";
+  root.appendChild(msg);
+  container.appendChild(root);
+}
+
 function buildNoAccessMessage(): HTMLElement {
   const msg = document.createElement("div");
   msg.className = "bc-ctec-muted";

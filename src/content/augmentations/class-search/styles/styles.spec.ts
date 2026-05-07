@@ -35,7 +35,7 @@ describe("classSearchStyles zone split", () => {
       ".bc-cs-results",
       ".bc-cs-empty",
       ".bc-cs-myclasses",
-      ".bc-cs-myclass-card",
+      ".bc-cs-cart-badge",
       ".bc-cs-course",
       ".bc-cs-course-head",
       ".bc-cs-section-list",

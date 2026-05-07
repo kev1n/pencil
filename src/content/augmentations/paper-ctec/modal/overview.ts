@@ -289,9 +289,34 @@ function renderGlobalBarRow(
           );
         })()
       : "";
+  // Tick labels: render integers above the Global bar (covers the rating
+  // scale shared by every rating row below) and at every 5h step below the
+  // Hours bar. Skipped for the rest so the strip stays uncluttered.
+  const labelsAbove: Array<{ pos: number; n: number }> = [];
+  const labelsBelow: Array<{ pos: number; n: number }> = [];
+  if (isGlobal) {
+    for (let i = 1; i < scale; i++) {
+      labelsAbove.push({ pos: (i / scale) * 100, n: i });
+    }
+  } else if (isHours) {
+    for (let i = 5; i < scale; i += 5) {
+      labelsBelow.push({ pos: (i / scale) * 100, n: i });
+    }
+  }
+  let chartClass = "bc-paper-ctec-modal-global-bar-chart";
+  if (labelsAbove.length > 0) chartClass += " has-top-labels";
+  if (labelsBelow.length > 0) chartClass += " has-bottom-labels";
   return html`<div class=${className} style=${rowStyle}>
     <div class="bc-paper-ctec-modal-global-bar-label">${label}</div>
-    <div class="bc-paper-ctec-modal-global-bar-chart">
+    <div class=${chartClass}>
+      ${labelsAbove.map(
+        (t) =>
+          html`<span
+            class="bc-paper-ctec-modal-global-bar-tick-label is-above"
+            style=${`left: ${t.pos}%`}
+            >${t.n}</span
+          >`
+      )}
       <div class="bc-paper-ctec-modal-global-bar-track">
         ${tickPositions.map(
           (pos) =>
@@ -311,6 +336,14 @@ function renderGlobalBarRow(
             ></span>`
           : ""}
       </div>
+      ${labelsBelow.map(
+        (t) =>
+          html`<span
+            class="bc-paper-ctec-modal-global-bar-tick-label is-below"
+            style=${`left: ${t.pos}%`}
+            >${t.n}</span
+          >`
+      )}
     </div>
     <div class="bc-paper-ctec-modal-global-bar-value">
       ${display}<span class="bc-paper-ctec-modal-global-bar-scale">/${scale}</span>

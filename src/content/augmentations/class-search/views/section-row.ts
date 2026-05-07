@@ -9,6 +9,7 @@ import { ACTION_BUTTON_MARKER_ATTR } from "../../../framework";
 import { el } from "../../../framework/dom";
 import { CTEC_HOST_CLASS } from "../ctec/view";
 import {
+  formatDateRange,
   formatInstructors,
   formatMeetingPattern,
   formatRoom,
@@ -40,6 +41,11 @@ export type SectionRowProps = {
    *  flow or fail). The empty cell keeps the row's grid column reserved
    *  so LEC and related rows stay visually aligned. */
   showActions: boolean;
+  /** When false (and `showActions` is true), keeps the Details button but
+   *  omits Add to cart. Used by the empty-state "Your classes" cards
+   *  where the section is already in the user's cart or enrolled —
+   *  Add is meaningless there. Defaults to true. */
+  showAdd?: boolean;
 };
 
 export function renderSectionRow(
@@ -116,34 +122,6 @@ function buildTimeCell(doc: Document, section: PaperSection): HTMLElement {
   return cell;
 }
 
-const MONTH_LABELS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-];
-
-function formatDateRange(start: string, end: string): string {
-  const startParts = parseIsoDate(start);
-  const endParts = parseIsoDate(end);
-  if (!startParts || !endParts) return `${start} – ${end}`;
-  const sameYear = startParts.year === endParts.year;
-  const startLabel = `${MONTH_LABELS[startParts.month]} ${startParts.day}`;
-  const endLabel = `${MONTH_LABELS[endParts.month]} ${endParts.day}`;
-  if (sameYear) {
-    return `${startLabel} – ${endLabel}, ${endParts.year}`;
-  }
-  return `${startLabel}, ${startParts.year} – ${endLabel}, ${endParts.year}`;
-}
-
-function parseIsoDate(input: string): { year: number; month: number; day: number } | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const monthIdx = Number(match[2]) - 1;
-  const day = Number(match[3]);
-  if (monthIdx < 0 || monthIdx > 11) return null;
-  return { year, month: monthIdx, day };
-}
-
 function buildInstructorCell(doc: Document, section: PaperSection): HTMLElement {
   return el(doc, "div", {
     class: "bc-cs-section-instructor",
@@ -198,6 +176,13 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
     attrs: { type: "button", [ACTION_BUTTON_MARKER_ATTR]: "controller" },
     on: { click: props.onToggleDetails }
   });
+
+  const showAdd = props.showAdd !== false;
+  if (!showAdd) {
+    // "Your classes" cards reuse the section row but the entry is already
+    // in the cart / enrolled, so Add is meaningless. Return only Details.
+    return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn]);
+  }
 
   const addBtn = el(doc, "button", {
     class: "bc-cs-add",

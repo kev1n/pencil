@@ -23,6 +23,7 @@ import { renderMyClassesView } from "../views/my-classes-view";
 import { renderSectionRow } from "../views/section-row";
 import { setStatus } from "../views/shell";
 import type { CartCachePainter } from "./cart-cache-painter";
+import type { CartCardDetailsController } from "./cart-card-details-controller";
 import type { LiveDataPainter } from "./live-data-painter";
 import type { SectionDetailController } from "./section-detail-controller";
 
@@ -52,6 +53,7 @@ export type ResultsRendererDeps = {
   liveDataPainter: LiveDataPainter;
   cartCachePainter: CartCachePainter;
   detailController: SectionDetailController;
+  cartCardDetailsController: CartCardDetailsController;
   ctecCoordinator: CtecCoordinator;
 
   /** Click → cart-add wizard for `(row, section)`'s Add button. */
@@ -204,14 +206,39 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
       return;
     }
 
-    resultsEl.appendChild(
-      renderMyClassesView(doc, {
-        paperCourses: courses ?? [],
-        catalogIndex: deps.catalogIndex,
-        enrolled,
-        inCart
-      })
-    );
+    // Per-render dedupe set — same cart card can match the same instructor
+    // multiple times (rare, but possible with cross-listed sections), and
+    // we already dedupe within search results. Keeps the cart card from
+    // mounting two chips when the user enrolls + carts the same offering.
+    const seenCtecKeys = new Set<string>();
+    // Defer openIfCached until after the section list is connected to
+    // the document — the controller mounts a sibling `<li>` via
+    // `parentElement?.insertBefore`, which needs the `<ul>` parent.
+    const autoOpens: Array<() => void> = [];
+    const myClassesEl = renderMyClassesView(doc, {
+      paperCourses: courses ?? [],
+      catalogIndex: deps.catalogIndex,
+      enrolled,
+      inCart,
+      registerCtecHost: (host, course, section) => {
+        const identity = buildCtecSectionIdentity(course, section);
+        if (!identity) return;
+        if (seenCtecKeys.has(identity.key)) return;
+        seenCtecKeys.add(identity.key);
+        deps.ctecCoordinator.register(host, identity);
+      },
+      onDetailsClick: (entry, li, button) => {
+        void deps.cartCardDetailsController.toggle(entry, li, button);
+      },
+      registerCartCard: (li, entry) => {
+        autoOpens.push(() => {
+          const btn = li.querySelector<HTMLButtonElement>(".bc-cs-details-btn");
+          if (btn) deps.cartCardDetailsController.openIfCached(entry, li, btn);
+        });
+      }
+    });
+    resultsEl.appendChild(myClassesEl);
+    for (const open of autoOpens) open();
 
     const total = enrolled.length + inCart.length;
     setStatus(

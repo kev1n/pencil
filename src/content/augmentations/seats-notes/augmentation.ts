@@ -19,7 +19,7 @@ import {
   SEATS_HEADER_CLASS,
   STYLE_ID
 } from "./constants";
-import { extractCareerHint, extractClassNumber } from "./helpers";
+import { extractCareerHint, extractClassNumber, isDisabledClassRow } from "./helpers";
 import { toFailure, toSeatsNotesResult } from "./parser";
 import {
   buildPeopleSoftCreditToast,
@@ -90,7 +90,7 @@ export class SeatsNotesAugmentation implements Augmentation {
           controls.renderSuccess({ result: cached.result, fetchedAt: cached.fetchedAt });
           return;
         }
-        paintIdle(cells, ctx.key, () => controls.fetch());
+        paintIdle(cells, ctx.key, () => controls.fetch(), isDisabledClassRow(ctx.row));
       },
       loading: (ctx) => {
         paintLoading(toCells(ctx.cells), ctx.key);

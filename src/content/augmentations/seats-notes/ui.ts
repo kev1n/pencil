@@ -161,7 +161,8 @@ export interface SeatsNotesCells {
 export function paintIdle(
   cells: SeatsNotesCells,
   classNumber: string,
-  onLoad: () => void
+  onLoad: () => void,
+  isDisabledRow: boolean
 ): void {
   cells.seatsCell.dataset.classNumber = classNumber;
   cells.notesCell.dataset.classNumber = classNumber;
@@ -178,7 +179,7 @@ export function paintIdle(
   // PS lookups for the same row.
   const loadBtn = createActionButton({
     doc: document,
-    label: "Load seats & notes",
+    label: isDisabledRow ? "Load seats" : "Load seats & notes",
     loadingLabel: "Loading…",
     className: "better-caesar-load-btn",
     onClick: async () => {

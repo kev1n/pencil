@@ -18,7 +18,11 @@ import {
 } from "./constants";
 import { isCtecAccessDenied } from "../../ctec-index/access";
 import { fetchCtecLinks, getCtecLinksFromCache } from "./fetcher";
-import { extractInstructorFromRow, extractSubjectAndCatalog } from "./helpers";
+import {
+  extractInstructorFromRow,
+  extractSubjectAndCatalog,
+  isDisabledClassRow
+} from "./helpers";
 import {
   buildCtecCreditToastMessage,
   CTEC_ERROR_TOAST_MESSAGE,
@@ -29,6 +33,7 @@ import type { CtecLinkData, CtecLinkParams } from "./types";
 import {
   CTEC_LINKS_STYLES,
   renderCtecLinksWidget,
+  renderDisabled,
   renderFetchButton,
   renderLoading,
   renderNoAccess
@@ -73,6 +78,10 @@ export class CtecLinksAugmentation implements Augmentation {
         const cell = ctx.cells[0]!;
         if (isCtecAccessDenied()) {
           renderNoAccess(cell);
+          return;
+        }
+        if (isDisabledClassRow(ctx.row)) {
+          renderDisabled(cell);
           return;
         }
         const params = this.paramsByKey.get(ctx.key);

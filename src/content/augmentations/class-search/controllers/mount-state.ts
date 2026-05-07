@@ -30,6 +30,7 @@ import { type MountedState, type ResultRow } from "../types";
 import { setStatus } from "../views/shell";
 
 import { createCartCachePainter } from "./cart-cache-painter";
+import { createCartCardDetailsController } from "./cart-card-details-controller";
 import {
   createCatalogLiveDataStore,
   createLiveDataPainter,
@@ -110,6 +111,11 @@ export function createMountState(deps: MountStateDeps): MountedState {
     peekLiveData: (row) => liveDataPainter.peekLiveData(row),
     getTermId
   });
+  const cartCardDetailsController = createCartCardDetailsController({
+    doc,
+    consumePsCredit: deps.consumePsCredit,
+    getTermId
+  });
 
   // searchOrchestrator's onSearchReady → resultsRenderer.render. Since
   // the renderer needs the orchestrator (for `getActiveTermCourses`),
@@ -133,6 +139,7 @@ export function createMountState(deps: MountStateDeps): MountedState {
     liveDataPainter,
     cartCachePainter,
     detailController,
+    cartCardDetailsController,
     ctecCoordinator: deps.ctecCoordinator,
     handleAdd: (row, section, button) => {
       if (stateRef.state) deps.handleAdd(stateRef.state, row, section, button);

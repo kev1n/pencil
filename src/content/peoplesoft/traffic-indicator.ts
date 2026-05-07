@@ -5,7 +5,7 @@
 // call funnels through `runPeopleSoftTask`'s priority queue and the user
 // sees no feedback while N-1 of them sit waiting. This module subscribes
 // to `subscribeTraffic`, mounts a small fixed-position pill in the
-// bottom-left, and lists what's running + what's queued so the wait stops
+// bottom-right, and lists what's running + what's queued so the wait stops
 // looking like a hang.
 //
 // Hide threshold: depth >= 2. A single in-flight task isn't worth the
@@ -26,7 +26,7 @@ const STYLE_CSS = `
   #${HOST_ID} {
     position: fixed;
     bottom: 16px;
-    left: 16px;
+    right: 16px;
     z-index: 2147483646;
     display: none;
     flex-direction: column;

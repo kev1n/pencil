@@ -34,9 +34,7 @@ export function renderHorizontalBars(
   });
 
   if (options.preExtractedCounts && total > 0) {
-    wrapper.append(
-      renderBars(doc, options.preExtractedCounts, total, options)
-    );
+    wrapper.append(renderBars(doc, options.preExtractedCounts, options));
     return wrapper;
   }
 
@@ -49,9 +47,7 @@ export function renderHorizontalBars(
 
   void extractChartFromImage(imageUrl, total).then((result) => {
     if (result.ok) {
-      wrapper.replaceChildren(
-        renderBars(doc, result.data.counts, result.data.total, options)
-      );
+      wrapper.replaceChildren(renderBars(doc, result.data.counts, options));
       return;
     }
     logQuiet("paper-ctec.chart-extract", {
@@ -88,7 +84,6 @@ export function renderHorizontalBars(
 function renderBars(
   doc: Document,
   counts: number[],
-  total: number,
   opts: RenderHorizontalBarsOptions
 ): HTMLElement {
   const labels = opts.rowLabels ?? RATING_LABELS;
@@ -141,16 +136,6 @@ function renderBars(
     );
 
     list.append(row);
-  }
-
-  // Light footer with total — useful context but unobtrusive.
-  if (total > 0) {
-    list.append(
-      el(doc, "div", {
-        class: "bc-paper-ctec-chart-horizontal-total",
-        text: `${total} responses`
-      })
-    );
   }
 
   return list;

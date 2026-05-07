@@ -101,6 +101,19 @@ export function extractSubjectAndCatalog(
   return { subject, catalogNumber };
 }
 
+// Discussion / lab sub-rows render the class label inside a
+// <span class="PSHYPERLINKDISABLED"> instead of an <a>. Their CTEC is
+// shared with the parent lecture, so we inject the cell (so the row's
+// border / alternating background stays continuous) but suppress the
+// Load CTEC button + cache short-circuit on these rows.
+export function isDisabledClassRow(row: Element): boolean {
+  return (
+    row.querySelector(
+      "span.PSHYPERLINKDISABLED[id^='P_CLASS_NAME$span$'], span.PSHYPERLINKDISABLED[id^='E_CLASS_NAME$span$']"
+    ) !== null
+  );
+}
+
 export function extractInstructorFromRow(row: HTMLTableRowElement): string {
   const el = row.querySelector<HTMLElement>(INSTRUCTOR_SELECTOR);
   return el?.textContent?.replace(/\s+/g, " ").trim() ?? "";

@@ -5,7 +5,12 @@ export const CTEC_AUTH_URL =
   "https://caesar.ent.northwestern.edu/";
 
 export const CLASS_ROW_SELECTOR = "tr[bufnum]";
-export const CLASS_LINK_SELECTOR = "a[id^='P_CLASS_NAME$'], a[id^='E_CLASS_NAME$']";
+// CAESAR renders the class label as <a id="P_CLASS_NAME$N"> for selectable
+// rows (lectures), but discussion / lab sub-rows are non-selectable and use
+// <span id="P_CLASS_NAME$span$N" class="PSHYPERLINKDISABLED"> instead. Match
+// both so the CTEC cell is injected on every row, not just lectures.
+export const CLASS_LINK_SELECTOR =
+  "a[id^='P_CLASS_NAME$'], a[id^='E_CLASS_NAME$'], span[id^='P_CLASS_NAME$span$'], span[id^='E_CLASS_NAME$span$']";
 export const INSTRUCTOR_SELECTOR = "[id^='DERIVED_REGFRM1_SSR_INSTR_LONG$']";
 export const CTEC_CELL_CLASS = "better-caesar-ctec-links-cell";
 export const CTEC_HEADER_CLASS = "better-caesar-ctec-links-header";

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { CartEntry } from "../../../../cart-cache";
 import type { PaperCourse, PaperSection, PaperTermCourse } from "../../paper-data";
@@ -104,41 +104,55 @@ describe("renderMyClassesView", () => {
     expect(count?.textContent).toBe("2");
   });
 
-  it("paints the formatted course id (strips -0 suffix) and section label", () => {
+  it("renders rich cards via renderCourseCard when paper data is loaded", () => {
     const doc = fresh();
+    const catalogIndex = new Map<string, PaperCourse>([
+      ["COMP_SCI 111-0", makePlanCourse({ description: "Hello" })]
+    ]);
     const wrap = renderMyClassesView(doc, {
-      paperCourses: [],
-      catalogIndex: EMPTY_INDEX,
+      paperCourses: [makeCourse()],
+      catalogIndex,
       enrolled: [makeEntry()],
       inCart: []
     });
-    const card = wrap.querySelector<HTMLElement>(".bc-cs-myclass-card");
-    expect(card?.dataset.status).toBe("enrolled");
-    expect(card?.querySelector(".bc-cs-myclass-id")?.textContent).toBe("COMP_SCI 111");
-    expect(card?.querySelector(".bc-cs-myclass-section")?.textContent).toBe("1-LEC");
+    const card = wrap.querySelector<HTMLElement>(".bc-cs-course");
+    expect(card).not.toBeNull();
+    expect(card?.dataset.cartStatus).toBe("enrolled");
+    expect(card?.querySelector(".bc-cs-course-id")?.textContent).toBe("COMP_SCI 111");
+    expect(card?.querySelector(".bc-cs-course-title")?.textContent).toBe(
+      "Fundamentals of Computer Programming"
+    );
+    expect(card?.querySelector(".bc-cs-course-desc")?.textContent).toBe("Hello");
+    // Section row from renderSectionRow rides inside.
+    const sectionRow = card?.querySelector(".bc-cs-section");
+    expect(sectionRow).not.toBeNull();
+    expect(sectionRow?.querySelector(".bc-cs-section-instructor")?.textContent).toBe(
+      "Riesbeck"
+    );
   });
 
-  it("paints status badges with the right text + dataset", () => {
+  it("paints the cart status pill in the course-card head", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
-      paperCourses: [],
+      paperCourses: [makeCourse()],
       catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: [makeEntry({ catalog: "211-0", classNumber: "22222" })]
     });
-    const enrolledBadge = wrap
-      .querySelectorAll<HTMLElement>(".bc-cs-myclass-card")[0]
-      .querySelector<HTMLElement>(".bc-cs-myclass-badge");
-    const cartBadge = wrap
-      .querySelectorAll<HTMLElement>(".bc-cs-myclass-card")[1]
-      .querySelector<HTMLElement>(".bc-cs-myclass-badge");
+    const cards = wrap.querySelectorAll<HTMLElement>(".bc-cs-course");
+    expect(cards.length).toBe(2);
+    const enrolledBadge = cards[0].querySelector<HTMLElement>(".bc-cs-cart-badge");
     expect(enrolledBadge?.textContent).toBe("Enrolled");
     expect(enrolledBadge?.dataset.status).toBe("enrolled");
-    expect(cartBadge?.textContent).toBe("In cart");
-    expect(cartBadge?.dataset.status).toBe("in-cart");
+    expect(cards[0].dataset.cartStatus).toBe("enrolled");
+    // No paper course matches catalog 211 → fallback card.
+    expect(cards[1].querySelector<HTMLElement>(".bc-cs-cart-badge")?.textContent).toBe(
+      "In cart"
+    );
+    expect(cards[1].dataset.cartStatus).toBe("in-cart");
   });
 
-  it("enriches the card with paper.nu title, meeting+room, and instructor when matched", () => {
+  it("suppresses the Add-to-cart button on cart cards (Details remains)", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [makeCourse()],
@@ -146,130 +160,128 @@ describe("renderMyClassesView", () => {
       enrolled: [makeEntry()],
       inCart: []
     });
-    const card = wrap.querySelector<HTMLElement>(".bc-cs-myclass-card");
-    expect(card?.querySelector(".bc-cs-myclass-title")?.textContent).toBe(
-      "Fundamentals of Computer Programming"
-    );
-    const detailText = Array.from(card?.querySelectorAll(".bc-cs-myclass-detail") ?? [])
-      .map((el) => el.textContent ?? "")
-      .join(" | ");
-    expect(detailText).toContain("MoWeFr");
-    expect(detailText).toContain("Tech L168");
-    expect(detailText).toContain("Riesbeck");
+    const card = wrap.querySelector<HTMLElement>(".bc-cs-course");
+    expect(card?.querySelector(".bc-cs-add")).toBeNull();
+    expect(card?.querySelector(".bc-cs-details-btn")).not.toBeNull();
   });
 
-  it("renders a facts line with class number when only the cart entry is known", () => {
+  it("invokes registerCtecHost with the resolved paper course + section", () => {
     const doc = fresh();
-    const wrap = renderMyClassesView(doc, {
-      paperCourses: [],
-      catalogIndex: EMPTY_INDEX,
-      enrolled: [makeEntry({ classNumber: "44444" })],
-      inCart: []
-    });
-    const card = wrap.querySelector<HTMLElement>(".bc-cs-myclass-card");
-    expect(card?.querySelector(".bc-cs-myclass-facts")?.textContent).toContain("#44444");
-  });
-
-  it("includes capacity and date range in the facts line when paper.nu has them", () => {
-    const doc = fresh();
-    const wrap = renderMyClassesView(doc, {
-      paperCourses: [
-        makeCourse({
-          sections: [
-            makeSection({
-              capacity: "120",
-              start_date: "01/06/2026",
-              end_date: "03/13/2026"
-            })
-          ]
-        })
-      ],
+    const calls: { course: PaperTermCourse; section: PaperSection }[] = [];
+    renderMyClassesView(doc, {
+      paperCourses: [makeCourse()],
       catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
-      inCart: []
+      inCart: [],
+      registerCtecHost: (host, course, section) => {
+        expect(host.classList.contains("bc-cs-section-ctec")).toBe(true);
+        calls.push({ course, section });
+      }
     });
-    const facts = wrap.querySelector<HTMLElement>(".bc-cs-myclass-facts")?.textContent ?? "";
-    expect(facts).toContain("#11111");
-    expect(facts).toContain("cap 120");
-    expect(facts).toContain("01/06/2026");
-    expect(facts).toContain("03/13/2026");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].course.subject).toBe("COMP_SCI");
+    expect(calls[0].section.section).toBe("1");
   });
 
-  it("renders units, distro, discipline, and school tags from the catalog index", () => {
+  it("invokes registerCartCard once per entry with the section's <li>", () => {
     const doc = fresh();
-    const catalogIndex = new Map<string, PaperCourse>([
-      [
-        "COMP_SCI 111-0",
-        makePlanCourse({ units: "1.00", distros: "2", disciplines: "B", school: "MEAS" })
-      ]
-    ]);
-    const wrap = renderMyClassesView(doc, {
-      paperCourses: [makeCourse({ school: "MEAS" })],
-      catalogIndex,
+    const lis: HTMLLIElement[] = [];
+    renderMyClassesView(doc, {
+      paperCourses: [makeCourse()],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
-      inCart: []
+      inCart: [],
+      registerCartCard: (li) => lis.push(li)
     });
-    const tags = Array.from(
-      wrap.querySelectorAll<HTMLElement>(".bc-cs-myclass-tag")
-    ).map((el) => ({ kind: el.dataset.kind, text: el.textContent }));
-    expect(tags).toEqual(
-      expect.arrayContaining([
-        { kind: "units", text: "1.00 unit" },
-        { kind: "distro", text: expect.stringContaining("Dist 2") },
-        { kind: "discipline", text: expect.stringContaining("Disc B") },
-        { kind: "school", text: "MEAS" }
-      ])
-    );
+    expect(lis).toHaveLength(1);
+    expect(lis[0].classList.contains("bc-cs-section")).toBe(true);
   });
 
-  it("renders the course description from the catalog index", () => {
+  it("forwards Details-button clicks to onDetailsClick with the live <li> + button", () => {
     const doc = fresh();
-    const catalogIndex = new Map<string, PaperCourse>([
-      [
-        "COMP_SCI 111-0",
-        makePlanCourse({ description: "An introduction to programming." })
-      ]
-    ]);
+    const onDetails = vi.fn();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [makeCourse()],
-      catalogIndex,
-      enrolled: [makeEntry()],
-      inCart: []
-    });
-    expect(wrap.querySelector(".bc-cs-myclass-desc")?.textContent).toBe(
-      "An introduction to programming."
-    );
-  });
-
-  it("appends the section topic to the title when present", () => {
-    const doc = fresh();
-    const wrap = renderMyClassesView(doc, {
-      paperCourses: [
-        makeCourse({
-          title: "Topics in Literature",
-          sections: [makeSection({ topic: "Speculative Fiction" })]
-        })
-      ],
       catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
-      inCart: []
+      inCart: [],
+      onDetailsClick: onDetails
     });
-    expect(wrap.querySelector(".bc-cs-myclass-title")?.textContent).toBe(
-      "Topics in Literature — Speculative Fiction"
-    );
+    const detailsBtn = wrap.querySelector<HTMLButtonElement>(".bc-cs-details-btn");
+    detailsBtn?.click();
+    expect(onDetails).toHaveBeenCalledTimes(1);
+    const [entry, li, button] = onDetails.mock.calls[0]!;
+    expect(entry.subject).toBe("COMP_SCI");
+    expect(li.classList.contains("bc-cs-section")).toBe(true);
+    expect(button).toBe(detailsBtn);
   });
 
-  it("falls back to a title-less card when paper.nu data isn't loaded", () => {
+  it("groups multiple entries of the same course (LEC + DIS) into one card", () => {
+    const doc = fresh();
+    const lec = makeSection({ section: "1", component: "LEC" });
+    const dis = makeSection({
+      section: "61",
+      component: "DIS",
+      instructors: [],
+      meeting_days: ["4"],
+      start_time: [{ h: 10, m: 0 }],
+      end_time: [{ h: 10, m: 50 }],
+      room: ["TBA"]
+    });
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [makeCourse({ sections: [lec, dis] })],
+      catalogIndex: EMPTY_INDEX,
+      enrolled: [],
+      inCart: [
+        makeEntry({ sectionLabel: "1-LEC", classNumber: "11111" }),
+        makeEntry({ sectionLabel: "61-DIS", classNumber: "61111" })
+      ]
+    });
+    const cards = wrap.querySelectorAll<HTMLElement>(".bc-cs-course");
+    expect(cards.length).toBe(1);
+    const sectionRows = cards[0].querySelectorAll(".bc-cs-section");
+    expect(sectionRows.length).toBe(2);
+    expect(sectionRows[0].querySelector(".bc-cs-section-component")?.textContent).toBe(
+      "LEC"
+    );
+    expect(sectionRows[1].querySelector(".bc-cs-section-component")?.textContent).toBe(
+      "DIS"
+    );
+    // Single status badge (the card head's), not one per section row.
+    expect(cards[0].querySelectorAll(".bc-cs-cart-badge").length).toBe(1);
+  });
+
+  it("keeps separate cards for entries with different catalogs", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
       catalogIndex: EMPTY_INDEX,
-      enrolled: [makeEntry()],
+      enrolled: [],
+      inCart: [
+        makeEntry({ catalog: "111-0", classNumber: "11111" }),
+        makeEntry({ catalog: "211-0", classNumber: "22222" })
+      ]
+    });
+    expect(wrap.querySelectorAll(".bc-cs-course").length).toBe(2);
+  });
+
+  it("falls back to a minimal card when paper data isn't loaded for the entry", () => {
+    const doc = fresh();
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
+      enrolled: [makeEntry({ description: "Cart-side description" })],
       inCart: []
     });
-    const card = wrap.querySelector<HTMLElement>(".bc-cs-myclass-card");
-    expect(card?.querySelector(".bc-cs-myclass-title")).toBeNull();
-    expect(card?.querySelector(".bc-cs-myclass-detail")).toBeNull();
+    const card = wrap.querySelector<HTMLElement>(".bc-cs-course");
+    expect(card?.dataset.cartStatus).toBe("enrolled");
+    expect(card?.querySelector(".bc-cs-course-id")?.textContent).toBe("COMP_SCI 111-0");
+    expect(card?.querySelector(".bc-cs-cart-badge")?.textContent).toBe("Enrolled");
+    expect(card?.querySelector(".bc-cs-course-desc")?.textContent).toBe(
+      "Cart-side description"
+    );
+    // No section row in the fallback (paper data drove that branch).
+    expect(card?.querySelector(".bc-cs-section")).toBeNull();
   });
 
   it("returns a wrap with display:contents so it doesn't disturb layout", () => {
@@ -306,5 +318,20 @@ describe("findPaperSection", () => {
     expect(
       findPaperSection(courses, makeEntry({ sectionLabel: "1-LAB" }))
     ).toBeNull();
+  });
+
+  it("matches by section number alone when sectionLabel has no component (cart-page hydrator)", () => {
+    const courses = [makeCourse()];
+    const found = findPaperSection(courses, makeEntry({ sectionLabel: "1" }));
+    expect(found?.section.section).toBe("1");
+    expect(found?.section.component).toBe("LEC");
+  });
+
+  it("prefers LEC over a sibling DIS when component is missing", () => {
+    const lec = makeSection({ section: "1", component: "LEC" });
+    const dis = makeSection({ section: "1", component: "DIS" });
+    const courses = [makeCourse({ sections: [dis, lec] })];
+    const found = findPaperSection(courses, makeEntry({ sectionLabel: "1" }));
+    expect(found?.section.component).toBe("LEC");
   });
 });

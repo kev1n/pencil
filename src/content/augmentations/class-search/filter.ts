@@ -202,6 +202,38 @@ function search(haystack: string, term: string): boolean {
   return words.every((w) => getSearchRegex(w).test(normalized));
 }
 
+const MONTH_LABELS = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+// Renders an ISO `YYYY-MM-DD` range as "Sep 23 – Dec 5, 2026". When the
+// range spans a year boundary we annotate both sides ("Dec 28, 2025 –
+// Jan 10, 2026"). Falls back to the raw " – "-joined input on parse
+// failure so unexpected payloads don't break the UI.
+export function formatDateRange(start: string, end: string): string {
+  const startParts = parseIsoDate(start);
+  const endParts = parseIsoDate(end);
+  if (!startParts || !endParts) return `${start} – ${end}`;
+  const sameYear = startParts.year === endParts.year;
+  const startLabel = `${MONTH_LABELS[startParts.month]} ${startParts.day}`;
+  const endLabel = `${MONTH_LABELS[endParts.month]} ${endParts.day}`;
+  if (sameYear) {
+    return `${startLabel} – ${endLabel}, ${endParts.year}`;
+  }
+  return `${startLabel}, ${startParts.year} – ${endLabel}, ${endParts.year}`;
+}
+
+function parseIsoDate(input: string): { year: number; month: number; day: number } | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const monthIdx = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  if (monthIdx < 0 || monthIdx > 11) return null;
+  return { year, month: monthIdx, day };
+}
+
 function formatTime(time: { h: number; m: number }): string {
   const minute = time.m.toString().padStart(2, "0");
   if (time.h === 0) return `12:${minute}am`;

@@ -147,6 +147,24 @@ describe("renderSectionRow", () => {
     expect(pattern?.textContent).toContain("MoWeFr");
   });
 
+  it("omits the Add button (Details still renders) when showAdd is false", () => {
+    const doc = fresh();
+    const register = vi.fn();
+    const li = renderSectionRow(doc, {
+      section: makeSection(),
+      sigKey: "K",
+      showActions: true,
+      showAdd: false,
+      registerAddButton: register,
+      onAddToCart: vi.fn(),
+      onToggleDetails: vi.fn()
+    });
+    expect(li.querySelector(".bc-cs-add")).toBeNull();
+    expect(li.querySelector(".bc-cs-details-btn")).not.toBeNull();
+    // No Add button means no registry callback either.
+    expect(register).not.toHaveBeenCalled();
+  });
+
   it("renders an empty actions cell with no buttons when showActions is false", () => {
     const doc = fresh();
     const register = vi.fn();

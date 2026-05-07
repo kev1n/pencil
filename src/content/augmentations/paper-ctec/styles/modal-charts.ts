@@ -317,6 +317,15 @@ export function modalChartStyles(): string {
       position: relative;
       padding-top: 5px;
     }
+    /* Reserve clearance above/below the track for tick labels. The Global
+       row labels above (covers the shared rating scale); the Hours row
+       labels below (every 5h). */
+    .bc-paper-ctec-modal-global-bar-chart.has-top-labels {
+      padding-top: 18px;
+    }
+    .bc-paper-ctec-modal-global-bar-chart.has-bottom-labels {
+      padding-bottom: 14px;
+    }
     .bc-paper-ctec-modal-global-bar-track {
       position: relative;
       width: 100%;
@@ -332,9 +341,27 @@ export function modalChartStyles(): string {
       top: 0;
       bottom: 0;
       width: 0;
-      border-left: 1px dashed var(--bc-color-border-strong);
+      border-left: 1px solid var(--bc-color-text-subtle);
+      opacity: 0.55;
       pointer-events: none;
       z-index: 1;
+    }
+    .bc-paper-ctec-modal-global-bar-tick-label {
+      position: absolute;
+      transform: translateX(-50%);
+      font-size: var(--bc-font-9);
+      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-muted);
+      font-family: ui-monospace, monospace;
+      line-height: 1;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .bc-paper-ctec-modal-global-bar-tick-label.is-above {
+      top: 2px;
+    }
+    .bc-paper-ctec-modal-global-bar-tick-label.is-below {
+      bottom: 0;
     }
     .bc-paper-ctec-modal-global-bar-fill {
       position: absolute;
@@ -547,14 +574,6 @@ export function modalChartStyles(): string {
       font-family: ui-monospace, monospace;
       text-align: right;
       font-variant-numeric: tabular-nums;
-    }
-    .bc-paper-ctec-chart-horizontal-total {
-      margin-top: 8px;
-      font-size: var(--bc-font-10);
-      letter-spacing: var(--bc-ls-caps);
-      text-transform: uppercase;
-      color: var(--bc-color-text-subtle);
-      text-align: right;
     }
     .bc-paper-ctec-chart-horizontal-fallback-wrap {
       display: flex;

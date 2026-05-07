@@ -41,52 +41,25 @@ export function resultsStyles(): string {
       letter-spacing: var(--bc-ls-wide);
       color: var(--bc-color-text-muted);
     }
+    /* Cart cards reuse the .bc-cs-course shell and section-row internals
+       for maximum visual + code reuse with search results. The grid is
+       a single column — these cards include a description + a section
+       row + an inline detail panel, and side-by-side they get tall
+       enough to read awkwardly. */
     .bc-cs-myclasses-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: 1fr;
       gap: 8px;
     }
-    .bc-cs-myclass-card {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-      padding: 12px 14px;
-      background: var(--bc-color-bg);
-      border: 1px solid var(--bc-color-border-divider);
-      border-radius: var(--bc-radius-lg);
-      box-shadow: var(--bc-shadow-card-soft);
+    /* Cart cards have a 4th head cell for the status pill, sitting right
+       of the units. The base course-head grid is three columns
+       (id / title / units); we extend it to four only when a cart
+       status is present so untouched search-result cards keep their
+       three-column layout. */
+    .bc-cs-course[data-cart-status] .bc-cs-course-head {
+      grid-template-columns: auto 1fr auto auto;
     }
-    .bc-cs-myclass-card[data-status="enrolled"] {
-      border-left: 3px solid var(--bc-color-success, var(--bc-color-border-strong));
-    }
-    .bc-cs-myclass-card[data-status="in-cart"] {
-      border-left: 3px solid var(--bc-color-paper, var(--bc-color-border-strong));
-    }
-    .bc-cs-myclass-head {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-    .bc-cs-myclass-id {
-      font-family: var(--bc-font-mono, monospace);
-      font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-bold);
-      color: var(--bc-color-text);
-    }
-    .bc-cs-myclass-section {
-      font-size: var(--bc-font-11);
-      letter-spacing: var(--bc-ls-wide);
-      color: var(--bc-color-text-muted);
-      flex: 1 1 auto;
-      min-width: 0;
-    }
-    .bc-cs-myclass-title {
-      font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-semibold);
-      color: var(--bc-color-text);
-      line-height: 1.3;
-    }
-    .bc-cs-myclass-badge {
+    .bc-cs-cart-badge {
       display: inline-flex;
       align-items: center;
       height: 20px;
@@ -98,62 +71,19 @@ export function resultsStyles(): string {
       box-sizing: border-box;
       line-height: 1;
       flex: 0 0 auto;
+      /* Pin to the last grid column so the badge sits flush right of
+         units in the rich card AND right of the course id in the
+         fallback card (which has fewer head children). */
+      justify-self: end;
+      grid-column: -1;
     }
-    .bc-cs-myclass-badge[data-status="enrolled"] {
+    .bc-cs-cart-badge[data-status="enrolled"] {
       background: var(--bc-color-success-bg);
       color: var(--bc-color-success);
     }
-    .bc-cs-myclass-badge[data-status="in-cart"] {
+    .bc-cs-cart-badge[data-status="in-cart"] {
       background: var(--bc-color-paper-soft);
       color: var(--bc-color-paper);
-    }
-    .bc-cs-myclass-tags {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 4px;
-      margin-top: 1px;
-    }
-    .bc-cs-myclass-tag {
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      padding: 2px 7px;
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-paper-soft);
-      color: var(--bc-color-paper-deep);
-      letter-spacing: var(--bc-ls-wider);
-      line-height: 1.4;
-    }
-    .bc-cs-myclass-tag[data-kind="units"]      { background: var(--bc-color-surface-soft); color: var(--bc-color-text-muted); }
-    .bc-cs-myclass-tag[data-kind="distro"]     { background: var(--bc-color-success-distro-bg); color: var(--bc-color-success-distro-text); }
-    .bc-cs-myclass-tag[data-kind="discipline"] { background: var(--bc-color-warn-bg); color: var(--bc-color-warn-text-discipline); }
-    .bc-cs-myclass-tag[data-kind="school"]     { background: var(--bc-color-paper-soft); color: var(--bc-color-paper); }
-    .bc-cs-myclass-detail {
-      font-size: var(--bc-font-11);
-      color: var(--bc-color-text-muted);
-      line-height: 1.4;
-    }
-    .bc-cs-myclass-detail[data-kind="instructor"] {
-      color: var(--bc-color-text);
-    }
-    .bc-cs-myclass-facts {
-      font-family: var(--bc-font-mono, monospace);
-      font-size: var(--bc-font-10);
-      color: var(--bc-color-text-subtle);
-      letter-spacing: var(--bc-ls-wide);
-      line-height: 1.4;
-    }
-    .bc-cs-myclass-desc {
-      font-size: var(--bc-font-11);
-      color: var(--bc-color-text-muted);
-      line-height: 1.45;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      margin-top: 2px;
-      padding-top: 4px;
-      border-top: 1px dashed var(--bc-color-border-divider);
     }
 
     .bc-cs-course {
@@ -174,7 +104,6 @@ export function resultsStyles(): string {
       gap: 12px;
       padding: 12px 16px;
       align-items: baseline;
-      cursor: pointer;
       background: var(--bc-color-bg-app);
       border-bottom: 1px solid var(--bc-color-border-strong);
     }
