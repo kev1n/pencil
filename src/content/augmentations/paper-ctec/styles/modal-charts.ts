@@ -290,12 +290,12 @@ export function modalChartStyles(): string {
     }
     .bc-paper-ctec-modal-global-bar {
       display: grid;
-      grid-template-columns: 108px 1fr 60px;
+      grid-template-columns: 132px 1fr 60px;
       align-items: center;
       gap: 10px;
     }
     .bc-paper-ctec-modal-global-bar.is-global {
-      grid-template-columns: 108px 1fr 60px;
+      grid-template-columns: 132px 1fr 60px;
     }
     .bc-paper-ctec-modal-global-bar-label {
       font-size: var(--bc-font-12);
@@ -341,9 +341,12 @@ export function modalChartStyles(): string {
       top: 0;
       bottom: 0;
       left: 0;
-      background: var(--bc-color-accent);
+      background: var(--bc-paper-ctec-bar-fill, var(--bc-color-accent));
       border-radius: var(--bc-radius-pill);
       z-index: 0;
+    }
+    .dark .bc-paper-ctec-modal-global-bar-fill {
+      background: var(--bc-paper-ctec-bar-fill-dark, var(--bc-color-accent));
     }
     /* Downward-pointing triangle anchored flush against the top edge of
        the track at the fill's right edge — calls attention to where the
@@ -391,7 +394,7 @@ export function modalChartStyles(): string {
     .bc-paper-ctec-modal-card-title {
       font-family: var(--bc-font-display);
       font-size: var(--bc-font-15);
-      font-weight: var(--bc-fw-regular);
+      font-weight: var(--bc-fw-display);
       letter-spacing: 0;
     }
     .bc-paper-ctec-modal-card-meta {

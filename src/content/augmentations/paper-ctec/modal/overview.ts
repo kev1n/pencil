@@ -142,7 +142,7 @@ function renderKpiScopeNote(
 }
 
 const GLOBAL_KPI_TOOLTIP =
-  "Global = average of the Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest because they're descriptive rather than quality signals, and excludes Hours because it's a different scale.";
+  "Global Rating = average of the Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest because they're descriptive rather than quality signals, and excludes Hours because it's a different scale.";
 
 export type OverviewSectionProps = {
   doc: Document;
@@ -238,7 +238,7 @@ const GLOBAL_BAR_METRICS: ReadonlyArray<ModalMetricKind> = [
 function renderGlobalBars(data: ModalDisplayData): TemplateResult {
   const globalMean = computeGlobalMean(data.terms);
   return html`<div class="bc-paper-ctec-modal-global-bars">
-    ${renderGlobalBarRow("Global", globalMean, 6, "global")}
+    ${renderGlobalBarRow("Global Rating", globalMean, 6, "global")}
     <div class="bc-paper-ctec-modal-global-bars-rest">
       ${GLOBAL_BAR_METRICS.map((kind) =>
         renderGlobalBarRow(
@@ -265,7 +265,7 @@ function renderGlobalBarRow(
     value > 0
       ? isHours
         ? `${value.toFixed(1)}h`
-        : value.toFixed(2)
+        : value.toFixed(1)
       : "—";
   const isGlobal = kind === "global";
   const className = `bc-paper-ctec-modal-global-bar${
@@ -275,7 +275,21 @@ function renderGlobalBarRow(
   // endpoints, which are drawn by the track outline itself).
   const tickPositions: number[] = [];
   for (let i = 1; i < scale; i++) tickPositions.push((i / scale) * 100);
-  return html`<div class=${className}>
+  // Hue-driven fill that mirrors the KPI pill palette so the bar reads at
+  // the same "good/bad" glance as the strip above. Hours invert the scale
+  // (more hours = worse). Empty (value=0) rows fall back to accent via the
+  // CSS var default.
+  const rowStyle =
+    value > 0
+      ? (() => {
+          const hue = pickMetricHue(value, scale, isHours);
+          return (
+            `--bc-paper-ctec-bar-fill: hsla(${hue}, 84%, 52%, 0.95);` +
+            `--bc-paper-ctec-bar-fill-dark: hsla(${hue}, 70%, 56%, 0.92);`
+          );
+        })()
+      : "";
+  return html`<div class=${className} style=${rowStyle}>
     <div class="bc-paper-ctec-modal-global-bar-label">${label}</div>
     <div class="bc-paper-ctec-modal-global-bar-chart">
       <div class="bc-paper-ctec-modal-global-bar-track">
@@ -500,7 +514,7 @@ function renderGlobalKpiCard(
     }}
   ><div class="bc-paper-ctec-modal-kpi-top"><span
         class="bc-paper-ctec-modal-kpi-label-group"
-        ><span class="bc-paper-ctec-modal-kpi-label">Global</span><span
+        ><span class="bc-paper-ctec-modal-kpi-label">Global Rating</span><span
           class="bc-paper-ctec-modal-kpi-info bc-tooltip-host"
           aria-label=${GLOBAL_KPI_TOOLTIP}
           tabindex="0"

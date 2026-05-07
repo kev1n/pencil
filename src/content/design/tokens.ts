@@ -131,6 +131,13 @@ function base(): string {
   --bc-fw-bold: 700;
   --bc-fw-extrabold: 800;
 
+  /* Default weight for display-font surfaces (.bc-paper-ctec-modal-title,
+     .bc-paper-ctec-modal-card-title, etc.). Defaults to semibold so
+     Northwestern-theme headers (rendered in Inter via inherited stack)
+     get enough presence; the pencil theme overrides to regular to keep
+     Special Elite at its native single weight. */
+  --bc-fw-display: var(--bc-fw-semibold);
+
   /* Motion */
   --bc-tx-fast: 80ms;
   --bc-tx-base: 120ms;
@@ -159,13 +166,19 @@ function base(): string {
   --bc-ls-caps-wide: 0.08em;
   --bc-ls-caps-widest: 0.1em;
 
-  /* Font stacks. Display/hand are pencil-theme accents; body/mono are the
-     general workhorses. The system fallbacks let CAESAR / Paper.nu render
-     with native fonts before the woff2 finishes loading. */
-  --bc-font-display: "Special Elite", "Courier Prime", ui-monospace, SFMono-Regular, Menlo, monospace;
-  --bc-font-hand: "Caveat", "Patrick Hand", ui-rounded, "Comic Sans MS", cursive;
+  /* Font stacks. Body/mono are the general workhorses across every theme.
+     Display/hand default to inherit so the Northwestern (default) theme
+     leaves headers and accents in whatever font the surrounding host page
+     uses (CAESAR's Helvetica/Arial, Paper.nu's system stack, the popup's
+     own family, etc.) — applying font-family: var(--bc-font-display)
+     becomes a no-op. The pencil theme overrides --bc-font-display and
+     --bc-font-hand in its own block to bring back the typewriter +
+     handwriting flair. The system fallbacks on body let CAESAR / Paper.nu
+     render with native fonts before the woff2 finishes loading. */
   --bc-font-body: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --bc-font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --bc-font-display: inherit;
+  --bc-font-hand: inherit;
 }
 `;
 }
@@ -451,7 +464,20 @@ const DEFAULT_LIGHT_THEME: Theme = {
     "--bc-color-trend-zone-2": "rgba(234, 88, 12, 0.08)",
     "--bc-color-trend-zone-3": "rgba(202, 138, 4, 0.08)",
     "--bc-color-trend-zone-4": "rgba(101, 163, 13, 0.10)",
-    "--bc-color-trend-zone-5": "rgba(22, 163, 74, 0.10)"
+    "--bc-color-trend-zone-5": "rgba(22, 163, 74, 0.10)",
+    /* Solid-fill counterparts of the trend zones. Same hue family used
+       for spline-chart background bands, but at foreground opacity so
+       the same red→green semantic encoding can drive the rating
+       horizontal-bar fills (and any future tier-aware foreground UI).
+       Six tiers (vs. five for the spline backgrounds) so each integer
+       rating 1..6 can carry its own color — zone-6 is a deeper emerald
+       past zone-5's green so the top bin reads as visually distinct. */
+    "--bc-color-trend-zone-1-solid": "rgba(220, 38, 38, 0.85)",
+    "--bc-color-trend-zone-2-solid": "rgba(234, 88, 12, 0.85)",
+    "--bc-color-trend-zone-3-solid": "rgba(202, 138, 4, 0.85)",
+    "--bc-color-trend-zone-4-solid": "rgba(101, 163, 13, 0.85)",
+    "--bc-color-trend-zone-5-solid": "rgba(22, 163, 74, 0.85)",
+    "--bc-color-trend-zone-6-solid": "rgba(4, 120, 87, 0.92)"
   }
 };
 
@@ -631,7 +657,13 @@ const DEFAULT_DARK_THEME: Theme = {
     "--bc-color-trend-zone-2": "rgba(251, 146, 60, 0.16)",
     "--bc-color-trend-zone-3": "rgba(250, 204, 21, 0.16)",
     "--bc-color-trend-zone-4": "rgba(132, 204, 22, 0.18)",
-    "--bc-color-trend-zone-5": "rgba(74, 222, 128, 0.18)"
+    "--bc-color-trend-zone-5": "rgba(74, 222, 128, 0.18)",
+    "--bc-color-trend-zone-1-solid": "rgba(248, 113, 113, 0.90)",
+    "--bc-color-trend-zone-2-solid": "rgba(251, 146, 60, 0.90)",
+    "--bc-color-trend-zone-3-solid": "rgba(250, 204, 21, 0.90)",
+    "--bc-color-trend-zone-4-solid": "rgba(132, 204, 22, 0.90)",
+    "--bc-color-trend-zone-5-solid": "rgba(74, 222, 128, 0.90)",
+    "--bc-color-trend-zone-6-solid": "rgba(16, 185, 129, 0.95)"
   }
 };
 
@@ -839,7 +871,16 @@ const PENCIL_LIGHT_THEME: Theme = {
     "--bc-color-trend-zone-2": "rgba(234, 88, 12, 0.08)",
     "--bc-color-trend-zone-3": "rgba(202, 138, 4, 0.08)",
     "--bc-color-trend-zone-4": "rgba(101, 163, 13, 0.10)",
-    "--bc-color-trend-zone-5": "rgba(22, 163, 74, 0.10)"
+    "--bc-color-trend-zone-5": "rgba(22, 163, 74, 0.10)",
+    "--bc-color-trend-zone-1-solid": "rgba(220, 38, 38, 0.85)",
+    "--bc-color-trend-zone-2-solid": "rgba(234, 88, 12, 0.85)",
+    "--bc-color-trend-zone-3-solid": "rgba(202, 138, 4, 0.85)",
+    "--bc-color-trend-zone-4-solid": "rgba(101, 163, 13, 0.85)",
+    "--bc-color-trend-zone-5-solid": "rgba(22, 163, 74, 0.85)",
+    "--bc-color-trend-zone-6-solid": "rgba(4, 120, 87, 0.92)",
+    "--bc-font-display": "\"Special Elite\", \"Courier Prime\", ui-monospace, SFMono-Regular, Menlo, monospace",
+    "--bc-font-hand": "\"Caveat\", \"Patrick Hand\", ui-rounded, \"Comic Sans MS\", cursive",
+    "--bc-fw-display": "var(--bc-fw-regular)"
   }
 };
 
@@ -1020,7 +1061,13 @@ const PENCIL_DARK_THEME: Theme = {
     "--bc-color-trend-zone-2": "rgba(251, 146, 60, 0.16)",
     "--bc-color-trend-zone-3": "rgba(250, 204, 21, 0.16)",
     "--bc-color-trend-zone-4": "rgba(132, 204, 22, 0.18)",
-    "--bc-color-trend-zone-5": "rgba(74, 222, 128, 0.18)"
+    "--bc-color-trend-zone-5": "rgba(74, 222, 128, 0.18)",
+    "--bc-color-trend-zone-1-solid": "rgba(248, 113, 113, 0.90)",
+    "--bc-color-trend-zone-2-solid": "rgba(251, 146, 60, 0.90)",
+    "--bc-color-trend-zone-3-solid": "rgba(250, 204, 21, 0.90)",
+    "--bc-color-trend-zone-4-solid": "rgba(132, 204, 22, 0.90)",
+    "--bc-color-trend-zone-5-solid": "rgba(74, 222, 128, 0.90)",
+    "--bc-color-trend-zone-6-solid": "rgba(16, 185, 129, 0.95)"
   }
 };
 

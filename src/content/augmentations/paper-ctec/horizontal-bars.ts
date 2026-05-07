@@ -106,9 +106,19 @@ function renderBars(
     const count = counts[dataIdx] ?? 0;
     const widthPct = (count / maxCount) * 100;
 
+    // Tier color matches the trend-chart spline zones, extended with a
+    // 6th tier (deeper emerald) so each integer rating 1..6 carries its
+    // own color — the spline backgrounds top out at zone-5 because they
+    // band continuous y-ranges, but rating bars are discrete bins and
+    // need rating 6 to read distinctly from rating 5. dataIdx 0 = rating
+    // 1, dataIdx 5 = rating 6 → zone-1..zone-6.
+    const zoneIdx = dataIdx + 1;
     const fill = el(doc, "div", {
       class: "bc-paper-ctec-chart-horizontal-fill",
-      style: { width: `${widthPct}%` }
+      style: {
+        width: `${widthPct}%`,
+        background: `var(--bc-color-trend-zone-${zoneIdx}-solid)`
+      }
     });
     const track = el(doc, "div", {
       class: "bc-paper-ctec-chart-horizontal-track"

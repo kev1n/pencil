@@ -127,6 +127,12 @@ export function cardStyles(): string {
       font-size: var(--bc-font-10);
       font-weight: var(--bc-fw-extrabold);
     }
+    .${WIDGET_CLASS}-chip-scale {
+      margin-left: 1px;
+      font-size: var(--bc-font-9);
+      font-weight: var(--bc-fw-semibold);
+      opacity: 0.55;
+    }
     .${WIDGET_CLASS}-chip-stars {
       display: inline-flex;
       align-items: center;
@@ -218,7 +224,7 @@ export function cardStyles(): string {
       cursor: pointer;
       font: inherit;
       font-size: var(--bc-font-9);
-      font-weight: var(--bc-fw-bold);
+      font-weight: var(--bc-fw-extrabold);
       letter-spacing: var(--bc-ls-widest);
       text-transform: uppercase;
       line-height: 1;
@@ -256,8 +262,11 @@ export function cardStyles(): string {
                   opacity var(--bc-tx-base) var(--bc-easing),
                   margin-left var(--bc-tx-base) var(--bc-easing);
     }
-    button.${WIDGET_CLASS}-analytics-btn:hover .${WIDGET_CLASS}-analytics-btn-label,
-    button.${WIDGET_CLASS}-analytics-btn:focus-visible .${WIDGET_CLASS}-analytics-btn-label,
+    .${WIDGET_CLASS}-analytics-btn-label {
+      max-width: 220px;
+      opacity: 1;
+      margin-left: 4px;
+    }
     button.${WIDGET_CLASS}-cart-btn:hover .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn:focus-visible .${WIDGET_CLASS}-cart-btn-label {
       max-width: 220px;

@@ -255,21 +255,20 @@ export function modalCommentStyles(): string {
       gap: 10px;
       flex-wrap: wrap;
     }
-    .bc-paper-ctec-modal-comment-tag {
+    .bc-paper-ctec-modal-comment-meter {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-caps-wide);
-      text-transform: uppercase;
-      padding: 3px 8px;
-      border-radius: var(--bc-radius-sm);
+      gap: 4px;
     }
-    .bc-paper-ctec-modal-comment-tag-dot {
-      width: 6px;
-      height: 6px;
+    .bc-paper-ctec-modal-comment-meter-dot {
+      width: 7px;
+      height: 7px;
       border-radius: var(--bc-radius-circle);
+      background: var(--bc-color-text-subtle);
+      opacity: 0.35;
+    }
+    .bc-paper-ctec-modal-comment-meter-dot.is-on {
+      opacity: 1;
     }
     .bc-paper-ctec-modal-comment-term {
       font-size: var(--bc-font-12);

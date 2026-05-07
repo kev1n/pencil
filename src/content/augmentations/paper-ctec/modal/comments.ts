@@ -21,6 +21,17 @@ export type CommentsSectionProps = {
   callbacks: AnalyticsModalCallbacks;
 };
 
+// 3-dot spectrum: position carries direction. Critical = leftmost dot,
+// neutral = center, positive = rightmost; mixed lights both ends to read
+// as "split feelings." Replaces the per-card POSITIVE/CRITICAL/MIXED/
+// NEUTRAL pill — the rail filter still uses the words.
+const TONE_METER_PATTERN: Record<ModalCommentTone, [boolean, boolean, boolean]> = {
+  neg: [true, false, false],
+  neu: [false, true, false],
+  pos: [false, false, true],
+  mix: [true, false, true]
+};
+
 // Comments tab: rail of filter buttons (sentiment + frequent topics + term)
 // alongside a main panel with search/sort toolbar, active filter chips,
 // count, and the filtered comment-card list.
@@ -455,15 +466,20 @@ function renderCommentCard(
 
   const left = doc.createElement("div");
   left.className = "bc-paper-ctec-modal-comment-meta-left";
-  const tag = doc.createElement("span");
-  tag.className = "bc-paper-ctec-modal-comment-tag";
-  tag.style.color = tone.color;
-  tag.style.background = tone.bg;
-  const dot = doc.createElement("span");
-  dot.className = "bc-paper-ctec-modal-comment-tag-dot";
-  dot.style.background = tone.color;
-  tag.append(dot, doc.createTextNode(tone.label));
-  left.append(tag);
+  const meter = doc.createElement("span");
+  meter.className = "bc-paper-ctec-modal-comment-meter";
+  meter.title = tone.label;
+  meter.setAttribute("aria-label", `Sentiment: ${tone.label}`);
+  for (const filled of TONE_METER_PATTERN[comment.tone]) {
+    const dot = doc.createElement("span");
+    dot.className = "bc-paper-ctec-modal-comment-meter-dot";
+    if (filled) {
+      dot.classList.add("is-on");
+      dot.style.background = tone.color;
+    }
+    meter.append(dot);
+  }
+  left.append(meter);
 
   const term = doc.createElement("span");
   term.className = "bc-paper-ctec-modal-comment-term";

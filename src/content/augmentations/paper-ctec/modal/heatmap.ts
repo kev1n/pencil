@@ -105,7 +105,7 @@ function metricHeaderRow(): TemplateResult {
       group.columns.map(
         (column) => html`<div
           class=${`bc-paper-ctec-modal-heatmap-header is-group-${group.slug}`}
-        >${column === "global" ? "Global" : MODAL_METRIC_LABELS[column]}</div>`
+        >${column === "global" ? "Global Rating" : MODAL_METRIC_LABELS[column]}</div>`
       )
     )}`;
 }

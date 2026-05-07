@@ -31,7 +31,7 @@ export function modalStyles(): string {
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      font-family: var(--bc-font-body);
     }
     .bc-paper-ctec-modal-card *,
     .bc-paper-ctec-modal-card *::before,
@@ -79,7 +79,7 @@ export function modalStyles(): string {
     .bc-paper-ctec-modal-title {
       font-family: var(--bc-font-display);
       font-size: var(--bc-font-28);
-      font-weight: var(--bc-fw-regular);
+      font-weight: var(--bc-fw-display);
       letter-spacing: var(--bc-ls-tight);
       margin: 0;
       line-height: 1.1;
@@ -321,90 +321,74 @@ export function modalStyles(): string {
     .bc-paper-ctec-modal-disclaimer {
       display: flex;
       align-items: flex-start;
-      gap: 10px;
-      margin-top: 14px;
-      padding: 11px 14px;
-      border-radius: var(--bc-radius-lg);
-      background: var(--bc-color-accent-surface-faint);
-      border: 1px solid var(--bc-color-accent-border-28);
-      border-left: 3px solid var(--bc-color-accent);
+      margin-top: 12px;
+      padding: 10px 12px;
+      border: 1px solid var(--bc-color-border);
+      border-radius: var(--bc-radius-md);
+      background: var(--bc-color-ink-fill-04);
       font-size: var(--bc-font-12);
       line-height: 1.45;
-      color: var(--bc-color-text-soft);
-    }
-    .bc-paper-ctec-modal-disclaimer strong {
-      color: var(--bc-color-text);
-      font-weight: var(--bc-fw-semibold);
-    }
-    .bc-paper-ctec-modal-disclaimer-icon {
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 18px;
-      height: 18px;
-      margin-top: 1px;
-      border-radius: var(--bc-radius-circle);
-      background: var(--bc-color-accent);
-      color: var(--bc-color-accent-on);
-      font-family: ui-serif, Georgia, "Times New Roman", serif;
-      font-style: italic;
-      font-weight: var(--bc-fw-bold);
-      font-size: var(--bc-font-12);
-      line-height: 1;
+      color: var(--bc-color-text-muted);
     }
     .bc-paper-ctec-modal-disclaimer-text {
       flex: 1;
       min-width: 0;
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 2px;
     }
     .bc-paper-ctec-modal-disclaimer-headline {
-      font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-semibold);
-      color: var(--bc-color-text);
+      font-size: var(--bc-font-12);
+      font-weight: var(--bc-fw-regular);
+      color: var(--bc-color-text-muted);
       letter-spacing: var(--bc-ls-snug);
     }
     .bc-paper-ctec-modal-disclaimer-name {
-      color: var(--bc-color-accent);
-      font-weight: var(--bc-fw-bold);
+      color: var(--bc-color-text-muted);
+      font-weight: var(--bc-fw-medium);
     }
     .bc-paper-ctec-modal-disclaimer-count {
       font-family: ui-monospace, monospace;
       font-size: var(--bc-font-12);
-      font-weight: var(--bc-fw-medium);
+      font-weight: var(--bc-fw-regular);
       color: var(--bc-color-text-muted);
       letter-spacing: var(--bc-ls-wide);
     }
     .bc-paper-ctec-modal-disclaimer-detail {
       font-size: 11.5px;
-      color: var(--bc-color-text-soft);
+      color: var(--bc-color-text-muted);
     }
     .bc-paper-ctec-modal-tabs {
       display: flex;
-      gap: 2px;
+      gap: 6px;
       margin-top: 16px;
     }
     .bc-paper-ctec-modal-tab {
-      background: transparent;
-      border: 0;
-      border-bottom: 2px solid transparent;
-      padding: 10px 16px;
+      position: relative;
+      background: var(--bc-color-bg);
+      border: 1px solid var(--bc-color-border);
+      border-radius: var(--bc-radius-md) var(--bc-radius-md) 0 0;
+      padding: 8px 14px;
+      margin-bottom: -1px;
       cursor: pointer;
       font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-medium);
+      font-weight: var(--bc-fw-semibold);
       color: var(--bc-color-text-muted);
       font-family: inherit;
-      margin-bottom: -1px;
       display: flex;
       align-items: center;
       gap: 8px;
     }
+    .bc-paper-ctec-modal-tab:hover {
+      border-color: var(--bc-color-border-strong);
+      color: var(--bc-color-text);
+    }
     .bc-paper-ctec-modal-tab.is-active {
-      border-bottom-color: var(--bc-color-accent);
+      background: var(--bc-color-bg-muted);
+      border-color: var(--bc-color-accent);
+      border-bottom-color: var(--bc-color-bg-muted);
       color: var(--bc-color-accent);
-      font-weight: var(--bc-fw-semibold);
+      z-index: 1;
     }
     .bc-paper-ctec-modal-tab-count {
       font-size: var(--bc-font-10);

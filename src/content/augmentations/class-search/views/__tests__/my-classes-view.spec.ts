@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CartEntry } from "../../../../cart-cache";
-import type { PaperSection, PaperTermCourse } from "../../paper-data";
+import type { PaperCourse, PaperSection, PaperTermCourse } from "../../paper-data";
 import {
   findPaperSection,
   renderMyClassesView
@@ -10,6 +10,8 @@ import {
 function fresh(): Document {
   return document.implementation.createHTMLDocument("t");
 }
+
+const EMPTY_INDEX = new Map<string, PaperCourse>();
 
 function makeEntry(overrides: Partial<CartEntry> = {}): CartEntry {
   return {
@@ -51,11 +53,23 @@ function makeCourse(overrides: Partial<PaperTermCourse> = {}): PaperTermCourse {
   };
 }
 
+function makePlanCourse(overrides: Partial<PaperCourse> = {}): PaperCourse {
+  return {
+    id: "COMP_SCI 111-0",
+    subject: "COMP_SCI",
+    catalog: "111-0",
+    name: "Fundamentals of Computer Programming",
+    units: "1.00",
+    ...overrides
+  };
+}
+
 describe("renderMyClassesView", () => {
   it("renders both Enrolled and In your cart sections in order", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: [makeEntry({ catalog: "211-0", classNumber: "22222" })]
     });
@@ -69,6 +83,7 @@ describe("renderMyClassesView", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: []
     });
@@ -81,6 +96,7 @@ describe("renderMyClassesView", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry(), makeEntry({ catalog: "211-0" })],
       inCart: []
     });
@@ -92,6 +108,7 @@ describe("renderMyClassesView", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: []
     });
@@ -105,6 +122,7 @@ describe("renderMyClassesView", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: [makeEntry({ catalog: "211-0", classNumber: "22222" })]
     });
@@ -120,10 +138,11 @@ describe("renderMyClassesView", () => {
     expect(cartBadge?.dataset.status).toBe("in-cart");
   });
 
-  it("enriches the card with paper.nu title + meeting/instructor when matched", () => {
+  it("enriches the card with paper.nu title, meeting+room, and instructor when matched", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [makeCourse()],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: []
     });
@@ -131,15 +150,120 @@ describe("renderMyClassesView", () => {
     expect(card?.querySelector(".bc-cs-myclass-title")?.textContent).toBe(
       "Fundamentals of Computer Programming"
     );
-    const detail = card?.querySelector(".bc-cs-myclass-detail")?.textContent ?? "";
-    expect(detail).toContain("Riesbeck");
-    expect(detail).toContain("MoWeFr");
+    const detailText = Array.from(card?.querySelectorAll(".bc-cs-myclass-detail") ?? [])
+      .map((el) => el.textContent ?? "")
+      .join(" | ");
+    expect(detailText).toContain("MoWeFr");
+    expect(detailText).toContain("Tech L168");
+    expect(detailText).toContain("Riesbeck");
+  });
+
+  it("renders a facts line with class number when only the cart entry is known", () => {
+    const doc = fresh();
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
+      enrolled: [makeEntry({ classNumber: "44444" })],
+      inCart: []
+    });
+    const card = wrap.querySelector<HTMLElement>(".bc-cs-myclass-card");
+    expect(card?.querySelector(".bc-cs-myclass-facts")?.textContent).toContain("#44444");
+  });
+
+  it("includes capacity and date range in the facts line when paper.nu has them", () => {
+    const doc = fresh();
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [
+        makeCourse({
+          sections: [
+            makeSection({
+              capacity: "120",
+              start_date: "01/06/2026",
+              end_date: "03/13/2026"
+            })
+          ]
+        })
+      ],
+      catalogIndex: EMPTY_INDEX,
+      enrolled: [makeEntry()],
+      inCart: []
+    });
+    const facts = wrap.querySelector<HTMLElement>(".bc-cs-myclass-facts")?.textContent ?? "";
+    expect(facts).toContain("#11111");
+    expect(facts).toContain("cap 120");
+    expect(facts).toContain("01/06/2026");
+    expect(facts).toContain("03/13/2026");
+  });
+
+  it("renders units, distro, discipline, and school tags from the catalog index", () => {
+    const doc = fresh();
+    const catalogIndex = new Map<string, PaperCourse>([
+      [
+        "COMP_SCI 111-0",
+        makePlanCourse({ units: "1.00", distros: "2", disciplines: "B", school: "MEAS" })
+      ]
+    ]);
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [makeCourse({ school: "MEAS" })],
+      catalogIndex,
+      enrolled: [makeEntry()],
+      inCart: []
+    });
+    const tags = Array.from(
+      wrap.querySelectorAll<HTMLElement>(".bc-cs-myclass-tag")
+    ).map((el) => ({ kind: el.dataset.kind, text: el.textContent }));
+    expect(tags).toEqual(
+      expect.arrayContaining([
+        { kind: "units", text: "1.00 unit" },
+        { kind: "distro", text: expect.stringContaining("Dist 2") },
+        { kind: "discipline", text: expect.stringContaining("Disc B") },
+        { kind: "school", text: "MEAS" }
+      ])
+    );
+  });
+
+  it("renders the course description from the catalog index", () => {
+    const doc = fresh();
+    const catalogIndex = new Map<string, PaperCourse>([
+      [
+        "COMP_SCI 111-0",
+        makePlanCourse({ description: "An introduction to programming." })
+      ]
+    ]);
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [makeCourse()],
+      catalogIndex,
+      enrolled: [makeEntry()],
+      inCart: []
+    });
+    expect(wrap.querySelector(".bc-cs-myclass-desc")?.textContent).toBe(
+      "An introduction to programming."
+    );
+  });
+
+  it("appends the section topic to the title when present", () => {
+    const doc = fresh();
+    const wrap = renderMyClassesView(doc, {
+      paperCourses: [
+        makeCourse({
+          title: "Topics in Literature",
+          sections: [makeSection({ topic: "Speculative Fiction" })]
+        })
+      ],
+      catalogIndex: EMPTY_INDEX,
+      enrolled: [makeEntry()],
+      inCart: []
+    });
+    expect(wrap.querySelector(".bc-cs-myclass-title")?.textContent).toBe(
+      "Topics in Literature — Speculative Fiction"
+    );
   });
 
   it("falls back to a title-less card when paper.nu data isn't loaded", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: []
     });
@@ -152,6 +276,7 @@ describe("renderMyClassesView", () => {
     const doc = fresh();
     const wrap = renderMyClassesView(doc, {
       paperCourses: [],
+      catalogIndex: EMPTY_INDEX,
       enrolled: [makeEntry()],
       inCart: []
     });

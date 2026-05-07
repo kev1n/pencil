@@ -163,13 +163,13 @@ function buildPopupContent(
   trendSection.className = `${PREVIEW_CLASS}-section`;
   const trendHeader = doc.createElement("div");
   trendHeader.className = `${PREVIEW_CLASS}-section-title`;
-  trendHeader.textContent = `Global trend · ${data.trendTerms.length} ${
+  trendHeader.textContent = `Global Rating trend · ${data.trendTerms.length} ${
     data.trendTerms.length === 1 ? "term" : "terms"
   }`;
   const methodology = doc.createElement("div");
   methodology.className = `${PREVIEW_CLASS}-methodology`;
   methodology.textContent =
-    "GBL = average of Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest (descriptive, not quality) and Hours (different scale).";
+    "Global Rating = average of Instruction, Course, and Learned mean ratings (each 0–6). Excludes Challenge and Interest (descriptive, not quality) and Hours (different scale).";
   trendSection.append(
     trendHeader,
     methodology,

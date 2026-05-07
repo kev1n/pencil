@@ -49,8 +49,8 @@ export function resultsStyles(): string {
     .bc-cs-myclass-card {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding: 10px 12px;
+      gap: 5px;
+      padding: 12px 14px;
       background: var(--bc-color-bg);
       border: 1px solid var(--bc-color-border-divider);
       border-radius: var(--bc-radius-lg);
@@ -65,7 +65,6 @@ export function resultsStyles(): string {
     .bc-cs-myclass-head {
       display: flex;
       align-items: baseline;
-      justify-content: space-between;
       gap: 8px;
     }
     .bc-cs-myclass-id {
@@ -78,16 +77,14 @@ export function resultsStyles(): string {
       font-size: var(--bc-font-11);
       letter-spacing: var(--bc-ls-wide);
       color: var(--bc-color-text-muted);
+      flex: 1 1 auto;
+      min-width: 0;
     }
     .bc-cs-myclass-title {
-      font-size: var(--bc-font-12);
+      font-size: var(--bc-font-13);
+      font-weight: var(--bc-fw-semibold);
       color: var(--bc-color-text);
-      line-height: 1.35;
-    }
-    .bc-cs-myclass-meta {
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      line-height: 1.3;
     }
     .bc-cs-myclass-badge {
       display: inline-flex;
@@ -100,6 +97,7 @@ export function resultsStyles(): string {
       letter-spacing: var(--bc-ls-wider);
       box-sizing: border-box;
       line-height: 1;
+      flex: 0 0 auto;
     }
     .bc-cs-myclass-badge[data-status="enrolled"] {
       background: var(--bc-color-success-bg);
@@ -109,10 +107,53 @@ export function resultsStyles(): string {
       background: var(--bc-color-paper-soft);
       color: var(--bc-color-paper);
     }
+    .bc-cs-myclass-tags {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+      margin-top: 1px;
+    }
+    .bc-cs-myclass-tag {
+      font-size: var(--bc-font-10);
+      font-weight: var(--bc-fw-bold);
+      padding: 2px 7px;
+      border-radius: var(--bc-radius-pill);
+      background: var(--bc-color-paper-soft);
+      color: var(--bc-color-paper-deep);
+      letter-spacing: var(--bc-ls-wider);
+      line-height: 1.4;
+    }
+    .bc-cs-myclass-tag[data-kind="units"]      { background: var(--bc-color-surface-soft); color: var(--bc-color-text-muted); }
+    .bc-cs-myclass-tag[data-kind="distro"]     { background: var(--bc-color-success-distro-bg); color: var(--bc-color-success-distro-text); }
+    .bc-cs-myclass-tag[data-kind="discipline"] { background: var(--bc-color-warn-bg); color: var(--bc-color-warn-text-discipline); }
+    .bc-cs-myclass-tag[data-kind="school"]     { background: var(--bc-color-paper-soft); color: var(--bc-color-paper); }
     .bc-cs-myclass-detail {
       font-size: var(--bc-font-11);
       color: var(--bc-color-text-muted);
       line-height: 1.4;
+    }
+    .bc-cs-myclass-detail[data-kind="instructor"] {
+      color: var(--bc-color-text);
+    }
+    .bc-cs-myclass-facts {
+      font-family: var(--bc-font-mono, monospace);
+      font-size: var(--bc-font-10);
+      color: var(--bc-color-text-subtle);
+      letter-spacing: var(--bc-ls-wide);
+      line-height: 1.4;
+    }
+    .bc-cs-myclass-desc {
+      font-size: var(--bc-font-11);
+      color: var(--bc-color-text-muted);
+      line-height: 1.45;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-top: 2px;
+      padding-top: 4px;
+      border-top: 1px dashed var(--bc-color-border-divider);
     }
 
     .bc-cs-course {

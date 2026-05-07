@@ -154,9 +154,8 @@ function renderDisclaimer(input: AnalyticsModalInput): TemplateResult {
     role="note"
     aria-label="Data scope"
   >
-    <span class="bc-paper-ctec-modal-disclaimer-icon" aria-hidden="true">i</span>
     <span class="bc-paper-ctec-modal-disclaimer-text">
-      <strong class="bc-paper-ctec-modal-disclaimer-headline">
+      <span class="bc-paper-ctec-modal-disclaimer-headline">
         Showing only ${instructor
           ? html`<span class="bc-paper-ctec-modal-disclaimer-name">${instructor}</span>`
           : "this professor"}'s ${code} data
@@ -165,7 +164,7 @@ function renderDisclaimer(input: AnalyticsModalInput): TemplateResult {
               >${termCount} ${termLabel}</span
             >`
           : ""}
-      </strong>
+      </span>
       <span class="bc-paper-ctec-modal-disclaimer-detail"
         >No other professors are mixed in. Every chart, average, trend, and
         “vs recent term” number on this page is computed from

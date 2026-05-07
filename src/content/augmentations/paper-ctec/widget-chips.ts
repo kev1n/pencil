@@ -35,11 +35,12 @@ export function makeChip(
   return html`<span class=${className} title=${title ?? ""}>${iconTemplate(icon)}${text}</span>`;
 }
 
-// Builds the GBL (Global) chip from the aggregate. Mirrors the modal's
-// Global KPI: simple average of the response-weighted Instruction / Course
-// / Learned means (skipping any metric that's missing). Returns null when
-// none of the three contribute. Honors the stars-mode toggle just like
-// metricChip so the schedule-card chip set stays visually consistent.
+// Builds the Rating chip (the "Global Rating" in the modal) from the
+// aggregate. Mirrors the modal's Global Rating KPI: simple average of the
+// response-weighted Instruction / Course / Learned means (skipping any
+// metric that's missing). Returns null when none of the three contribute.
+// Honors the stars-mode toggle just like metricChip so the schedule-card
+// chip set stays visually consistent.
 export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
   const components: Array<{ label: string; mean: number; n: number }> = [];
   for (const [kind, label] of [
@@ -58,7 +59,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
     components.reduce((sum, c) => sum + c.mean, 0) / components.length;
 
   const tooltipParts = [
-    `Global ${formatRatingDetail(overallMean)} — avg of ${components
+    `Rating ${formatRatingDetail(overallMean)} — avg of ${components
       .map((c) => `${c.label} ${formatRatingDetail(c.mean)}`)
       .join(", ")}.`
   ];
@@ -66,7 +67,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
 
   const starMode = isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID);
   if (starMode) {
-    return makeMetricStarsChip("GBL", overallMean, tooltip);
+    return makeMetricStarsChip("Rating", overallMean, tooltip);
   }
 
   const tone = buildCompactChipTone(
@@ -74,7 +75,14 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
     PAPER_CTEC_CONFIG.aggregate.ratingScaleMax,
     false
   );
-  return makeMetricValueChip("GBL", formatChipRating(overallMean), "", tooltip, tone);
+  return makeMetricValueChip(
+    "Rating",
+    formatChipRating(overallMean),
+    "",
+    tooltip,
+    tone,
+    ratingScaleSuffix()
+  );
 }
 
 // Builds the chip for one CTEC metric (Inst/CRSE/LRN/Hrs/...). Picks
@@ -114,8 +122,19 @@ export function metricChip(
     value,
     "",
     buildMetricChipTooltip(label, metric, aggregate),
-    tone
+    tone,
+    scale === "rating" ? ratingScaleSuffix() : "h"
   );
+}
+
+// Out-of-scale annotation appended to chip values: "/6" for ratings (when
+// the user hasn't selected stars or percent display), "h" for hours.
+// Rendered as a smaller, muted span so the actual value stays visually
+// dominant. Skipped in percent mode (the `%` already shown on the value
+// makes the scale obvious).
+function ratingScaleSuffix(): string | undefined {
+  if (isFeatureEnabled("paper-ctec-rating-percent")) return undefined;
+  return `/${PAPER_CTEC_CONFIG.aggregate.ratingScaleMax}`;
 }
 
 function makeMetricValueChip(
@@ -123,7 +142,8 @@ function makeMetricValueChip(
   value: string,
   extraClass = "",
   title?: string,
-  tone?: CompactChipTone
+  tone?: CompactChipTone,
+  scaleSuffix?: string
 ): TemplateResult {
   const className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
   const style = tone ? compactChipToneStyleString(tone) : "";
@@ -131,7 +151,11 @@ function makeMetricValueChip(
     class=${className}
     title=${title ?? ""}
     style=${style}
-  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-value`}>${value}</span></span>`;
+  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-value`}>${value}</span>${
+    scaleSuffix
+      ? html`<span class=${`${WIDGET_CLASS}-chip-scale`}>${scaleSuffix}</span>`
+      : ""
+  }</span>`;
 }
 
 function makeMetricStarsChip(
