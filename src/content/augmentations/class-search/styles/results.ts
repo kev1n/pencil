@@ -202,33 +202,6 @@ export function resultsStyles(): string {
       font-variant-numeric: tabular-nums;
     }
 
-    .bc-cs-course-tags {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 6px;
-      padding: 10px 16px;
-    }
-    .bc-cs-tag {
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      padding: 3px 8px;
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-paper-soft);
-      color: var(--bc-color-paper-deep);
-      letter-spacing: var(--bc-ls-wider);
-      line-height: 1.4;
-      text-transform: none;
-    }
-    /* paper.nu-sourced tags keep their purple tint to read as
-       "from paper.nu". */
-    .bc-cs-tag[data-kind="distro"]     { background: var(--bc-color-success-distro-bg); color: var(--bc-color-success-distro-text); }
-    .bc-cs-tag[data-kind="discipline"] { background: var(--bc-color-warn-bg); color: var(--bc-color-warn-text-discipline); }
-    .bc-cs-tag[data-kind="school"]     { background: var(--bc-color-paper-soft); color: var(--bc-color-paper); }
-    .bc-cs-tag[data-kind="open"]       { background: var(--bc-color-success-bg); color: var(--bc-color-success); }
-    .bc-cs-tag[data-kind="closed"]     { background: var(--bc-color-danger-bg); color: var(--bc-color-danger); }
-    .bc-cs-tag[data-kind="wait"]       { background: var(--bc-color-warn-bg); color: var(--bc-color-warn); }
-
     .bc-cs-course-desc {
       font-size: var(--bc-font-12);
       color: var(--bc-color-text-muted);

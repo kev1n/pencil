@@ -82,22 +82,15 @@ describe("renderCourseCard", () => {
     expect(card.querySelector(".bc-cs-course-units")?.textContent).toBe("1.00 unit");
   });
 
-  it("paints distro and discipline pills when planEntry has them", () => {
+  it("does not render any tag/badge row (school, distro, discipline)", () => {
     const doc = fresh();
     const card = renderCourseCard(doc, {
       row: makeRow(),
       planEntry: makePlanEntry({ distros: "2", disciplines: "B" }),
       sectionRows: []
     });
-    const tags = Array.from(card.querySelectorAll<HTMLElement>(".bc-cs-tag"));
-    const kinds = tags.map((t) => t.dataset.kind);
-    expect(kinds).toContain("school");
-    expect(kinds).toContain("distro");
-    expect(kinds).toContain("discipline");
-    const distroTag = tags.find((t) => t.dataset.kind === "distro");
-    expect(distroTag?.textContent).toContain("Dist 2");
-    const discTag = tags.find((t) => t.dataset.kind === "discipline");
-    expect(discTag?.textContent).toContain("Disc B");
+    expect(card.querySelector(".bc-cs-course-tags")).toBeNull();
+    expect(card.querySelector(".bc-cs-tag")).toBeNull();
   });
 
   it("renders the description block when planEntry.description is present", () => {
@@ -127,7 +120,7 @@ describe("renderCourseCard", () => {
     expect((list?.children[1] as HTMLElement).dataset.marker).toBe("b");
   });
 
-  it("works without a planEntry (no units, distros, disciplines, description)", () => {
+  it("works without a planEntry (no units, no description, no tag row)", () => {
     const doc = fresh();
     const card = renderCourseCard(doc, {
       row: makeRow(),
@@ -136,10 +129,17 @@ describe("renderCourseCard", () => {
     });
     expect(card.querySelector(".bc-cs-course-units")?.textContent).toBe("");
     expect(card.querySelector(".bc-cs-course-desc")).toBeNull();
-    // school still renders since it's on row.course
-    expect(
-      card.querySelector<HTMLElement>('.bc-cs-tag[data-kind="school"]')?.textContent
-    ).toBe("MEAS");
+    expect(card.querySelector(".bc-cs-course-tags")).toBeNull();
+  });
+
+  it("omits the description block entirely when planEntry has no description", () => {
+    const doc = fresh();
+    const card = renderCourseCard(doc, {
+      row: makeRow(),
+      planEntry: makePlanEntry({ description: undefined }),
+      sectionRows: []
+    });
+    expect(card.querySelector(".bc-cs-course-desc")).toBeNull();
   });
 });
 

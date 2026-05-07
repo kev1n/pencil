@@ -1,5 +1,5 @@
-// Course card: header (subject / catalog / units / title), distro/discipline
-// tag pills, description, and the section list.
+// Course card: header (subject / catalog / units / title), description (when
+// present), and the section list.
 //
 // Pure render. The card receives a list of pre-built section row elements
 // so the section-row view can stay independent — the augmentation supplies
@@ -17,7 +17,7 @@ import {
 } from "../caesar-search";
 import { formatCourseIdForDisplay } from "../catalog-format";
 import type { PaperCourse } from "../paper-data";
-import { PAPER_DISCIPLINE_LABELS, PAPER_DISTRO_LABELS, type ResultRow } from "../types";
+import type { ResultRow } from "../types";
 
 export type CourseCardProps = {
   row: ResultRow;
@@ -35,7 +35,6 @@ export function renderCourseCard(
   const card = el(doc, "div", { class: "bc-cs-course" });
 
   card.appendChild(buildHead(doc, props));
-  card.appendChild(buildTags(doc, props));
 
   if (props.planEntry?.description) {
     card.appendChild(
@@ -113,48 +112,4 @@ function buildHead(doc: Document, props: CourseCardProps): HTMLElement {
   }
 
   return el(doc, "div", { class: "bc-cs-course-head" }, [id, title, units]);
-}
-
-function buildTags(doc: Document, props: CourseCardProps): HTMLElement {
-  const tags = el(doc, "div", { class: "bc-cs-course-tags" });
-
-  if (props.row.course.school) {
-    tags.appendChild(
-      el(doc, "span", {
-        class: "bc-cs-tag",
-        dataset: { kind: "school" },
-        text: props.row.course.school
-      })
-    );
-  }
-
-  if (props.planEntry?.distros) {
-    for (const code of props.planEntry.distros) {
-      const label = PAPER_DISTRO_LABELS[code];
-      if (!label) continue;
-      tags.appendChild(
-        el(doc, "span", {
-          class: "bc-cs-tag",
-          dataset: { kind: "distro" },
-          text: `Dist ${code} · ${label}`
-        })
-      );
-    }
-  }
-
-  if (props.planEntry?.disciplines) {
-    for (const code of props.planEntry.disciplines) {
-      const label = PAPER_DISCIPLINE_LABELS[code];
-      if (!label) continue;
-      tags.appendChild(
-        el(doc, "span", {
-          class: "bc-cs-tag",
-          dataset: { kind: "discipline" },
-          text: `Disc ${code} · ${label}`
-        })
-      );
-    }
-  }
-
-  return tags;
 }
