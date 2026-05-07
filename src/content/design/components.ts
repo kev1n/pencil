@@ -140,13 +140,19 @@ function buttons(): string {
   opacity: 0.7;
 }
 
+/* Variant rules below are chained with .bc-btn to bump specificity to (0,2,0).
+   Paper.nu's Tailwind preflight resets [type='button'] background-color to
+   transparent at (0,1,0) and loads after our design-system style — without
+   the chain, that reset defeats the variant fills (white text on the white
+   modal card became invisible). */
+
 /* Primary: solid accent fill. */
-.bc-btn--primary {
+.bc-btn.bc-btn--primary {
   background: var(--bc-color-accent);
   border-color: var(--bc-color-accent);
   color: var(--bc-color-accent-on);
 }
-.bc-btn--primary:hover:not(:disabled) {
+.bc-btn.bc-btn--primary:hover:not(:disabled) {
   background: var(--bc-color-accent-hover);
   border-color: var(--bc-color-accent-hover);
 }
@@ -154,34 +160,34 @@ function buttons(): string {
 /* Soft modifier — swaps a primary button's hard accent for the softer accent
    ladder (used by modal/dialog action rows where the harder accent reads as
    too loud). Stack with --primary: bc-btn bc-btn--primary bc-btn--soft. */
-.bc-btn--soft {
+.bc-btn.bc-btn--soft {
   background: var(--bc-color-accent-soft);
   border-color: var(--bc-color-accent-soft);
   color: var(--bc-color-accent-soft-on);
 }
-.bc-btn--soft:hover:not(:disabled) {
+.bc-btn.bc-btn--soft:hover:not(:disabled) {
   background: var(--bc-color-accent-soft-hover);
   border-color: var(--bc-color-accent-soft-hover);
 }
 
 /* Secondary: outline with surface bg. */
-.bc-btn--secondary {
+.bc-btn.bc-btn--secondary {
   background: var(--bc-color-bg);
   border-color: var(--bc-color-border);
   color: var(--bc-color-text);
 }
-.bc-btn--secondary:hover:not(:disabled) {
+.bc-btn.bc-btn--secondary:hover:not(:disabled) {
   background: var(--bc-color-surface-hover);
 }
 
 /* Accent-outline secondary — transparent bg, accent-tinted border, inherits
    text color. Used in modal/dialog action rows alongside --primary --soft. */
-.bc-btn--secondary-accent {
+.bc-btn.bc-btn--secondary-accent {
   background: transparent;
   border-color: var(--bc-color-accent-border-22);
   color: inherit;
 }
-.bc-btn--secondary-accent:hover:not(:disabled) {
+.bc-btn.bc-btn--secondary-accent:hover:not(:disabled) {
   background: var(--bc-color-accent-fill-08);
 }
 
@@ -193,35 +199,35 @@ function buttons(): string {
 }
 
 /* Ghost: transparent, text only. */
-.bc-btn--ghost {
+.bc-btn.bc-btn--ghost {
   background: transparent;
   border-color: transparent;
   color: var(--bc-color-text-muted);
 }
-.bc-btn--ghost:hover:not(:disabled) {
+.bc-btn.bc-btn--ghost:hover:not(:disabled) {
   background: var(--bc-color-surface-hover);
   color: var(--bc-color-text);
 }
 
 /* Outline-accent: outlined accent (used for "Refresh" style secondary CTAs). */
-.bc-btn--outline-accent {
+.bc-btn.bc-btn--outline-accent {
   background: var(--bc-color-surface-translucent-72);
   border-color: var(--bc-color-accent-border-32);
   color: var(--bc-color-accent);
 }
-.bc-btn--outline-accent:hover:not(:disabled) {
+.bc-btn.bc-btn--outline-accent:hover:not(:disabled) {
   background: var(--bc-color-accent-fill-12);
 }
 
 /* Icon-only square button. */
-.bc-btn--icon {
+.bc-btn.bc-btn--icon {
   padding: 0;
   width: 32px;
   height: 32px;
   border-radius: var(--bc-radius-lg);
   color: var(--bc-color-text-muted);
 }
-.bc-btn--icon:hover:not(:disabled) {
+.bc-btn.bc-btn--icon:hover:not(:disabled) {
   background: var(--bc-color-surface-hover);
   color: var(--bc-color-text);
 }
@@ -761,7 +767,7 @@ function pencilAccents(): string {
 .bc-card--rotate-r { transform: rotate(0.7deg); }
 
 /* Pencil button — ink fill, pencil-font label, offset solid accent shadow. */
-.bc-btn--pencil {
+.bc-btn.bc-btn--pencil {
   background: var(--bc-color-text);
   border-color: var(--bc-color-text);
   color: var(--bc-color-bg);
@@ -772,7 +778,7 @@ function pencilAccents(): string {
   border-radius: var(--bc-radius-sm);
   padding: 10px 16px;
 }
-.bc-btn--pencil:hover:not(:disabled) {
+.bc-btn.bc-btn--pencil:hover:not(:disabled) {
   background: var(--bc-color-text-strong);
   box-shadow: 3px 3px 0 var(--bc-color-accent);
   transform: translate(-1px, -1px);
