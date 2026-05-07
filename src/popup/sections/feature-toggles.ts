@@ -84,6 +84,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         id: "paper-card-border-on-hover",
         label: "Card Border on Hover",
         description: "Disables Paper's hover-lift animation on schedule cards and shows a static border outline instead."
+      },
+      {
+        id: "paper-combos",
+        label: "Schedule Combinations",
+        description: "Cycle through every non-overlapping subset of the sections on your canvas, sorted by average CTEC rating."
       }
     ]
   },
