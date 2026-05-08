@@ -77,18 +77,3 @@ export function bandLabelFor(
   );
   return METRIC_BAND_LABELS[kind][index] ?? null;
 }
-
-export function appendBandLabel(
-  doc: Document,
-  card: HTMLElement,
-  kind: ModalMetricKind | "global",
-  value: number
-): void {
-  if (!Number.isFinite(value) || value <= 0) return;
-  const text = bandLabelFor(kind, value);
-  if (!text) return;
-  const span = doc.createElement("span");
-  span.className = "bc-paper-ctec-modal-kpi-band";
-  span.textContent = text;
-  card.append(span);
-}

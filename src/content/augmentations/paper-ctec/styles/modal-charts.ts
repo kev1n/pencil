@@ -81,6 +81,14 @@ export function modalChartStyles(): string {
       flex-direction: column;
       gap: 6px;
       font-family: inherit;
+      container-type: inline-size;
+    }
+    /* Drop the band on narrow cards instead of letting it overflow the
+       right edge. 165px clears the longest band+label pairs. */
+    @container (max-width: 165px) {
+      .bc-paper-ctec-modal-kpi-band {
+        display: none;
+      }
     }
     .bc-paper-ctec-modal-kpi.is-active {
       border-color: var(--bc-color-accent);
@@ -113,7 +121,8 @@ export function modalChartStyles(): string {
     .bc-paper-ctec-modal-kpi-top {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: baseline;
+      gap: 8px;
     }
     .bc-paper-ctec-modal-kpi-label {
       font-size: var(--bc-font-11);
@@ -121,6 +130,7 @@ export function modalChartStyles(): string {
       font-weight: var(--bc-fw-semibold);
       letter-spacing: var(--bc-ls-caps);
       text-transform: uppercase;
+      white-space: nowrap;
     }
     .bc-paper-ctec-modal-kpi-label-group {
       display: inline-flex;
@@ -201,19 +211,15 @@ export function modalChartStyles(): string {
     .bc-paper-ctec-modal-kpi-scale {
       font-size: var(--bc-font-11);
       color: var(--bc-color-text-subtle);
+      white-space: nowrap;
     }
-    /* Qualitative descriptor of the headline value ("Great instruction",
-       "Easy", "Light workload"). Pinned to the bottom-right corner of the
-       card; the .bc-paper-ctec-modal-kpi rule already sets position:
-       relative so absolute positioning anchors here. */
     .bc-paper-ctec-modal-kpi-band {
-      position: absolute;
-      right: 12px;
-      bottom: 10px;
+      flex-shrink: 0;
       font-size: var(--bc-font-10);
       font-weight: var(--bc-fw-semibold);
       letter-spacing: 0.2px;
       color: var(--bc-color-text-muted);
+      white-space: nowrap;
       pointer-events: none;
     }
     .bc-paper-ctec-modal-charts {
