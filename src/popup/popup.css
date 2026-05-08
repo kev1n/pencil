@@ -89,6 +89,168 @@ body::after {
   display: none;
 }
 
+.changelog {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.changelog:empty {
+  display: none;
+}
+
+.changelog-card {
+  padding: 12px 14px;
+  background: var(--bc-color-bg);
+  border: 1.5px solid var(--bc-color-text);
+  border-radius: var(--bc-radius-lg);
+  box-shadow: 2px 2px 0 var(--bc-color-text);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.changelog-card--past {
+  box-shadow: none;
+  border-style: dashed;
+  border-color: var(--bc-color-border-strong);
+  background: var(--bc-color-bg-app);
+}
+
+.changelog-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.changelog-version {
+  display: inline-block;
+  padding: 2px 10px;
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-13);
+  font-weight: var(--bc-fw-bold);
+  letter-spacing: 0.04em;
+  color: var(--bc-color-accent-on);
+  background: var(--bc-color-accent);
+  border: 1.5px solid var(--bc-color-text);
+  border-radius: 999px;
+}
+
+.changelog-card--past .changelog-version {
+  color: var(--bc-color-text-muted);
+  background: var(--bc-color-bg);
+  border-color: var(--bc-color-border-strong);
+  border-width: 1px;
+}
+
+.changelog-date {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--bc-font-11);
+  color: var(--bc-color-text-muted);
+}
+
+.changelog-title {
+  margin: 0;
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-20);
+  font-weight: var(--bc-fw-regular);
+  line-height: 1.15;
+  color: var(--bc-color-text);
+}
+
+.changelog-subhead {
+  margin: 0;
+  font-size: var(--bc-font-12);
+  color: var(--bc-color-text-muted);
+}
+
+.changelog-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.changelog-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: var(--bc-font-12);
+  line-height: 1.45;
+  color: var(--bc-color-text-strong);
+}
+
+.changelog-tag {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 8px;
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-11);
+  font-weight: var(--bc-fw-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 999px;
+  border: 1px solid;
+}
+
+.changelog-tag--feat {
+  color: var(--bc-color-gate-ok-text);
+  background: var(--bc-color-gate-ok-bg);
+  border-color: var(--bc-color-gate-ok-border);
+}
+
+.changelog-tag--fix {
+  color: var(--bc-color-gate-warn-text);
+  background: var(--bc-color-gate-warn-bg);
+  border-color: var(--bc-color-gate-warn-border);
+}
+
+.changelog-text {
+  min-width: 0;
+}
+
+.changelog-history {
+  border: 1px dashed var(--bc-color-border-strong);
+  border-radius: var(--bc-radius-lg);
+  background: var(--bc-color-bg-app);
+  padding: 0;
+}
+
+.changelog-history[open] {
+  padding: 4px 10px 10px;
+}
+
+.changelog-history-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-12);
+  letter-spacing: 0.04em;
+  color: var(--bc-color-text-muted);
+  user-select: none;
+}
+
+.changelog-history-summary::-webkit-details-marker {
+  display: none;
+}
+
+.changelog-history-summary::before {
+  content: "▸ ";
+  font-size: 0.85em;
+}
+
+.changelog-history[open] .changelog-history-summary::before {
+  content: "▾ ";
+}
+
+.changelog-history .changelog-card {
+  margin-top: 8px;
+}
+
 .gate-card {
   display: flex;
   flex-direction: column;
