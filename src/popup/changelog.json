@@ -13,8 +13,12 @@
     {
       "version": "0.6.0",
       "date": "2026-05-08",
-      "headline": "CTEC sign-in actually works now",
+      "headline": "You're in, grad year or not",
       "items": [
+        {
+          "kind": "fix",
+          "text": "If we couldn't read your expected graduation year from CAESAR, the extension now unlocks anyway instead of holding you back."
+        },
         {
           "kind": "fix",
           "text": "Loading CTECs on Sharper Search now signs you in properly instead of getting stuck."
@@ -25,7 +29,7 @@
         },
         {
           "kind": "fix",
-          "text": "CTEC analytics colors now match between the score pills and the bars below, and shift smoothly across scores instead of jumping between a few buckets."
+          "text": "Smoother, more consistent CTEC analytics colors."
         }
       ]
     }
