@@ -381,17 +381,6 @@ export class PaperCombosAugmentation implements Augmentation {
     this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
   }
 
-  private async clearAllZones(
-    doc: Document,
-    grid: HTMLElement
-  ): Promise<void> {
-    if (this.zones.length === 0) return;
-    this.zones = [];
-    await saveZones(this.zones);
-    this.recomputeCombos();
-    this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
-  }
-
   private scheduleLoad(doc: Document): void {
     if (this.loading) return;
     this.loading = true;
@@ -532,7 +521,7 @@ export class PaperCombosAugmentation implements Augmentation {
     grid: HTMLElement,
     enabled: boolean
   ): void {
-    const bar = ensureTopBar(doc, grid, {
+    const bar = ensureTopBar(doc, {
       onPrev: () => this.cyclePrev(doc, grid),
       onNext: () => this.cycleNext(doc, grid),
       onMaxChange: (value) => this.setMax(doc, grid, value),
@@ -541,6 +530,8 @@ export class PaperCombosAugmentation implements Augmentation {
         void this.setFeatureEnabled(next);
       }
     });
+    // Action toolbar hasn't rendered yet — try again next mutation.
+    if (!bar) return;
     const currentCombo = enabled ? this.combos[this.cursor] ?? null : null;
 
     // Card-visibility side effects only run when the feature is on.
@@ -590,12 +581,8 @@ export class PaperCombosAugmentation implements Augmentation {
         : undefined,
       truncated: this.lastEnumerate?.truncated ?? false,
       conflictingPins: this.lastEnumerate?.conflictingPins ?? false,
-      defaultEnabled: getDefaultFeatureEnabled(PAPER_COMBOS_FEATURE_ID),
-      zoneCount: this.zones.length
+      defaultEnabled: getDefaultFeatureEnabled(PAPER_COMBOS_FEATURE_ID)
     }, {
-      onClearZones: () => {
-        void this.clearAllZones(doc, grid);
-      },
       onSortChange: (mode) => {
         void this.setSortMode(doc, grid, mode);
       }

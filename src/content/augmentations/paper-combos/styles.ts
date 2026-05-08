@@ -11,49 +11,153 @@ import {
 const REAL_CARD_HIDE_SELECTOR =
   "div.absolute.z-10.rounded-lg" + `[${REAL_CARD_HIDE_ATTR}="1"]`;
 
-// margin-top clears paper-ctec's floating status bar (which is anchored
-// at top: 1rem inside the absolute-positioned action toolbar). 3.25rem
-// is enough to land below the status text without being so tall it eats
-// canvas space.
 const CSS = `
-/* Bar layout: positioned absolute INSIDE the schedule grid, overlaying
- * the day-label row (Mo Tu We Th Fr). That row is mostly empty
- * whitespace anyway, so we reclaim it for the bar — and the schedule
- * grid keeps its full vertical canvas for class cards instead of
- * losing ~3.5rem to a stacked toolbar above. */
-[${ROOT_ATTR}] .schedule-grid-cols {
-  position: relative;
-}
-
-/* Day-name labels (Mo Tu We Th Fr) hide while the bar is mounted —
- * the bar covers them anyway, and visibility:hidden keeps the cell
- * occupying its layout space so paper.nu's hour-grid math (and ours)
- * stays unchanged. */
-[${ROOT_ATTR}] .schedule-grid-cols > div:not(:first-child) > div:first-child p {
-  visibility: hidden;
-}
-
+/* Bar layout: lives inside paper.nu's action toolbar (the row holding
+ * Custom / Export / Clear), in the same flex slot the paper-ctec
+ * status bar uses. flex: 1 1 auto absorbs the slack between the
+ * (hidden) status bar and the action buttons, mirroring how the
+ * status bar normally sizes itself. position: relative so the kebab
+ * popover can anchor to the bar. flex-wrap stays off — at narrow
+ * widths the secondary controls collapse into a popover instead of
+ * wrapping to a second line. */
 #${TOP_BAR_ID} {
-  position: absolute;
-  top: 0;
-  /* Clear the HoursColumn (grid-template-columns starts with 3.2rem),
-   * align with the start of the day-1 column. */
-  left: 3.2rem;
-  right: 0;
-  z-index: 8;
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   column-gap: 0.5rem;
-  row-gap: 0.35rem;
   padding: 0.3rem 0.5rem;
   border-radius: var(--bc-radius-md);
   background: var(--bc-color-bg);
   border: 1px solid var(--bc-color-border);
   font-family: inherit;
   color: var(--bc-color-text);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   line-height: 1.2;
+}
+
+/* Hide the paper-ctec status bar whenever our combos bar shares the
+ * same action toolbar. Combos visually replaces "Loading CTECs into
+ * Paper · X/Y…" — chips on each card still surface per-section CTEC
+ * progress, so no signal is lost. Both directions of sibling order are
+ * covered so the rule is robust to either bar mounting first. */
+#bc-paper-ctec-status-bar:has(~ #${TOP_BAR_ID}),
+#${TOP_BAR_ID} ~ #bc-paper-ctec-status-bar {
+  display: none !important;
+}
+
+/* Kebab menu button — hidden at wide widths, surfaces below 1450px
+ * once at least one secondary control collapses into the popover. */
+#${TOP_BAR_ID} .bc-paper-combos-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  width: 1.75rem;
+  padding: 0;
+  border: 1px solid var(--bc-color-border);
+  background: var(--bc-color-bg-muted);
+  color: var(--bc-color-text);
+  border-radius: var(--bc-radius-sm);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--bc-tx-fast) var(--bc-easing),
+              background var(--bc-tx-fast) var(--bc-easing);
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-menu-btn:hover {
+  border-color: var(--bc-color-border-strong);
+  background: var(--bc-color-surface-hover);
+}
+
+#${TOP_BAR_ID}[data-menu-open="true"] .bc-paper-combos-menu-btn {
+  border-color: var(--bc-color-accent);
+  background: var(--bc-color-accent-surface-soft);
+  color: var(--bc-color-accent);
+}
+
+/* Two-tier collapse:
+ *   wide (>1450)         — both copies inline, popover hidden
+ *   medium (1151-1450)   — credits goes to popover, sort stays inline
+ *   narrow (<=1150)      — both go to popover
+ *
+ * Each control has two copies in the DOM stamped data-bc-position=
+ * "inline" / "popover". By default the inline copy displays and the
+ * popover copy is hidden; the media queries flip those at the right
+ * widths. */
+#${TOP_BAR_ID} .bc-paper-combos-sort[data-bc-position="popover"],
+#${TOP_BAR_ID} .bc-paper-combos-credits[data-bc-position="popover"] {
+  display: none;
+}
+
+/* Popover container holds the popover copies; absolutely positioned
+ * under the kebab. Hidden until the menu opens. */
+#${TOP_BAR_ID} .bc-paper-combos-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.65rem;
+  background: var(--bc-color-bg);
+  border: 1px solid var(--bc-color-border);
+  border-radius: var(--bc-radius-md);
+  box-shadow: var(--bc-shadow-tooltip);
+  z-index: 20;
+  min-width: 14rem;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-popover > * {
+  width: 100%;
+  justify-content: space-between;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-popover .bc-paper-combos-sort-select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Medium: credits collapses, kebab visible. */
+@media (max-width: 1450px) {
+  #${TOP_BAR_ID} .bc-paper-combos-menu-btn {
+    display: inline-flex;
+  }
+  #${TOP_BAR_ID} .bc-paper-combos-credits[data-bc-position="inline"] {
+    display: none;
+  }
+  #${TOP_BAR_ID} .bc-paper-combos-credits[data-bc-position="popover"] {
+    display: inline-flex;
+  }
+  #${TOP_BAR_ID}[data-menu-open="true"] .bc-paper-combos-popover {
+    display: flex;
+  }
+}
+
+/* Narrow: also sort collapses. */
+@media (max-width: 1150px) {
+  #${TOP_BAR_ID} .bc-paper-combos-sort[data-bc-position="inline"] {
+    display: none;
+  }
+  #${TOP_BAR_ID} .bc-paper-combos-sort[data-bc-position="popover"] {
+    display: inline-flex;
+  }
+}
+
+/* Very narrow viewports: also drop the toggle's "Combinations" label
+ * so toggle + cycle + rating + kebab still fit on one line. */
+@media (max-width: 700px) {
+  #${TOP_BAR_ID} .bc-paper-combos-toggle-label {
+    display: none;
+  }
+  .${FEATURE_TOGGLE_CLASS} {
+    padding: 0 0.35rem;
+  }
 }
 
 /* Hide native number-input spinner arrows on the bar's number inputs.
@@ -387,10 +491,11 @@ const CSS = `
 /* Persisted zones: dimmer fill + diagonal stripes so they read as
  * "this time slot is off-limits" without competing with paper.nu's
  * actual class cards. Hover signals "click to remove" via a fade
- * overlay across the whole zone. */
+ * overlay across the whole zone (synced across segments of the same
+ * multi-day zone — see [data-zone-hover] rule below). */
 .bc-paper-combos-zone {
   position: relative;
-  background: var(--bc-color-accent-surface-soft);
+  background-color: var(--bc-color-accent-surface-soft);
   background-image: repeating-linear-gradient(
     45deg,
     transparent 0,
@@ -398,6 +503,11 @@ const CSS = `
     var(--bc-color-accent-surface-tile) 6px,
     var(--bc-color-accent-surface-tile) 12px
   );
+  /* Anchor the stripe pattern to the viewport so adjacent segments of
+   * a multi-day zone show stripes from the same global pattern — the
+   * diagonal lines flow continuously across the day-column seam
+   * instead of restarting at each segment's own origin. */
+  background-attachment: fixed;
   border: 1px solid var(--bc-color-accent);
   border-radius: var(--bc-radius-sm);
   z-index: 11;
@@ -407,33 +517,52 @@ const CSS = `
   color: var(--bc-color-accent);
   font-weight: var(--bc-fw-semibold);
   overflow: hidden;
-  transition: background var(--bc-tx-fast) var(--bc-easing);
+  transition: background var(--bc-tx-fast) var(--bc-easing),
+              border-color var(--bc-tx-fast) var(--bc-easing);
 }
 
-/* Click-to-remove affordance: full-zone overlay that fades in on hover
- * with a "Click to remove" label. pointer-events:none so the click
- * still hits the underlying zone (which the drag handler already
- * routes to onZoneRemove). */
-.bc-paper-combos-zone::after {
-  content: "Click to remove";
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bc-color-accent);
+/* Cursor override: paper.nu's day columns get cursor:crosshair (for
+ * drawing new zones), and that rule has higher specificity than
+ * .bc-paper-combos-zone alone. Re-assert pointer at matching
+ * specificity so hovering an existing zone reads as "this is
+ * clickable to remove" instead of "draw another one here". */
+[${ROOT_ATTR}] .schedule-grid-cols .bc-paper-combos-zone {
+  cursor: pointer;
+}
+
+/* Hover state — two parallel triggers:
+ *   :hover         — single-segment zones, no JS coordination needed.
+ *   [data-zone-hover="true"] — JS-driven, synced across every segment
+ *                              of a multi-day zone (mouseover handler
+ *                              in attachZoneDragHandlers), so hovering
+ *                              Tu lights up We too.
+ *
+ * Visual: stripes get replaced with a solid accent fill, border bumps
+ * to accent-hover, and the time label inverts color. Solid fill is
+ * the simplest unmistakable signal that a click here will do
+ * something — no pseudo-element overlays (which kept failing to
+ * render against the fixed-attachment striped parent). */
+.bc-paper-combos-zone:hover,
+.bc-paper-combos-zone[data-zone-hover="true"] {
+  background-image: none;
+  background-color: var(--bc-color-accent);
+  border-color: var(--bc-color-accent-hover);
   color: var(--bc-color-accent-on);
-  font-size: 0.7rem;
-  font-weight: var(--bc-fw-bold);
-  text-transform: uppercase;
-  letter-spacing: var(--bc-ls-wide);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--bc-tx-fast) var(--bc-easing);
 }
 
-.bc-paper-combos-zone:hover::after {
-  opacity: 0.92;
+.bc-paper-combos-zone:hover .bc-paper-combos-zone-label,
+.bc-paper-combos-zone[data-zone-hover="true"] .bc-paper-combos-zone-label {
+  color: var(--bc-color-accent-on);
+}
+
+/* X button keeps its accent bg, but on hover the zone bg now matches
+ * (both are accent), so the button visually disappears. Flip its
+ * fill to accent-on so it stays distinct against the solid hover
+ * surface. */
+.bc-paper-combos-zone:hover .bc-paper-combos-zone-remove,
+.bc-paper-combos-zone[data-zone-hover="true"] .bc-paper-combos-zone-remove {
+  background: var(--bc-color-accent-on);
+  color: var(--bc-color-accent);
 }
 
 /* Multi-day zones render as one segment per day. The leftmost/rightmost
@@ -453,11 +582,37 @@ const CSS = `
 
 .bc-paper-combos-zone-label {
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.bc-paper-combos-zone[data-rightmost="true"] .bc-paper-combos-zone-label {
+  /* Reserve space for the X button at top-right so the label doesn't
+   * collide with it. Non-rightmost segments don't render the X, so
+   * they let the label fill the full width. */
+  padding-right: 22px;
+}
+
+.bc-paper-combos-zone-label-primary,
+.bc-paper-combos-zone-label-hint {
   display: block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-right: 22px; /* leave room for the X button at top-right */
+}
+
+.bc-paper-combos-zone-label-primary {
+  font-size: 0.65rem;
+  font-weight: var(--bc-fw-semibold);
+}
+
+.bc-paper-combos-zone-label-hint {
+  font-size: 0.6rem;
+  font-weight: var(--bc-fw-regular);
+  font-style: italic;
+  opacity: 0.7;
 }
 
 /* X button: two crossed pseudo-element bars instead of the × glyph.
@@ -518,24 +673,6 @@ const CSS = `
   cursor: pointer;
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-clear-zones {
-  cursor: pointer;
-  height: 1.75rem;
-  padding: 0 0.6rem;
-  border: 1px solid var(--bc-color-accent);
-  background: var(--bc-color-accent-surface-soft);
-  color: var(--bc-color-accent);
-  border-radius: var(--bc-radius-sm);
-  font: inherit;
-  font-size: 0.78rem;
-  font-weight: var(--bc-fw-semibold);
-  line-height: 1;
-}
-
-#${TOP_BAR_ID} .bc-paper-combos-clear-zones:hover {
-  background: var(--bc-color-accent-surface-tile);
-}
-
 #${TOP_BAR_ID} .bc-paper-combos-status {
   flex-basis: 100%;
 }
@@ -570,10 +707,16 @@ const CSS = `
               transform var(--bc-tx-fast) var(--bc-easing);
 }
 
+/* Unpinned hover: preview the pinned look (accent fill + inverse
+ * icon) so the user gets a clear "click does this" cue. The 1.18×
+ * scale plus the heavier shadow make the affordance unmistakable
+ * against colorful class cards where a subtle bg shift gets lost. */
 .${CARD_PIN_BUTTON_CLASS}:hover {
-  background: var(--bc-color-surface-hover);
-  border-color: var(--bc-color-border-strong);
-  transform: scale(1.08);
+  background: var(--bc-color-accent);
+  border-color: var(--bc-color-accent);
+  color: var(--bc-color-accent-on);
+  transform: scale(1.18);
+  box-shadow: var(--bc-shadow-button-hover);
 }
 
 .${CARD_PIN_BUTTON_CLASS}[data-pinned="true"] {
@@ -582,9 +725,14 @@ const CSS = `
   color: var(--bc-color-accent-on);
 }
 
+/* Pinned hover: bump to accent-hover and add the same scale/shadow,
+ * so the gesture reads as "active state, ready to unpin" rather than
+ * blending in with the resting pinned look. */
 .${CARD_PIN_BUTTON_CLASS}[data-pinned="true"]:hover {
   background: var(--bc-color-accent-hover);
   border-color: var(--bc-color-accent-hover);
+  transform: scale(1.18);
+  box-shadow: var(--bc-shadow-button-hover);
 }
 `;
 

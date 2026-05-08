@@ -13,8 +13,12 @@
     {
       "version": "0.6.0",
       "date": "2026-05-08",
-      "headline": "Missing grad year? You're in.",
+      "headline": "Missing grad year? You're in; schedule combinations",
       "items": [
+        {
+          "kind": "feat",
+          "text": "Cycle every non-overlapping schedule of your Paper.nu classes — pin sections, set a credit range, sort by CTEC rating."
+        },
         {
           "kind": "fix",
           "text": "If we couldn't read your expected graduation year from CAESAR, the extension now unlocks anyway instead of holding you back."

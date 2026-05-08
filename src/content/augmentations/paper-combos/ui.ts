@@ -62,7 +62,6 @@ export type TopBarState = {
   status?: string;
   truncated: boolean;
   conflictingPins: boolean;
-  zoneCount: number;
 };
 
 export type TopBarCallbacks = {
@@ -74,7 +73,6 @@ export type TopBarCallbacks = {
 };
 
 export type TopBarZoneCallbacks = {
-  onClearZones(): void;
   onSortChange(mode: SortMode): void;
 };
 
@@ -84,34 +82,95 @@ export type TopBarZoneCallbacks = {
 // user's clicks always land on a live handler. The bar's children are
 // just markup; their `data-bc-combos-action` attribute drives dispatch.
 //
-// Mount point: inside `.schedule-grid-cols` itself, NOT as a sibling.
-// The CSS positions it absolute over paper.nu's day-label row (Mo Tu
-// We Th Fr) — a strip that's mostly empty whitespace. That reclaims
-// the ~3.5rem of vertical space the bar used to consume above the
-// grid, giving class cards their full canvas.
+// Mount point: paper.nu's action toolbar (the row holding Custom /
+// Export / Clear). Same host paper-ctec uses for its status bar — we
+// share the slot and hide the status bar via CSS so combos visually
+// replaces "Loading CTECs into Paper · X/Y…". Returns null when the
+// host hasn't rendered yet; the caller treats that as "render again
+// next mutation".
 export function ensureTopBar(
   doc: Document,
-  grid: HTMLElement,
   callbacks: TopBarCallbacks
-): HTMLElement {
+): HTMLElement | null {
+  const host = findCombosActionHost(doc);
+  if (!host) return null;
+  ensureActionHostLayout(host);
+
   const existing = doc.getElementById(TOP_BAR_ID);
   if (existing) {
-    bindTopBarHandlers(existing, callbacks);
-    if (existing.parentElement !== grid) {
-      grid.appendChild(existing);
+    if (existing.parentElement !== host) {
+      mountBarInHost(host, existing);
     }
+    bindTopBarHandlers(existing, callbacks);
     return existing;
   }
   const bar = doc.createElement("div");
   bar.id = TOP_BAR_ID;
-  grid.appendChild(bar);
+  mountBarInHost(host, bar);
   bindTopBarHandlers(bar, callbacks);
   return bar;
+}
+
+// Insert after any paper-ctec status bar so paper-ctec's own
+// "prepend if not first child" logic doesn't fight us for slot 0.
+// Steady state: [status (hidden)][combos][Custom][Export][Clear].
+function mountBarInHost(host: HTMLElement, bar: HTMLElement): void {
+  const statusBar = host.querySelector<HTMLElement>("#bc-paper-ctec-status-bar");
+  if (statusBar && statusBar.parentElement === host) {
+    statusBar.after(bar);
+  } else {
+    host.prepend(bar);
+  }
+}
+
+// Mirror of paper-ctec's findActionHost: locate the floating toolbar at
+// the top of the schedule page. The exact selector is paper.nu's stable
+// shape; the fallback catches minor class reshuffles. We only accept a
+// candidate that holds the Custom / Export / Clear button trio so we
+// don't grab some other absolute-positioned flex row.
+function findCombosActionHost(doc: Document): HTMLElement | null {
+  const exact = Array.from(
+    doc.querySelectorAll<HTMLElement>(
+      "div.absolute.right-7.top-4.flex.items-center.gap-1"
+    )
+  ).find((c) => hasPaperActions(c));
+  if (exact) return exact;
+  return (
+    Array.from(
+      doc.querySelectorAll<HTMLElement>("div.absolute.flex.items-center")
+    ).find((c) => hasPaperActions(c)) ?? null
+  );
+}
+
+function hasPaperActions(host: HTMLElement): boolean {
+  const labels = Array.from(host.querySelectorAll("button")).map((b) =>
+    (b.textContent ?? "").trim().toLowerCase()
+  );
+  return (
+    labels.some((l) => l.includes("custom")) &&
+    labels.some((l) => l.includes("export")) &&
+    labels.some((l) => l.includes("clear"))
+  );
+}
+
+// Widen the action host so our bar (and the paper-ctec status bar) can
+// stretch across the toolbar. paper-ctec uses the same dataset marker
+// to avoid double-application, so this is a no-op when paper-ctec has
+// already run.
+function ensureActionHostLayout(host: HTMLElement): void {
+  if (host.dataset.bcPaperCtecExpanded === "1") return;
+  host.style.left = "1.75rem";
+  host.style.right = "1.75rem";
+  host.style.justifyContent = "flex-end";
+  host.style.alignItems = "flex-start";
+  host.style.minWidth = "0";
+  host.dataset.bcPaperCtecExpanded = "1";
 }
 
 type DelegatedHandlers = {
   onClick: (event: MouseEvent) => void;
   onInput: (event: Event) => void;
+  onDocClick: (event: MouseEvent) => void;
 };
 
 const handlerStore = new WeakMap<HTMLElement, DelegatedHandlers>();
@@ -119,6 +178,12 @@ const handlerStore = new WeakMap<HTMLElement, DelegatedHandlers>();
 // the bar's delegated click listener — keep them in a side-channel map
 // the click handler reads at dispatch time.
 const zoneCallbackStore = new WeakMap<HTMLElement, TopBarZoneCallbacks>();
+
+function setMenuOpen(bar: HTMLElement, open: boolean): void {
+  bar.dataset.menuOpen = String(open);
+  const menuBtn = bar.querySelector<HTMLElement>(".bc-paper-combos-menu-btn");
+  if (menuBtn) menuBtn.setAttribute("aria-expanded", String(open));
+}
 
 function bindTopBarHandlers(
   bar: HTMLElement,
@@ -128,6 +193,7 @@ function bindTopBarHandlers(
   if (previous) {
     bar.removeEventListener("click", previous.onClick);
     bar.removeEventListener("input", previous.onInput);
+    bar.ownerDocument.removeEventListener("click", previous.onDocClick);
   }
 
   const onClick = (event: MouseEvent): void => {
@@ -149,8 +215,8 @@ function bindTopBarHandlers(
         callbacks.onToggleFeature(next);
         break;
       }
-      case "clear-zones":
-        zoneCallbackStore.get(bar)?.onClearZones();
+      case "menu":
+        setMenuOpen(bar, bar.dataset.menuOpen !== "true");
         break;
     }
   };
@@ -174,13 +240,82 @@ function bindTopBarHandlers(
     }
   };
 
+  // Click-outside closes the kebab menu. Bubble phase so the bar's
+  // own click listener fires first (toggling open/close); then this
+  // checks whether the click happened inside the bar — if so, leave
+  // the menu alone so the user can interact with sort / credits /
+  // clear-zones inside the popover. Outside clicks close it.
+  const onDocClick = (event: MouseEvent): void => {
+    if (bar.dataset.menuOpen !== "true") return;
+    if (event.target instanceof Node && bar.contains(event.target)) return;
+    setMenuOpen(bar, false);
+  };
+
   bar.addEventListener("click", onClick);
   bar.addEventListener("input", onInput);
-  handlerStore.set(bar, { onClick, onInput });
+  bar.ownerDocument.addEventListener("click", onDocClick);
+  handlerStore.set(bar, { onClick, onInput, onDocClick });
 }
 
 function formatRating(score: number): string {
   return score.toFixed(2);
+}
+
+// Factories so we can render two copies (inline + popover) without
+// duplicating the markup inline in renderTopBar. Both copies carry the
+// same data-bc-combos-action attrs, so the delegated click/input
+// handlers fire correctly regardless of which copy the user touched.
+function buildSortControl(doc: Document, state: TopBarState): HTMLElement {
+  const sortSelect = doc.createElement("select");
+  sortSelect.className = "bc-paper-combos-sort-select";
+  sortSelect.setAttribute(ACTION_ATTR, "sort");
+  sortSelect.setAttribute("aria-label", "Sort combinations");
+  for (const [value, label] of Object.entries(state.sortLabels)) {
+    const option = doc.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    if (value === state.sortMode) option.selected = true;
+    sortSelect.appendChild(option);
+  }
+  return el(doc, "label", { class: "bc-paper-combos-sort" }, [
+    el(doc, "span", {}, ["Sort"]),
+    sortSelect
+  ]);
+}
+
+function buildCreditsControl(doc: Document, state: TopBarState): HTMLElement {
+  const minInput = el(doc, "input", {
+    attrs: {
+      type: "number",
+      min: "0",
+      step: "0.5",
+      value: String(state.minCredits),
+      [ACTION_ATTR]: "min",
+      "aria-label": "Minimum credits"
+    }
+  });
+  const maxInput = el(doc, "input", {
+    attrs: {
+      type: "number",
+      min: "0.5",
+      step: "0.5",
+      value: String(state.maxCredits),
+      [ACTION_ATTR]: "max",
+      "aria-label": "Maximum credits"
+    }
+  });
+  return el(doc, "div", { class: "bc-paper-combos-credits" }, [
+    el(doc, "span", { class: "bc-paper-combos-credits-heading" }, ["Credits"]),
+    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
+      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Min"]),
+      minInput
+    ]),
+    el(doc, "span", { class: "bc-paper-combos-credits-sep" }, ["–"]),
+    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
+      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Max"]),
+      maxInput
+    ])
+  ]);
 }
 
 export function renderTopBar(
@@ -213,7 +348,7 @@ export function renderTopBar(
       el(doc, "span", { class: "bc-paper-combos-toggle-thumb" })
     ]),
     el(doc, "span", { class: "bc-paper-combos-toggle-label" }, [
-      "Schedule combinations"
+      "Combinations"
     ])
   ]);
 
@@ -269,90 +404,57 @@ export function renderTopBar(
       ])
     : null;
 
-  const minInput = el(doc, "input", {
+  // Two-tier collapse: credits hides at 1450px, sort hides at 1150px,
+  // each then surfaces inside a popover under the kebab. Render TWO
+  // copies of each control — one stamped data-bc-position="inline"
+  // (lives in the bar's flex flow) and one stamped "popover" (lives
+  // inside the absolute popover container). CSS shows exactly one
+  // copy per breakpoint. Both copies share the same data-bc-combos-
+  // action attrs so the delegated input/click handlers work for
+  // whichever copy the user interacts with — and the bar re-renders
+  // on every state change, replacing both copies with fresh ones, so
+  // values stay in sync.
+  const inlineSort = buildSortControl(doc, state);
+  const popoverSort = buildSortControl(doc, state);
+  inlineSort.dataset.bcPosition = "inline";
+  popoverSort.dataset.bcPosition = "popover";
+
+  const inlineCredits = buildCreditsControl(doc, state);
+  const popoverCredits = buildCreditsControl(doc, state);
+  inlineCredits.dataset.bcPosition = "inline";
+  popoverCredits.dataset.bcPosition = "popover";
+
+  const menuButton = el(doc, "button", {
+    class: "bc-paper-combos-menu-btn",
     attrs: {
-      type: "number",
-      min: "0",
-      step: "0.5",
-      value: String(state.minCredits),
-      [ACTION_ATTR]: "min",
-      "aria-label": "Minimum credits"
+      type: "button",
+      [ACTION_ATTR]: "menu",
+      "aria-label": "More options",
+      "aria-haspopup": "true",
+      "aria-expanded": String(bar.dataset.menuOpen === "true")
     }
-  });
-
-  const maxInput = el(doc, "input", {
-    attrs: {
-      type: "number",
-      min: "0.5",
-      step: "0.5",
-      value: String(state.maxCredits),
-      [ACTION_ATTR]: "max",
-      "aria-label": "Maximum credits"
-    }
-  });
-
-  // Single combined "Credits  Min N – Max M" control. The outer
-  // CREDITS heading anchors the whole pill; per-input MIN/MAX captions
-  // make it unambiguous which side is floor vs ceiling.
-  const creditsControl = el(doc, "div", { class: "bc-paper-combos-credits" }, [
-    el(doc, "span", {
-      class: "bc-paper-combos-credits-heading"
-    }, ["Credits"]),
-    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
-      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Min"]),
-      minInput
-    ]),
-    el(doc, "span", { class: "bc-paper-combos-credits-sep" }, ["–"]),
-    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
-      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Max"]),
-      maxInput
-    ])
-  ]);
-
-  // Sort dropdown — fires on change so picking an option re-sorts the
-  // combo list immediately. Native <select> for accessibility + zero
-  // custom dropdown code.
-  const sortSelect = doc.createElement("select");
-  sortSelect.className = "bc-paper-combos-sort-select";
-  sortSelect.setAttribute(ACTION_ATTR, "sort");
-  sortSelect.setAttribute("aria-label", "Sort combinations");
-  for (const [value, label] of Object.entries(state.sortLabels)) {
-    const option = doc.createElement("option");
-    option.value = value;
-    option.textContent = label;
-    if (value === state.sortMode) option.selected = true;
-    sortSelect.appendChild(option);
-  }
-
-  const sortControl = el(doc, "label", { class: "bc-paper-combos-sort" }, [
-    el(doc, "span", {}, ["Sort"]),
-    sortSelect
-  ]);
+  }, ["⋯"]);
 
   // Left cluster: status info (what's currently showing).
   bar.appendChild(cycle);
   if (rating) bar.appendChild(rating);
-  // Auto-margin spacer pushes the right cluster — sort, credits, clear —
-  // to the bar's far end so the toolbar reads as two visual groups.
+  // Auto-margin spacer pushes the right cluster — sort/credits/kebab
+  // — to the bar's far end so the toolbar reads as two visual groups.
   bar.appendChild(el(doc, "span", { class: "bc-paper-combos-spacer" }));
-  // Right cluster: settings + actions.
-  bar.appendChild(sortControl);
-  bar.appendChild(creditsControl);
-
-  // Clear-zones button only appears when at least one zone exists.
-  if (state.zoneCount > 0) {
-    const noun = state.zoneCount === 1 ? "block" : "blocks";
-    bar.appendChild(
-      el(doc, "button", {
-        class: "bc-paper-combos-clear-zones",
-        attrs: {
-          type: "button",
-          [ACTION_ATTR]: "clear-zones",
-          "aria-label": "Clear all blocked time zones"
-        }
-      }, [`Clear ${state.zoneCount} ${noun}`])
-    );
-  }
+  // Right cluster: inline copies of sort + credits, the kebab, and
+  // the popover container holding the popover copies. CSS shows
+  // only the right copies at each breakpoint.
+  bar.appendChild(inlineSort);
+  bar.appendChild(inlineCredits);
+  bar.appendChild(menuButton);
+  bar.appendChild(
+    el(
+      doc,
+      "div",
+      { class: "bc-paper-combos-popover" },
+      [popoverSort, popoverCredits]
+    )
+  );
 
   if (state.status) {
     bar.appendChild(
@@ -727,10 +829,23 @@ function mountZoneSegment(
   // looks like one continuous box stitched across day columns.
   overlay.setAttribute("data-leftmost", String(isLeftmost));
   overlay.setAttribute("data-rightmost", String(isRightmost));
+  // Native title tooltip on every segment so even middle/rightmost
+  // segments (which carry no inline label) still surface the meaning
+  // on hover. Inline label lives on the leftmost segment only — multi-
+  // day zones already read as one continuous striped box thanks to the
+  // border-stitching, so repeating the copy per day would be noise.
+  overlay.title =
+    `Blocked ${formatTime(zone.startMin)}–${formatTime(zone.endMin)}. ` +
+    "No combination can use this time. Click to remove.";
   if (isLeftmost) {
     overlay.appendChild(
-      el(doc, "span", { class: "bc-paper-combos-zone-label" }, [
-        `${formatTime(zone.startMin)} – ${formatTime(zone.endMin)}`
+      el(doc, "div", { class: "bc-paper-combos-zone-label" }, [
+        el(doc, "span", { class: "bc-paper-combos-zone-label-primary" }, [
+          `Blocked · ${formatTime(zone.startMin)} – ${formatTime(zone.endMin)}`
+        ]),
+        el(doc, "span", { class: "bc-paper-combos-zone-label-hint" }, [
+          "No combination can use this time · click to remove"
+        ])
       ])
     );
   }
@@ -749,22 +864,55 @@ function mountZoneSegment(
   return overlay;
 }
 
+const ZONE_SIG_ATTR = "bcPaperCombosZoneSig";
+
+function computeZonesSignature(zones: readonly DragZone[]): string {
+  return zones
+    .map((z) => `${z.id}|${z.startDay}-${z.endDay}|${z.startMin}-${z.endMin}`)
+    .join("::");
+}
+
+function expectedSegmentCount(zones: readonly DragZone[]): number {
+  let sum = 0;
+  for (const z of zones) sum += z.endDay - z.startDay + 1;
+  return sum;
+}
+
 // Render every persisted zone into the right hour cell of every day
-// it covers. Idempotent — wipes existing zone overlays first, then
-// stamps the live set. Multi-day zones become one segment per day,
-// all sharing the zone id; the time label appears on the leftmost
-// segment, the X remove button on the rightmost.
+// it covers. Multi-day zones become one segment per day, all sharing
+// the zone id; the time label appears on the leftmost segment, the X
+// remove button on the rightmost.
+//
+// IMPORTANT: idempotent on the (zones, segment-count) signature.
+// renderAll() runs on every paper.nu React mutation (constant churn),
+// and rebuilding zone DOM unconditionally would destroy the segment
+// the cursor is over before any paint applies the :hover state — the
+// user only ever sees `cursor: pointer` (set on the fresh node), not
+// the hover bg flip. The signature check skips the wipe-and-rebuild
+// when nothing relevant has changed AND every expected segment is
+// still in the DOM. If paper.nu (or another augmentation) nuked our
+// segments, the count diverges and we rebuild.
 export function renderZones(
   doc: Document,
   grid: HTMLElement,
   zones: readonly DragZone[]
 ): void {
+  const sig = computeZonesSignature(zones);
+  const expected = expectedSegmentCount(zones);
+  const actual = grid.querySelectorAll(`.${ZONE_CLASS}`).length;
+  if (grid.dataset[ZONE_SIG_ATTR] === sig && actual === expected) {
+    return;
+  }
+
   for (const existing of Array.from(
     grid.querySelectorAll<HTMLElement>(`.${ZONE_CLASS}`)
   )) {
     existing.remove();
   }
-  if (zones.length === 0) return;
+  if (zones.length === 0) {
+    grid.dataset[ZONE_SIG_ATTR] = sig;
+    return;
+  }
 
   const startHour = readGridStartHour(grid);
   if (startHour === null) return;
@@ -798,6 +946,8 @@ export function renderZones(
       );
     }
   }
+
+  grid.dataset[ZONE_SIG_ATTR] = sig;
 }
 
 type DragState = {
@@ -1037,14 +1187,59 @@ export function attachZoneDragHandlers(
     });
   };
 
+  // Sync hover state across every segment of a multi-day zone. CSS's
+  // own :hover only targets the single segment under the cursor —
+  // when a zone spans Tu+We, hovering Tu would leave We looking
+  // unaffected even though clicking Tu deletes the whole zone. We
+  // mirror :hover via a [data-zone-hover="true"] attribute so the
+  // visual matches the click semantics.
+  const clearHoverState = (): void => {
+    for (const el of Array.from(
+      doc.querySelectorAll<HTMLElement>(`.${ZONE_CLASS}[data-zone-hover="true"]`)
+    )) {
+      delete el.dataset.zoneHover;
+    }
+  };
+
+  const onMouseOver = (event: MouseEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const zoneEl = target.closest<HTMLElement>(`.${ZONE_CLASS}`);
+    if (!zoneEl) {
+      clearHoverState();
+      return;
+    }
+    const id = zoneEl.getAttribute(ZONE_ID_ATTR);
+    if (!id) return;
+    // Wipe stale state first — handles the case where the cursor moves
+    // directly between two different zones without entering empty space.
+    clearHoverState();
+    for (const el of Array.from(
+      doc.querySelectorAll<HTMLElement>(
+        `.${ZONE_CLASS}[${ZONE_ID_ATTR}="${id}"]`
+      )
+    )) {
+      el.dataset.zoneHover = "true";
+    }
+  };
+
+  const onGridLeave = (): void => {
+    clearHoverState();
+  };
+
   grid.addEventListener("mousedown", onMouseDown);
   doc.addEventListener("mousemove", onMouseMove);
   doc.addEventListener("mouseup", onMouseUp);
+  grid.addEventListener("mouseover", onMouseOver);
+  grid.addEventListener("mouseleave", onGridLeave);
 
   return () => {
     grid.removeEventListener("mousedown", onMouseDown);
     doc.removeEventListener("mousemove", onMouseMove);
     doc.removeEventListener("mouseup", onMouseUp);
+    grid.removeEventListener("mouseover", onMouseOver);
+    grid.removeEventListener("mouseleave", onGridLeave);
+    clearHoverState();
     if (drag) {
       clearPreviewSegments(drag);
       drag = null;
