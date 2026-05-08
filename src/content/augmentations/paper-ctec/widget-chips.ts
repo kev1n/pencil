@@ -181,21 +181,32 @@ function compactChipToneStyleString(tone: CompactChipTone): string {
 }
 
 // Picks an HSL hue for a metric value within its scale. Shared by the
-// compact card chips and the analytics-modal KPI numbers so both surfaces
-// use the same color palette. `invert` flips the score so high hours map
-// to "bad" tones. Tone scales come from PAPER_CTEC_CONFIG.ui so designers
-// can adjust the palette in one place.
+// compact card chips, the analytics-modal KPI pills, and the analytics-modal
+// horizontal bars so all three surfaces use the same color palette. `invert`
+// flips the score so high hours map to "bad" tones. Tone scales come from
+// PAPER_CTEC_CONFIG.ui — the entries act as keypoints, and we linearly
+// interpolate between adjacent keypoints so a tiny score change produces a
+// tiny hue change instead of jumping a full bucket.
 export function pickMetricHue(value: number, max: number, invert: boolean): number {
   const normalized = Math.max(0, Math.min(1, max > 0 ? value / max : 0));
   const score = invert ? 1 - normalized : normalized;
   const scale = invert
     ? PAPER_CTEC_CONFIG.ui.hoursChipTones
     : PAPER_CTEC_CONFIG.ui.ratingChipTones;
-  return (
-    scale.find((step) => score >= step.minScore)?.hue ??
-    scale[scale.length - 1]?.hue ??
-    4
-  );
+  const stops = [...scale].sort((a, b) => a.minScore - b.minScore);
+  if (score <= stops[0].minScore) return stops[0].hue;
+  const last = stops[stops.length - 1];
+  if (score >= last.minScore) return last.hue;
+  for (let i = 0; i < stops.length - 1; i++) {
+    const lo = stops[i];
+    const hi = stops[i + 1];
+    if (score >= lo.minScore && score <= hi.minScore) {
+      const span = hi.minScore - lo.minScore;
+      const t = span > 0 ? (score - lo.minScore) / span : 0;
+      return lo.hue + t * (hi.hue - lo.hue);
+    }
+  }
+  return last.hue;
 }
 
 function buildCompactChipTone(

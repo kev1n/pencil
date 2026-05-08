@@ -1,0 +1,33 @@
+{
+  "$exampleSchema": {
+    "_comment": "Example only — documents the shape. The renderer reads `entries`, not this key. Drop entries with newest first. `kind` is one of \"feat\" | \"fix\". Date format YYYY-MM-DD.",
+    "version": "1.2.3",
+    "date": "YYYY-MM-DD",
+    "headline": "Short tagline shown as the section title",
+    "items": [
+      { "kind": "feat", "text": "Description of a new feature." },
+      { "kind": "fix", "text": "Description of a bug fix." }
+    ]
+  },
+  "entries": [
+    {
+      "version": "0.6.0",
+      "date": "2026-05-08",
+      "headline": "CTEC sign-in actually works now",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "Loading CTECs on Sharper Search now signs you in properly instead of getting stuck."
+        },
+        {
+          "kind": "fix",
+          "text": "Accessing CTECs on CAESAR normally works now."
+        },
+        {
+          "kind": "fix",
+          "text": "CTEC analytics colors now match between the score pills and the bars below, and shift smoothly across scores instead of jumping between a few buckets."
+        }
+      ]
+    }
+  ]
+}

@@ -276,16 +276,19 @@ function renderGlobalBarRow(
   const tickPositions: number[] = [];
   for (let i = 1; i < scale; i++) tickPositions.push((i / scale) * 100);
   // Hue-driven fill that mirrors the KPI pill palette so the bar reads at
-  // the same "good/bad" glance as the strip above. Hours invert the scale
-  // (more hours = worse). Empty (value=0) rows fall back to accent via the
-  // CSS var default.
+  // the same "good/bad" glance as the strip above. Same HSL as the pill
+  // (kpiPillTemplate) so identical scores look identical across surfaces —
+  // dropping lightness here makes hue 92 read as olive/yellow even when the
+  // pill at the same hue reads as green. Hours invert the scale (more hours
+  // = worse). Empty (value=0) rows fall back to accent via the CSS var
+  // default.
   const rowStyle =
     value > 0
       ? (() => {
           const hue = pickMetricHue(value, scale, isHours);
           return (
-            `--bc-paper-ctec-bar-fill: hsla(${hue}, 84%, 52%, 0.95);` +
-            `--bc-paper-ctec-bar-fill-dark: hsla(${hue}, 70%, 56%, 0.92);`
+            `--bc-paper-ctec-bar-fill: hsla(${hue}, 96%, 68%, 0.98);` +
+            `--bc-paper-ctec-bar-fill-dark: hsla(${hue}, 78%, 32%, 0.94);`
           );
         })()
       : "";
@@ -493,16 +496,16 @@ function renderKpiCard(
   ><div class="bc-paper-ctec-modal-kpi-top"><span
         class="bc-paper-ctec-modal-kpi-label"
         >${MODAL_METRIC_LABELS[kind]}</span
-      ></div
+      >${
+        band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
+      }</div
     ><div class="bc-paper-ctec-modal-kpi-value"
       >${kpiPillTemplate(meanValue, kind)}${
         unitText
           ? html`<span class="bc-paper-ctec-modal-kpi-scale">${unitText}</span>`
           : ""
       }</div
-    >${
-      band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
-    }</button>`;
+    ></button>`;
 }
 
 // "Global" KPI card. Value is the avg of the Instruction / Course / Learned
@@ -556,16 +559,16 @@ function renderGlobalKpiCard(
             >${GLOBAL_KPI_TOOLTIP}</span
           ></span
         ></span
-      ></div
+      >${
+        band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
+      }</div
     ><div class="bc-paper-ctec-modal-kpi-value"
       >${kpiPillTemplate(overallMean, "global")}${
         unitText
           ? html`<span class="bc-paper-ctec-modal-kpi-scale">${unitText}</span>`
           : ""
       }</div
-    >${
-      band ? html`<span class="bc-paper-ctec-modal-kpi-band">${band}</span>` : ""
-    }</button>`;
+    ></button>`;
 }
 
 // Backwards-compat for callers still on the imperative entry point.
