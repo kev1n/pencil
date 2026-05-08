@@ -17,12 +17,17 @@ export type FetchTextMessage = {
   headers?: Record<string, string>;
   body?: string;
   requestId?: string;
+  // Per-request override for the background fetch timeout. Background
+  // defaults to 30s when omitted; CTEC loading flows pass 60s because
+  // CAESAR/Bluera occasionally take longer to respond under load.
+  timeoutMs?: number;
 };
 
 export type FetchBinaryMessage = {
   type: "fetch-binary";
   url: string;
   requestId?: string;
+  timeoutMs?: number;
 };
 
 export type FetchBinarySuccess = {

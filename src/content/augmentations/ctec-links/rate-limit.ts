@@ -10,6 +10,13 @@ export const CTEC_CREDIT_LIMIT = CTEC_CREDIT_CAP;
 export const CTEC_CREDIT_WINDOW_MS = SHARED_CTEC_WINDOW_MS;
 export const CTEC_BATCH_SIZE = 3;
 
+// CTEC discovery + Bluera report fetches sometimes need longer than the
+// default 30s background-fetch timeout — CAESAR can stall when its session
+// has gone stale and Bluera's report endpoints occasionally take 20–40s
+// under load. Bumping these specific call sites to 60s keeps the shopping
+// cart and enrollment-side widgets from spuriously failing.
+export const CTEC_FETCH_TIMEOUT_MS = 60_000;
+
 // Backward-compat wrappers around the shared credit pool. Existing callers
 // (ctec-links/augmentation) keep their old import paths — paper-ctec
 // consumes the shared module directly.

@@ -12,6 +12,7 @@ type FetchTextOptions = {
   body?: string;
   allowNonOkStatus?: boolean;
   signal?: AbortSignal;
+  timeoutMs?: number;
 };
 
 let requestSequence = 0;
@@ -43,7 +44,8 @@ export async function fetchTextResultViaBackground(
       method: options?.method,
       headers: options?.headers,
       body: options?.body,
-      requestId
+      requestId,
+      timeoutMs: options?.timeoutMs
     } satisfies FetchTextMessage) as FetchTextResponse;
 
     if (!response?.ok) {
@@ -71,7 +73,8 @@ export async function fetchTextViaBackground(
 
 export async function fetchBinaryViaBackground(
   url: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  options?: { timeoutMs?: number }
 ): Promise<{ buffer: ArrayBuffer; contentType: string; finalUrl: string }> {
   const requestId = nextRequestId();
   const onAbort = () => {
@@ -86,7 +89,8 @@ export async function fetchBinaryViaBackground(
     const response = (await chrome.runtime.sendMessage({
       type: "fetch-binary",
       url,
-      requestId
+      requestId,
+      timeoutMs: options?.timeoutMs
     } satisfies FetchBinaryMessage)) as FetchBinaryResponse;
     if (!response?.ok) {
       throw new Error(response?.error || "Background binary fetch failed.");

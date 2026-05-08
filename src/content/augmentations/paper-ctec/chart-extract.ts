@@ -13,6 +13,7 @@
 // See scripts/chart-prototype/extract_final.py for the prototype.
 
 import { fetchBinaryViaBackground } from "../../remote-fetch";
+import { CTEC_FETCH_TIMEOUT_MS } from "../ctec-links/rate-limit";
 
 const ROW_CENTERS = [30, 62, 93, 124, 155, 186] as const;
 const AXIS_Y = 217;
@@ -55,7 +56,11 @@ async function doExtract(
     return { ok: false, reason: `bad total=${total}` };
   }
 
-  const { buffer, contentType, finalUrl } = await fetchBinaryViaBackground(imageUrl, signal);
+  const { buffer, contentType, finalUrl } = await fetchBinaryViaBackground(
+    imageUrl,
+    signal,
+    { timeoutMs: CTEC_FETCH_TIMEOUT_MS }
+  );
   if (buffer.byteLength < 100) {
     return { ok: false, reason: `tiny response (${buffer.byteLength} bytes, type='${contentType}')` };
   }
