@@ -288,13 +288,19 @@ export function renderTopBar(
     }
   });
 
-  // Single combined "Credits N–M" control. The dash sits between the
-  // two inputs so they read as a single range, not two unrelated knobs.
+  // Single combined "Min N – Max M" control. Per-input labels make it
+  // unambiguous which side is the floor vs ceiling; the dash between
+  // them ties the two halves into one logical range.
   const creditsControl = el(doc, "div", { class: "bc-paper-combos-credits" }, [
-    el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Credits"]),
-    minInput,
+    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
+      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Min"]),
+      minInput
+    ]),
     el(doc, "span", { class: "bc-paper-combos-credits-sep" }, ["–"]),
-    maxInput
+    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
+      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Max"]),
+      maxInput
+    ])
   ]);
 
   // Sort dropdown — fires on change so picking an option re-sorts the

@@ -244,12 +244,20 @@ const CSS = `
   box-shadow: 0 0 0 2px var(--bc-color-accent-surface-soft);
 }
 
+#${TOP_BAR_ID} .bc-paper-combos-credits-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: text;
+}
+
 #${TOP_BAR_ID} .bc-paper-combos-credits-label {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: var(--bc-fw-medium);
   color: var(--bc-color-text-muted);
   text-transform: uppercase;
   letter-spacing: var(--bc-ls-wide);
+  user-select: none;
 }
 
 #${TOP_BAR_ID} .bc-paper-combos-credits input[type="number"] {
