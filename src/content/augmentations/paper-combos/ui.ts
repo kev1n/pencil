@@ -57,6 +57,7 @@ export type TopBarState = {
   status?: string;
   truncated: boolean;
   conflictingPins: boolean;
+  zoneCount: number;
 };
 
 export type TopBarCallbacks = {
@@ -64,6 +65,10 @@ export type TopBarCallbacks = {
   onNext(): void;
   onMaxChange(value: number): void;
   onToggleFeature(next: boolean): void;
+};
+
+export type TopBarZoneCallbacks = {
+  onClearZones(): void;
 };
 
 // Event delegation pattern: callbacks live on the bar element itself,
@@ -100,6 +105,10 @@ type DelegatedHandlers = {
 };
 
 const handlerStore = new WeakMap<HTMLElement, DelegatedHandlers>();
+// Zone callbacks can change every render but we don't want to re-bind
+// the bar's delegated click listener — keep them in a side-channel map
+// the click handler reads at dispatch time.
+const zoneCallbackStore = new WeakMap<HTMLElement, TopBarZoneCallbacks>();
 
 function bindTopBarHandlers(
   bar: HTMLElement,
@@ -126,12 +135,13 @@ function bindTopBarHandlers(
         callbacks.onNext();
         break;
       case "toggle": {
-        // The toggle's current state lives on its dataset so we don't
-        // depend on a stale closure capture across re-renders.
         const next = actionEl.dataset.on !== "true";
         callbacks.onToggleFeature(next);
         break;
       }
+      case "clear-zones":
+        zoneCallbackStore.get(bar)?.onClearZones();
+        break;
     }
   };
 
@@ -155,8 +165,10 @@ function formatRating(score: number): string {
 export function renderTopBar(
   doc: Document,
   bar: HTMLElement,
-  state: TopBarState
+  state: TopBarState,
+  zoneCallbacks: TopBarZoneCallbacks
 ): void {
+  zoneCallbackStore.set(bar, zoneCallbacks);
   bar.replaceChildren();
   bar.dataset.enabled = String(state.enabled);
 
@@ -254,6 +266,21 @@ export function renderTopBar(
   bar.appendChild(cycle);
   if (rating) bar.appendChild(rating);
   bar.appendChild(maxControl);
+
+  // Clear-zones button only appears when at least one zone exists.
+  if (state.zoneCount > 0) {
+    const noun = state.zoneCount === 1 ? "block" : "blocks";
+    bar.appendChild(
+      el(doc, "button", {
+        class: "bc-paper-combos-clear-zones",
+        attrs: {
+          type: "button",
+          [ACTION_ATTR]: "clear-zones",
+          "aria-label": "Clear all blocked time zones"
+        }
+      }, [`Clear ${state.zoneCount} ${noun}`])
+    );
+  }
 
   if (state.status) {
     bar.appendChild(
@@ -472,4 +499,312 @@ export function setRootAttribute(doc: Document, on: boolean): void {
   } else {
     doc.documentElement.removeAttribute(ROOT_ATTR);
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Prohibited-zone rendering + drag handler
+// ─────────────────────────────────────────────────────────────────────
+
+const ZONE_CLASS = "bc-paper-combos-zone";
+const ZONE_REMOVE_BUTTON_CLASS = "bc-paper-combos-zone-remove";
+const ZONE_PREVIEW_CLASS = "bc-paper-combos-zone-preview";
+const ZONE_ID_ATTR = "data-bc-zone-id";
+
+// Convert a clientY pixel coordinate into "minutes since midnight"
+// using the day column's hour cells as the time axis. The column has
+// (1 day-label cell) + (endHour - startHour) hour cells, all the same
+// height. Clamps to the column's visible time range.
+function clientYToMinutes(
+  clientY: number,
+  dayColumn: HTMLElement,
+  startHour: number
+): number | null {
+  const cells = Array.from(dayColumn.children).filter(
+    (c): c is HTMLElement => c instanceof HTMLElement
+  );
+  if (cells.length < 2) return null;
+  const firstHourCell = cells[1];
+  const lastHourCell = cells[cells.length - 1];
+  const firstRect = firstHourCell.getBoundingClientRect();
+  const lastRect = lastHourCell.getBoundingClientRect();
+  const totalHeight = lastRect.bottom - firstRect.top;
+  if (totalHeight <= 0) return null;
+  const hourCount = cells.length - 1;
+  const offsetY = clientY - firstRect.top;
+  const clamped = Math.max(0, Math.min(totalHeight, offsetY));
+  const totalMinutes = hourCount * 60;
+  return startHour * 60 + (clamped / totalHeight) * totalMinutes;
+}
+
+// Find the zero-indexed day (0=Mon..4=Fri) for a column, given the grid
+// element. The grid's first child is HoursColumn, then days 0..4.
+function findDayIndex(grid: HTMLElement, dayColumn: HTMLElement): number {
+  const idx = Array.from(grid.children).indexOf(dayColumn);
+  return idx - 1;
+}
+
+function snapMinutes(minutes: number, snap = 15): number {
+  return Math.round(minutes / snap) * snap;
+}
+
+function formatTime(minutes: number): string {
+  const h24 = Math.floor(minutes / 60);
+  const m = Math.round(minutes - h24 * 60);
+  const period = h24 >= 12 ? "PM" : "AM";
+  let h = h24 % 12;
+  if (h === 0) h = 12;
+  const mm = m.toString().padStart(2, "0");
+  return `${h}:${mm} ${period}`;
+}
+
+export type DragZone = {
+  id: string;
+  day: number;
+  startMin: number;
+  endMin: number;
+};
+
+export type ZoneDragCallbacks = {
+  onZoneCreate(zone: DragZone): void;
+  onZoneRemove(zoneId: string): void;
+};
+
+// Renders any persisted zones into the appropriate day columns. Each
+// zone gets an absolutely-positioned <div> inside its day column with a
+// remove button. Idempotent — clears stale zones first, then re-stamps
+// the live set so the count and positions match `zones` exactly.
+export function renderZones(
+  doc: Document,
+  grid: HTMLElement,
+  zones: readonly DragZone[]
+): void {
+  // Wipe any pre-existing zone overlays so the new state is authoritative.
+  for (const existing of Array.from(
+    grid.querySelectorAll<HTMLElement>(`.${ZONE_CLASS}`)
+  )) {
+    existing.remove();
+  }
+  if (zones.length === 0) return;
+
+  const startHour = readGridStartHour(grid);
+  if (startHour === null) return;
+  const dayColumns = readDayColumns(grid);
+
+  for (const zone of zones) {
+    const dayCol = dayColumns[zone.day];
+    if (!dayCol) continue;
+    const cells = Array.from(dayCol.children).filter(
+      (c): c is HTMLElement => c instanceof HTMLElement
+    );
+    const hourCount = Math.max(0, cells.length - 1);
+    if (hourCount === 0) continue;
+    const totalMinutes = hourCount * 60;
+    const fromMin = zone.startMin - startHour * 60;
+    const toMin = zone.endMin - startHour * 60;
+    if (toMin <= 0 || fromMin >= totalMinutes) continue;
+    const clampedFrom = Math.max(0, fromMin);
+    const clampedTo = Math.min(totalMinutes, toMin);
+    const topPct = (clampedFrom / totalMinutes) * 100;
+    const heightPct = ((clampedTo - clampedFrom) / totalMinutes) * 100;
+
+    // Position the overlay relative to the day column's first hour cell
+    // (skip the day-label cell at children[0]) so percentages match the
+    // hour-grid axis exactly.
+    const overlay = el(doc, "div", {
+      class: ZONE_CLASS,
+      attrs: { [ZONE_ID_ATTR]: zone.id },
+      style: {
+        position: "absolute",
+        top: `calc(${topPct}% * ${hourCount} / ${cells.length} + ${100 / cells.length}%)`,
+        left: "0",
+        right: "0",
+        height: `calc(${heightPct}% * ${hourCount} / ${cells.length})`
+      }
+    }, [
+      el(doc, "span", { class: "bc-paper-combos-zone-label" }, [
+        `${formatTime(zone.startMin)} – ${formatTime(zone.endMin)}`
+      ]),
+      el(doc, "button", {
+        class: ZONE_REMOVE_BUTTON_CLASS,
+        attrs: {
+          type: "button",
+          "aria-label": "Remove blocked time",
+          [ZONE_ID_ATTR]: zone.id
+        }
+      }, ["×"])
+    ]);
+
+    // Day column needs `position: relative` so our absolute child anchors
+    // correctly. paper.nu doesn't set this on the column wrapper, so we
+    // do it here (idempotent).
+    if (dayCol.style.position !== "relative") {
+      dayCol.style.position = "relative";
+    }
+    dayCol.appendChild(overlay);
+  }
+}
+
+type DragState = {
+  startClientY: number;
+  startMin: number;
+  day: number;
+  preview: HTMLElement;
+  // Track whether the user has actually dragged (vs just clicked) so
+  // mouseup can distinguish a click-on-empty-space (no-op) from a real
+  // drag (creates zone).
+  dragged: boolean;
+};
+
+// Attach mousedown to the grid; on a real drag-on-day-column, build a
+// preview rectangle and stream its size with mousemove. On mouseup with
+// enough drag distance, persist a zone via the supplied callback.
+// Returns a detach function the caller invokes on cleanup.
+export function attachZoneDragHandlers(
+  doc: Document,
+  grid: HTMLElement,
+  callbacks: ZoneDragCallbacks
+): () => void {
+  let drag: DragState | null = null;
+
+  const onMouseDown = (event: MouseEvent): void => {
+    if (event.button !== 0) return;
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+
+    // Click on an existing zone's remove button → delete that zone.
+    const removeBtn = target.closest<HTMLElement>(`.${ZONE_REMOVE_BUTTON_CLASS}`);
+    if (removeBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = removeBtn.getAttribute(ZONE_ID_ATTR);
+      if (id) callbacks.onZoneRemove(id);
+      return;
+    }
+
+    // Click anywhere else on a zone (not the X) → also delete (zones
+    // should be cheap to remove since they accumulate).
+    const zoneEl = target.closest<HTMLElement>(`.${ZONE_CLASS}`);
+    if (zoneEl) {
+      event.preventDefault();
+      event.stopPropagation();
+      const id = zoneEl.getAttribute(ZONE_ID_ATTR);
+      if (id) callbacks.onZoneRemove(id);
+      return;
+    }
+
+    // Skip if the click is on a paper.nu schedule card — don't fight
+    // paper.nu's own click → open-detail handler.
+    if (target.closest("div.absolute.z-10.rounded-lg")) return;
+
+    const dayColumn = (() => {
+      let node: Element | null = target;
+      while (node && node.parentElement !== grid) {
+        node = node.parentElement;
+      }
+      return node instanceof HTMLElement ? node : null;
+    })();
+    if (!dayColumn) return;
+    const dayIdx = findDayIndex(grid, dayColumn);
+    if (dayIdx < 0 || dayIdx > 4) return;
+
+    const startHour = readGridStartHour(grid);
+    if (startHour === null) return;
+
+    const startMin = clientYToMinutes(event.clientY, dayColumn, startHour);
+    if (startMin === null) return;
+
+    event.preventDefault();
+
+    const preview = doc.createElement("div");
+    preview.className = ZONE_PREVIEW_CLASS;
+    preview.style.position = "absolute";
+    preview.style.left = "0";
+    preview.style.right = "0";
+    preview.style.top = "0";
+    preview.style.height = "0";
+    preview.style.pointerEvents = "none";
+    if (dayColumn.style.position !== "relative") {
+      dayColumn.style.position = "relative";
+    }
+    dayColumn.appendChild(preview);
+
+    drag = {
+      startClientY: event.clientY,
+      startMin,
+      day: dayIdx,
+      preview,
+      dragged: false
+    };
+  };
+
+  const onMouseMove = (event: MouseEvent): void => {
+    if (!drag) return;
+    const dayColumn = readDayColumns(grid)[drag.day];
+    if (!dayColumn) return;
+    const startHour = readGridStartHour(grid);
+    if (startHour === null) return;
+    const currentMin = clientYToMinutes(event.clientY, dayColumn, startHour);
+    if (currentMin === null) return;
+
+    if (Math.abs(event.clientY - drag.startClientY) > 4) {
+      drag.dragged = true;
+    }
+
+    const cells = Array.from(dayColumn.children).filter(
+      (c): c is HTMLElement => c instanceof HTMLElement
+    );
+    const hourCount = Math.max(0, cells.length - 1);
+    if (hourCount === 0) return;
+    const totalMinutes = hourCount * 60;
+    const fromAbs = Math.min(drag.startMin, currentMin);
+    const toAbs = Math.max(drag.startMin, currentMin);
+    const fromOffset = fromAbs - startHour * 60;
+    const toOffset = toAbs - startHour * 60;
+    const topPct = (fromOffset / totalMinutes) * 100;
+    const heightPct = ((toOffset - fromOffset) / totalMinutes) * 100;
+
+    drag.preview.style.top = `calc(${topPct}% * ${hourCount} / ${cells.length} + ${100 / cells.length}%)`;
+    drag.preview.style.height = `calc(${heightPct}% * ${hourCount} / ${cells.length})`;
+  };
+
+  const onMouseUp = (event: MouseEvent): void => {
+    if (!drag) return;
+    const captured = drag;
+    drag = null;
+    captured.preview.remove();
+
+    if (!captured.dragged) return;
+
+    const dayColumn = readDayColumns(grid)[captured.day];
+    if (!dayColumn) return;
+    const startHour = readGridStartHour(grid);
+    if (startHour === null) return;
+    const endMin = clientYToMinutes(event.clientY, dayColumn, startHour);
+    if (endMin === null) return;
+
+    const fromMin = snapMinutes(Math.min(captured.startMin, endMin));
+    const toMin = snapMinutes(Math.max(captured.startMin, endMin));
+    if (toMin - fromMin < 15) return; // Below threshold — ignore taps.
+
+    callbacks.onZoneCreate({
+      id: `zone-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      day: captured.day,
+      startMin: fromMin,
+      endMin: toMin
+    });
+  };
+
+  grid.addEventListener("mousedown", onMouseDown);
+  doc.addEventListener("mousemove", onMouseMove);
+  doc.addEventListener("mouseup", onMouseUp);
+
+  return () => {
+    grid.removeEventListener("mousedown", onMouseDown);
+    doc.removeEventListener("mousemove", onMouseMove);
+    doc.removeEventListener("mouseup", onMouseUp);
+    if (drag) {
+      drag.preview.remove();
+      drag = null;
+    }
+  };
 }

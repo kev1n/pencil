@@ -18,14 +18,24 @@ import {
 import { loadComboPool, type LoadComboPoolResult } from "./data";
 import { sortCombinations } from "./scoring";
 import { injectCombosStyles } from "./styles";
-import type { ComboPool, Combination } from "./types";
+import type { ComboPool, Combination, ComboSection, CourseGroup } from "./types";
 import {
   applyComboVisibility,
   ensureTopBar,
   renderTopBar,
+  renderZones,
   setRootAttribute,
-  unhideRealCards
+  unhideRealCards,
+  attachZoneDragHandlers,
+  type ZoneDragCallbacks
 } from "./ui";
+import {
+  loadZones,
+  saveZones,
+  sectionConflictsWithZones,
+  subscribeZoneChanges,
+  type ProhibitedZone
+} from "./zones";
 
 function isPaperHost(): boolean {
   const host = window.location.hostname;
@@ -95,6 +105,12 @@ export class PaperCombosAugmentation implements Augmentation {
   private cursor = 0;
   private maxCredits = DEFAULT_MAX_CREDITS;
   private pinnedByCourseId = new Map<string, string>();
+  // Prohibited time zones drawn on the canvas. Persisted to
+  // chrome.storage.local so they survive reloads. Sections whose
+  // meeting blocks fall in any zone are excluded from combinations.
+  private zones: ProhibitedZone[] = [];
+  private zonesLoaded = false;
+  private zonesUnsubscribe: (() => void) | null = null;
   private loading = false;
   // True when the bar (with the on-page toggle) is mounted on the
   // schedule page. Distinct from `featureMounted` — the bar is always
@@ -139,6 +155,12 @@ export class PaperCombosAugmentation implements Augmentation {
     const style = doc.getElementById(STYLE_ID);
     if (style) style.remove();
     this.detachPinClickHandler();
+    this.detachZoneHandlers();
+    if (this.zonesUnsubscribe) {
+      this.zonesUnsubscribe();
+      this.zonesUnsubscribe = null;
+    }
+    this.zonesLoaded = false;
     this.barMounted = false;
     this.featureMounted = false;
     this.lastRenderSig = null;
@@ -153,7 +175,30 @@ export class PaperCombosAugmentation implements Augmentation {
   private mountFeature(doc: Document, grid: HTMLElement): void {
     setRootAttribute(doc, true);
     this.attachPinClickHandler(doc, grid);
+    this.attachZoneHandlers(doc, grid);
+    this.ensureZonesLoaded(doc, grid);
     this.featureMounted = true;
+  }
+
+  private ensureZonesLoaded(doc: Document, grid: HTMLElement): void {
+    if (this.zonesLoaded) return;
+    this.zonesLoaded = true;
+    void loadZones().then((zones) => {
+      this.zones = zones;
+      this.recomputeCombos();
+      this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
+    });
+    if (!this.zonesUnsubscribe) {
+      this.zonesUnsubscribe = subscribeZoneChanges(() => {
+        // The cache inside zones.ts already updated to the new values;
+        // pull from it via loadZones (returns the cached array).
+        void loadZones().then((zones) => {
+          this.zones = zones;
+          this.recomputeCombos();
+          this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
+        });
+      });
+    }
   }
 
   // Tear down feature side effects (card-hiding, layout overrides, pin
@@ -165,6 +210,7 @@ export class PaperCombosAugmentation implements Augmentation {
     setRootAttribute(doc, false);
     unhideRealCards(doc);
     this.detachPinClickHandler();
+    this.detachZoneHandlers();
     this.featureMounted = false;
     // Reset cursor + pool-derived state so flipping the feature back on
     // re-derives from a clean slate.
@@ -221,6 +267,61 @@ export class PaperCombosAugmentation implements Augmentation {
     this.pinClickHandler = null;
   }
 
+  private zoneHandlerDetach: (() => void) | null = null;
+
+  private attachZoneHandlers(doc: Document, grid: HTMLElement): void {
+    if (this.zoneHandlerDetach) return;
+    const callbacks: ZoneDragCallbacks = {
+      onZoneCreate: (zone) => {
+        void this.addZone(doc, grid, zone);
+      },
+      onZoneRemove: (zoneId) => {
+        void this.removeZone(doc, grid, zoneId);
+      }
+    };
+    this.zoneHandlerDetach = attachZoneDragHandlers(doc, grid, callbacks);
+  }
+
+  private detachZoneHandlers(): void {
+    if (this.zoneHandlerDetach) {
+      this.zoneHandlerDetach();
+      this.zoneHandlerDetach = null;
+    }
+  }
+
+  private async addZone(
+    doc: Document,
+    grid: HTMLElement,
+    zone: ProhibitedZone
+  ): Promise<void> {
+    this.zones = [...this.zones, zone];
+    await saveZones(this.zones);
+    this.recomputeCombos();
+    this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
+  }
+
+  private async removeZone(
+    doc: Document,
+    grid: HTMLElement,
+    zoneId: string
+  ): Promise<void> {
+    this.zones = this.zones.filter((z) => z.id !== zoneId);
+    await saveZones(this.zones);
+    this.recomputeCombos();
+    this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
+  }
+
+  private async clearAllZones(
+    doc: Document,
+    grid: HTMLElement
+  ): Promise<void> {
+    if (this.zones.length === 0) return;
+    this.zones = [];
+    await saveZones(this.zones);
+    this.recomputeCombos();
+    this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
+  }
+
   private scheduleLoad(doc: Document): void {
     if (this.loading) return;
     this.loading = true;
@@ -258,8 +359,15 @@ export class PaperCombosAugmentation implements Augmentation {
     }
     this.pruneStalePins();
     if (this.maxCredits < 0.1) this.maxCredits = 0.5;
+
+    // Build a zone-filtered pool: any section whose meeting blocks fall
+    // in a prohibited zone is dropped from its course group, and a
+    // course with no surviving sections is dropped entirely. byId stays
+    // pruned in lockstep so the enumerator's pin lookup matches.
+    const filteredPool = this.buildZoneFilteredPool(this.pool);
+
     const pinnedSectionIds = new Set(this.pinnedByCourseId.values());
-    const result = enumerateCombinations(this.pool, {
+    const result = enumerateCombinations(filteredPool, {
       maxCredits: this.maxCredits,
       pinnedSectionIds
     });
@@ -268,6 +376,32 @@ export class PaperCombosAugmentation implements Augmentation {
     if (this.cursor >= this.combos.length) this.cursor = 0;
   }
 
+  private buildZoneFilteredPool(pool: ComboPool): ComboPool {
+    if (this.zones.length === 0) return pool;
+    const filteredGroups: CourseGroup[] = [];
+    const filteredById = new Map<string, ComboSection>();
+    for (const group of pool.groups) {
+      const sections = group.sections.filter(
+        (s) => !sectionConflictsWithZones(s, this.zones)
+      );
+      if (sections.length === 0) continue;
+      filteredGroups.push({ ...group, sections });
+      for (const section of sections) {
+        filteredById.set(section.sectionId, section);
+      }
+    }
+    return {
+      termId: pool.termId,
+      groups: filteredGroups,
+      byId: filteredById
+    };
+  }
+
+  // Pins evict themselves when (a) the section is gone from the canvas
+  // pool entirely, (b) the course is no longer represented, or (c) the
+  // pinned section now falls inside a prohibited zone. Cleanest UX —
+  // drawing a zone over a pinned section silently unpins it instead of
+  // leaving the user staring at "0 / 0".
   private pruneStalePins(): void {
     if (!this.pool) {
       this.pinnedByCourseId.clear();
@@ -276,6 +410,11 @@ export class PaperCombosAugmentation implements Augmentation {
     for (const [courseId, sectionId] of Array.from(this.pinnedByCourseId)) {
       const group = this.pool.groups.find((g) => g.courseId === courseId);
       if (!group || !group.sections.some((s) => s.sectionId === sectionId)) {
+        this.pinnedByCourseId.delete(courseId);
+        continue;
+      }
+      const section = this.pool.byId.get(sectionId);
+      if (section && sectionConflictsWithZones(section, this.zones)) {
         this.pinnedByCourseId.delete(courseId);
       }
     }
@@ -293,12 +432,17 @@ export class PaperCombosAugmentation implements Augmentation {
     const comboSig = currentCombo
       ? `${currentCombo.sectionIds.join(",")}/${currentCombo.score.toFixed(3)}/${currentCombo.ratedCount}`
       : "-";
+    const zoneSig = this.zones
+      .map((z) => `${z.id}@${z.day}:${z.startMin}-${z.endMin}`)
+      .sort()
+      .join(",");
     return [
       String(enabled),
       poolSig,
       String(this.cursor),
       String(this.maxCredits),
       pinSig,
+      zoneSig,
       String(this.combos.length),
       comboSig,
       this.lastLoadResult?.state ?? "",
@@ -338,6 +482,15 @@ export class PaperCombosAugmentation implements Augmentation {
       unhideRealCards(doc);
     }
 
+    // Zones get re-painted unconditionally when the feature is on so they
+    // survive paper.nu's React re-renders (which wipe everything inside
+    // day columns). Only sourced from this.zones — read-only here.
+    if (enabled) {
+      renderZones(doc, grid, this.zones);
+    } else {
+      renderZones(doc, grid, []);
+    }
+
     const sig = this.computeRenderSig(currentCombo, enabled);
     if (sig === this.lastRenderSig) return;
     this.lastRenderSig = sig;
@@ -355,7 +508,12 @@ export class PaperCombosAugmentation implements Augmentation {
         : undefined,
       truncated: this.lastEnumerate?.truncated ?? false,
       conflictingPins: this.lastEnumerate?.conflictingPins ?? false,
-      defaultEnabled: getDefaultFeatureEnabled(PAPER_COMBOS_FEATURE_ID)
+      defaultEnabled: getDefaultFeatureEnabled(PAPER_COMBOS_FEATURE_ID),
+      zoneCount: this.zones.length
+    }, {
+      onClearZones: () => {
+        void this.clearAllZones(doc, grid);
+      }
     });
   }
 

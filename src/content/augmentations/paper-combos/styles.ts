@@ -180,6 +180,107 @@ const CSS = `
   display: none !important;
 }
 
+/* Drag preview while the user is creating a zone — semi-transparent
+ * accent fill with a dashed border so it reads as "in progress" until
+ * mouseup commits it. pointer-events:none so the mousemove handler
+ * still gets coordinates from the underlying day column. */
+.bc-paper-combos-zone-preview {
+  background: var(--bc-color-accent-surface-soft);
+  border: 1px dashed var(--bc-color-accent);
+  border-radius: var(--bc-radius-sm);
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* Persisted zones: dimmer fill + diagonal stripes so they read as
+ * "this time slot is off-limits" without competing with paper.nu's
+ * actual class cards. Hover reveals the X button. */
+.bc-paper-combos-zone {
+  background: var(--bc-color-accent-surface-soft);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0,
+    transparent 6px,
+    var(--bc-color-accent-surface-tile) 6px,
+    var(--bc-color-accent-surface-tile) 12px
+  );
+  border: 1px solid var(--bc-color-accent);
+  border-radius: var(--bc-radius-sm);
+  z-index: 11;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 2px 4px;
+  font-size: 0.65rem;
+  color: var(--bc-color-accent);
+  font-weight: var(--bc-fw-semibold);
+  overflow: hidden;
+  transition: background var(--bc-tx-fast) var(--bc-easing);
+}
+
+.bc-paper-combos-zone:hover {
+  background-color: var(--bc-color-accent-surface-tile);
+}
+
+.bc-paper-combos-zone-label {
+  pointer-events: none;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bc-paper-combos-zone-remove {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  border-radius: var(--bc-radius-circle);
+  background: var(--bc-color-accent);
+  color: var(--bc-color-accent-on);
+  font-size: 12px;
+  font-weight: var(--bc-fw-bold);
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bc-paper-combos-zone-remove:hover {
+  background: var(--bc-color-accent-hover);
+}
+
+/* Empty space inside a day column is dragable — show a crosshair so the
+ * affordance reads. Off the schedule cards themselves, the cursor stays
+ * pointer (paper.nu's existing behavior). Only takes effect while the
+ * feature is active so the off-state is undisturbed. */
+[${ROOT_ATTR}] .schedule-grid-cols > div:not(:first-child) {
+  cursor: crosshair;
+}
+
+[${ROOT_ATTR}] .schedule-grid-cols > div:not(:first-child) div.absolute.z-10.rounded-lg {
+  cursor: pointer;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-clear-zones {
+  cursor: pointer;
+  border: 1px solid var(--bc-color-accent);
+  background: var(--bc-color-accent-surface-soft);
+  color: var(--bc-color-accent);
+  border-radius: var(--bc-radius-md);
+  padding: 0.25rem 0.55rem;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: var(--bc-fw-medium);
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-clear-zones:hover {
+  background: var(--bc-color-accent-surface-tile);
+}
+
 /* Pin button: direct child of the card, sibling of paper-ctec's
  * analytics-anchor. Sits just above the analytics pill in the bottom
  * right so the user always finds it in the same spot relative to the
