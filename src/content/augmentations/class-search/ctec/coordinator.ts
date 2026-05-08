@@ -35,6 +35,9 @@ import type {
   AnalyticsModalSource,
   PaperCtecWidgetData
 } from "../../paper-ctec/types";
+import { isCaesarAuthRequiredError } from "../caesar-search/types";
+import { withAuthRecovery, type AuthRecovery } from "../auth-recovery";
+import { confirmLoginPrompt } from "../../../auth/login-prompt";
 
 import { renderIdle, renderLoading, renderResolved } from "./view";
 
@@ -57,9 +60,10 @@ export interface CtecCoordinator {
 export type CtecCoordinatorDeps = {
   /** Modal opener — used by the chip's Analytics button. */
   openAnalyticsModal(source: AnalyticsModalSource): void;
-  /** Auth-required state's Login button click. Defaults to opening the
-   *  CAESAR home tab in a new window. */
-  openAuthLogin(loginUrl: string): void;
+  /** Shared CAESAR auth-recovery handle. Wraps the CTEC fetch so a stale
+   *  CAESAR or Bluera session triggers the silent → popup-and-retry
+   *  cascade instead of surfacing auth-required to the chip. */
+  authRecovery: AuthRecovery;
 };
 
 export function createCtecCoordinator(
@@ -90,9 +94,6 @@ export function createCtecCoordinator(
       renderResolved(
         host,
         data,
-        () => {
-          if (data.state === "auth-required") deps.openAuthLogin(data.loginUrl);
-        },
         () => deps.openAnalyticsModal(source),
         // Lazy: only invoked when the user actually hovers a chip, so we
         // never pay the buildModalDisplayData cost for chips that go
@@ -135,16 +136,26 @@ export function createCtecCoordinator(
     }
 
     sources.set(identity.key, identity);
-    repaintLoading(identity.key);
+    repaintLoading(identity.key, "Connecting to Northwestern CTEC…");
 
     const aggregateLimit = getRecentAggregationTerms();
-    const job = fetchCtecReportAggregate(
-      identity.params,
-      identity.titleHint,
-      (message) => repaintLoading(identity.key, message),
-      { fetchLimit: aggregateLimit, aggregateLimit }
+    const job = withAuthRecovery(
+      deps.authRecovery,
+      isCaesarAuthRequiredError,
+      () =>
+        fetchCtecReportAggregate(
+          identity.params,
+          identity.titleHint,
+          (message) => repaintLoading(identity.key, message),
+          { fetchLimit: aggregateLimit, aggregateLimit }
+        ),
+      { confirmBeforePopup: (loginUrl) => confirmLoginPrompt(loginUrl) }
     )
       .then((result) => {
+        // null = user canceled the sign-in popup. withAuthRecovery
+        // already toasted; leave resolved empty so the next render falls
+        // back to the Load CTEC button.
+        if (result === null) return;
         const data: PaperCtecWidgetData = toWidgetData(result);
         resolved.set(identity.key, data);
         repaint(identity.key);
@@ -171,6 +182,9 @@ export function createCtecCoordinator(
       })
       .finally(() => {
         inFlight.delete(identity.key);
+        // Repaint so the chip reflects the post-fetch state. Cancel path
+        // (resolved unset) re-renders the Load CTEC button.
+        repaint(identity.key);
       });
 
     inFlight.set(identity.key, job);
@@ -179,7 +193,7 @@ export function createCtecCoordinator(
   function repaintLoading(key: string, message?: string): void {
     const host = hosts.get(key);
     if (!host) return;
-    renderLoading(host, message ?? "CTEC…");
+    renderLoading(host, message ?? "Connecting to Northwestern CTEC…");
   }
 
   return {
@@ -235,9 +249,6 @@ function toWidgetData(
   result: Awaited<ReturnType<typeof fetchCtecReportAggregate>>
 ): PaperCtecWidgetData {
   if (result.state === "found") return { state: "found", aggregate: result.aggregate };
-  if (result.state === "auth-required") {
-    return { state: "auth-required", loginUrl: result.loginUrl };
-  }
   if (result.state === "no-access") return { state: "no-access" };
   if (result.state === "not-found") return { state: "not-found" };
   return { state: "error", message: result.message };

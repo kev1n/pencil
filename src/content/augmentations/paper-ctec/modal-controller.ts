@@ -30,7 +30,7 @@ import type {
 // front-page widget into the modal.
 export type ModalControllerSharedState = {
   resolved: Map<string, PaperCtecWidgetData>;
-  inFlight: Map<string, Promise<PaperCtecWidgetData>>;
+  inFlight: Map<string, Promise<PaperCtecWidgetData | null>>;
   analyticsResolved: Map<string, PaperCtecAnalyticsState>;
   // Owned by the controller but exposed via shared reference so the
   // augmentation's status-bar code can count active analytics fetches
@@ -40,15 +40,17 @@ export type ModalControllerSharedState = {
 };
 
 export type ModalControllerCallbacks = {
-  generation: () => number;
-  isAwaitingRetry: () => boolean;
-  markAwaitingRetry: () => void;
   setProgress: (key: string, message: string) => void;
   syncStatusBar: () => void;
   syncSideCard: () => void;
   // Called when a background refresh discovers new evaluations — gives the
   // augmentation a chance to update the schedule-chip mini-summary too.
   renderForKey: (key: string, data: PaperCtecWidgetData) => void;
+  // Wraps fetchCtecCourseAnalytics through withAuthRecovery so the modal's
+  // batch + refresh fetches benefit from the same silent → popup-and-retry
+  // cascade used by the schedule chip. Returns null when the user cancels
+  // the auth-recovery popup.
+  fetchAnalytics: typeof fetchCtecCourseAnalytics;
 };
 
 // Bridges the augmentation to the modal subsystem. Owns:
@@ -78,14 +80,13 @@ export class ModalController {
     this.data = createModalDataController({
       state: this.state,
       callbacks: {
-        generation: () => this.callbacks.generation(),
         setProgress: (key, message) => this.callbacks.setProgress(key, message),
         syncStatusBar: () => this.callbacks.syncStatusBar(),
         syncSideCard: () => this.callbacks.syncSideCard(),
         syncView: () => this.sync(document),
         renderForKey: (key, data) => this.callbacks.renderForKey(key, data)
       },
-      fetcher: fetchCtecCourseAnalytics
+      fetcher: this.callbacks.fetchAnalytics
     });
   }
 
@@ -102,10 +103,12 @@ export class ModalController {
     this.data.reset();
   }
 
-  // Mirror front-page widget state (auth-required / not-found) onto the
-  // analytics state map so the modal can show the right callout without
-  // doing its own fetch. Pure derivation — no network. Called by the
-  // augmentation while syncing the side card.
+  // Mirror front-page widget not-found state onto the analytics state map
+  // so the modal can show the right callout without doing its own fetch.
+  // Pure derivation — no network. Called by the augmentation while syncing
+  // the side card. Auth-required is no longer surfaced as a chip state
+  // (withAuthRecovery handles credentials transparently), so there's
+  // nothing to mirror for that case.
   mirrorFrontPageState(context: PaperCtecSideCardContext): void {
     const existingState = this.state.analyticsResolved.get(context.key);
     if (existingState && existingState.state !== "found") return;
@@ -113,24 +116,14 @@ export class ModalController {
     const frontPageState = this.state.resolved.get(context.key);
     if (frontPageState?.state === "not-found") {
       this.state.analyticsResolved.set(context.key, { state: "not-found" });
-      return;
-    }
-    if (frontPageState?.state === "auth-required") {
-      this.state.analyticsResolved.set(context.key, {
-        state: "auth-required",
-        loginUrl: frontPageState.loginUrl
-      });
     }
   }
 
   // Resume an in-progress batch after a login retry: if the user previously
   // asked for a batch and we haven't reached that target yet, kick again.
-  // Only fires when `analyticsResolved` has been cleared (the post-login
-  // `clearAuthRequiredStates` path). Any other resolved state — found,
-  // not-found, error — is terminal until the user takes an explicit action.
-  // Without that guard the side-card sync runs on every paper.nu mutation
-  // tick and would spin kickBatch on error/found states, fanning CAESAR
-  // traffic out to the per-hour rate limit.
+  // The analyticsResolved + analyticsInFlight guards keep this off the
+  // hot mutation-tick loop — without them syncSideCard would spin
+  // kickBatch on every tick and fan out CAESAR traffic.
   resumeIfNeeded(context: PaperCtecSideCardContext): void {
     const previousTarget = this.data.getTargetCount(context.key);
     if (previousTarget === undefined) return;
@@ -223,12 +216,10 @@ export class ModalController {
     // state so the user can keep using cached data while we re-poll.
     const loading =
       this.state.analyticsInFlight.has(source.key) || this.state.inFlight.has(source.key);
-    const authUrl =
-      analyticsState?.state === "auth-required" ? analyticsState.loginUrl : null;
     const errorMessage =
       analyticsState?.state === "error" ? analyticsState.message : null;
     const notFound = analyticsState?.state === "not-found";
-    const canLoadMore = !loading && remainingTerms > 0 && !authUrl && !notFound;
+    const canLoadMore = !loading && remainingTerms > 0 && !notFound;
 
     this.view.open(
       {
@@ -241,15 +232,13 @@ export class ModalController {
         },
         data,
         loading,
-        authUrl,
-        awaitingAuth: this.callbacks.isAwaitingRetry(),
         errorMessage,
         notFound,
         // Refresh is the user's recovery path when the resumeIfNeeded
         // auto-retry was disabled (see commit 0391fd7). Allow it on error
         // even with no data, otherwise an errored fetch with no parsed
         // entries leaves the modal as a dead end.
-        canRefresh: !authUrl && (!!data || !!errorMessage),
+        canRefresh: !!data || !!errorMessage,
         canLoadMore,
         loadMoreBatchSize: PAPER_CTEC_CONFIG.aggregate.recentTerms,
         remainingTerms,
@@ -301,7 +290,6 @@ export class ModalController {
         set("heatmapExpanded", !s.heatmapExpanded),
       onRefresh: () => this.data.kickRefresh(source),
       onLoadMore: () => this.data.kickBatch(source),
-      onLogin: () => this.callbacks.markAwaitingRetry(),
       onDismissRefreshFlash: () => {
         this.data.clearRefreshFlash(source.key);
         sync();

@@ -44,7 +44,9 @@ export type ChipFetchProgressMessage = {
 };
 
 export type ChipFetchCoordinatorState = {
-  readonly inFlight: Map<string, Promise<PaperCtecWidgetData>>;
+  // Promise<… | null> — null is the user-canceled-popup signal from
+  // withAuthRecovery; nothing is written to `resolved` in that case.
+  readonly inFlight: Map<string, Promise<PaperCtecWidgetData | null>>;
   readonly resolved: Map<string, PaperCtecWidgetData>;
   readonly loadingMessages: Map<string, ChipFetchProgressMessage>;
   readonly userActivated: Set<string>;
@@ -60,13 +62,16 @@ export type ChipFetchCoordinatorDeps = {
   };
   /** Toast surface. */
   showToast(message: string, options?: ToastOptions): void;
-  /** Aggregator fetch with per-message progress callback. */
+  /** Aggregator fetch with per-message progress callback. Returns null
+   *  when the user cancels the auth-recovery popup; data otherwise. The
+   *  augmentation wires this through withAuthRecovery so credential
+   *  failures self-heal silently for CAESAR or via the popup for Bluera. */
   fetchAggregate(
     params: CtecLinkParams,
     titleHint: string,
     onProgress: (message: string) => void,
     options: { fetchLimit: number; aggregateLimit: number }
-  ): Promise<PaperCtecWidgetData>;
+  ): Promise<PaperCtecWidgetData | null>;
   /** Sync-cache reader: returns aggregate if already in the subject index. */
   getCachedAggregate(
     params: CtecLinkParams,
@@ -99,8 +104,6 @@ export type ChipFetchCoordinatorDeps = {
    *  short-circuits every chip to a no-access pill — no Load CTEC button,
    *  no fetch, no analytics. The cart button still renders. */
   isCtecAccessDenied(): boolean;
-  /** Auth modal opener — rendered chip widgets call this on Login button. */
-  openAuthModal(): void;
   /** Open the analytics modal for this chip. */
   openAnalyticsModal(source: AnalyticsModalSource): void;
   /** Render an idle chip (Load CTEC button). */
@@ -115,12 +118,9 @@ export type ChipFetchCoordinatorDeps = {
   renderWidget(
     widget: HTMLElement,
     data: PaperCtecWidgetData,
-    onAuth: () => void,
     onAnalytics: (() => void) | undefined,
     getPreviewData: (() => ModalDisplayData | null) | undefined
   ): void;
-  /** Generation token (auth flow flips this on invalidate). */
-  generation(): number;
   /** Bump the loadingMessages map and resync the status bar. */
   setProgress(key: string, message: string): void;
   /** Trigger downstream sync after a chip resolves. */
@@ -141,8 +141,6 @@ export interface ChipFetchCoordinator {
   start(): void;
   /** Clear all chip-fetch state. */
   stop(): void;
-  /** Clear inFlight + loadingMessages but keep resolved/userActivated, used by auth re-run. */
-  invalidateAfterAuth(): void;
   /** Get the lazy AnalyticsModalSource for `key` (callers use it to route clicks). */
   getSource(key: string): AnalyticsModalSource | undefined;
   /** Lookup the lazy preview-data callback for `key`. */
@@ -160,7 +158,7 @@ export interface ChipFetchCoordinator {
 export function createChipFetchCoordinator(
   deps: ChipFetchCoordinatorDeps
 ): ChipFetchCoordinator {
-  const inFlight = new Map<string, Promise<PaperCtecWidgetData>>();
+  const inFlight = new Map<string, Promise<PaperCtecWidgetData | null>>();
   const resolved = new Map<string, PaperCtecWidgetData>();
   const loadingMessages = new Map<string, ChipFetchProgressMessage>();
   const userActivated = new Set<string>();
@@ -217,7 +215,6 @@ export function createChipFetchCoordinator(
       deps.renderWidget(
         widget,
         data,
-        () => deps.openAuthModal(),
         onAnalytics,
         getPreviewData
       );
@@ -235,15 +232,12 @@ export function createChipFetchCoordinator(
     }
   }
 
-  async function loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData> {
-    const generation = deps.generation();
-    const isStale = () => generation !== deps.generation();
+  async function loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData | null> {
     try {
       const data = await deps.fetchAggregate(
         target.params,
         target.titleHint,
         (message) => {
-          if (isStale()) return;
           renderLoadingForKey(target.key, message);
         },
         {
@@ -252,7 +246,15 @@ export function createChipFetchCoordinator(
         }
       );
 
-      if (isStale()) return data;
+      // null = user canceled the auth-recovery popup. withAuthRecovery
+      // already toasted. Drop userActivated so syncTargets doesn't re-pop
+      // the popup on every paper.nu remount, and leave resolved untouched
+      // so the next render falls back to the Load CTEC button.
+      if (data === null) {
+        userActivated.delete(target.key);
+        return null;
+      }
+
       resolved.set(target.key, data);
       renderForKey(target.key, data);
       if (data.state === "error") {
@@ -272,7 +274,6 @@ export function createChipFetchCoordinator(
         state: "error",
         message: error instanceof Error ? error.message : String(error)
       };
-      if (isStale()) return widgetData;
       resolved.set(target.key, widgetData);
       renderForKey(target.key, widgetData);
       deps.showToast(deps.ctecErrorToastMessage, { tone: "warn", durationMs: 9000 });
@@ -299,11 +300,9 @@ export function createChipFetchCoordinator(
     deps.setProgress(target.key, "Connecting to Northwestern CTEC…");
     deps.renderLoading(target.widget);
 
-    const jobGeneration = deps.generation();
     const job = loadTarget(target);
     inFlight.set(target.key, job);
     void job.finally(() => {
-      if (jobGeneration !== deps.generation()) return;
       inFlight.delete(target.key);
       if (!deps.modalHasInFlight(target.key)) {
         loadingMessages.delete(target.key);
@@ -344,7 +343,6 @@ export function createChipFetchCoordinator(
         deps.renderWidget(
           target.widget,
           { state: "no-access" },
-          () => deps.openAuthModal(),
           undefined,
           undefined
         );
@@ -358,7 +356,6 @@ export function createChipFetchCoordinator(
         deps.renderWidget(
           target.widget,
           cached,
-          () => deps.openAuthModal(),
           onAnalytics,
           getPreviewData
         );
@@ -389,7 +386,6 @@ export function createChipFetchCoordinator(
         deps.renderWidget(
           target.widget,
           widgetData,
-          () => deps.openAuthModal(),
           onAnalytics,
           getPreviewData
         );
@@ -397,7 +393,8 @@ export function createChipFetchCoordinator(
       }
 
       // User previously clicked Load CTEC on this card and the fetch was
-      // interrupted (e.g. auth-required → invalidateAndRerun). Resume.
+      // interrupted by something other than a popup-cancel (e.g. an
+      // analytics-modal close mid-fetch). Resume.
       if (userActivated.has(target.key)) {
         kickTargetFetch(target);
         continue;
@@ -425,10 +422,6 @@ export function createChipFetchCoordinator(
       userActivated.clear();
       visibleKeys.clear();
       targetSources.clear();
-    },
-    invalidateAfterAuth(): void {
-      inFlight.clear();
-      loadingMessages.clear();
     },
     getSource,
     previewDataCallbackFor,

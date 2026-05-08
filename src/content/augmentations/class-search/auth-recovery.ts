@@ -121,8 +121,10 @@ export function createAuthRecovery(deps: AuthRecoveryDeps): AuthRecovery {
  *   2. On auth failure, attempt the silent layers (background fetch, then
  *      inactive tab) via `withSilentAuthRecovery`. Each successful layer
  *      retries `action` automatically.
- *   3. If both silent layers fail, fall back to the user-visible popup
- *      handshake and retry `action` once after the user signs in.
+ *   3. If both silent layers fail and `confirmBeforePopup` is provided,
+ *      ask the user before opening a sign-in tab. Skipping confirmation
+ *      pops the tab immediately (current cart-add behavior).
+ *   4. Open the popup, retry `action` once after the user signs in.
  *
  * Re-throws the original error when it's not an auth-required error.
  * Returns `null` when the user cancels sign-in or the popup couldn't open.
@@ -131,15 +133,28 @@ export function createAuthRecovery(deps: AuthRecoveryDeps): AuthRecovery {
  * SSO endpoint (matches the original behavior where
  * `CaesarAuthRequiredError.loginUrl` flowed straight through).
  */
+export type WithAuthRecoveryOptions = {
+  /** If provided, called after silent-recovery fails and before the
+   *  visible popup launches. Resolving `false` aborts the recovery and
+   *  returns `null` from `withAuthRecovery` — useful for "are you sure?"
+   *  dialogs on user-initiated CTEC fetches. */
+  confirmBeforePopup?: (loginUrl: string) => Promise<boolean>;
+};
+
 export async function withAuthRecovery<T>(
   recovery: AuthRecovery,
   isAuthError: (err: unknown) => err is { loginUrl: string },
-  action: () => Promise<T>
+  action: () => Promise<T>,
+  options: WithAuthRecoveryOptions = {}
 ): Promise<T | null> {
   try {
     return await withSilentAuthRecovery(action, isAuthError);
   } catch (error) {
     if (!isAuthError(error)) throw error;
+    if (options.confirmBeforePopup) {
+      const ok = await options.confirmBeforePopup(error.loginUrl);
+      if (!ok) return null;
+    }
     try {
       await recovery.ensure(error.loginUrl);
     } catch (recoveryError) {

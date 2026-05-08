@@ -178,8 +178,7 @@ function renderRefreshFlash(
   flash: ModalRefreshFlash,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult {
-  const icon =
-    flash.kind === "success" ? "✓" : flash.kind === "auth" ? "🔒" : "!";
+  const icon = flash.kind === "success" ? "✓" : "!";
   const role = flash.kind === "success" ? "status" : "alert";
 
   let title: string;
@@ -195,9 +194,6 @@ function renderRefreshFlash(
       title = "You're up to date";
       body = "Northwestern has no new CTECs for this course right now.";
     }
-  } else if (flash.kind === "auth") {
-    title = "Northwestern login required";
-    body = "Sign in to CAESAR and try again.";
   } else {
     title = "Couldn't check for new CTECs";
     body = flash.message;
@@ -212,16 +208,6 @@ function renderRefreshFlash(
       <strong class="bc-paper-ctec-modal-flash-title">${title}</strong>
       <span class="bc-paper-ctec-modal-flash-body">${body}</span>
     </div>
-    ${flash.kind === "auth"
-      ? html`<button
-          type="button"
-          class="bc-paper-ctec-modal-flash-action"
-          @click=${(event: Event) => {
-            preventAndStop(event);
-            callbacks.onLogin();
-          }}
-        >Open login</button>`
-      : ""}
     <button
       type="button"
       class="bc-paper-ctec-modal-flash-dismiss"

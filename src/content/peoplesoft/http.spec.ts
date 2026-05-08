@@ -33,9 +33,8 @@ const fetchTextSpy = vi.mocked(fetchTextViaBackground);
 const signalSpy = vi.mocked(getCurrentPeopleSoftTaskSignal);
 
 beforeEach(() => {
-  // Force the background-fetch path: `shouldUseBackgroundFetch()` returns
-  // true whenever the hostname is not caesar.ent.northwestern.edu, which is
-  // always true in jsdom.
+  // Every fetch goes through the background worker; the spy intercepts
+  // both same-origin and cross-origin calls uniformly.
   fetchTextSpy.mockReset();
   signalSpy.mockReset();
 });

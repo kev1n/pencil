@@ -25,7 +25,6 @@ export type ModalActiveView = ModalMetricKind | "global";
 // for success, sticky for errors).
 export type ModalRefreshFlash =
   | { kind: "success"; addedCount: number }
-  | { kind: "auth"; loginUrl: string }
   | { kind: "error"; message: string };
 
 export type AnalyticsModalState = {
@@ -60,7 +59,6 @@ export type AnalyticsModalCallbacks = {
   onCommentsSortChange: (sort: ModalCommentSort) => void;
   onRefresh: () => void;
   onLoadMore: () => void;
-  onLogin: () => void;
   onDismissRefreshFlash: () => void;
   onToggleHeatmapExpanded: () => void;
 };
@@ -77,8 +75,6 @@ export type AnalyticsModalInput = {
   };
   data: ModalDisplayData | null;
   loading: boolean;
-  authUrl: string | null;
-  awaitingAuth: boolean;
   errorMessage: string | null;
   notFound: boolean;
   canRefresh: boolean;

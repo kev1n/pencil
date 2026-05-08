@@ -1,9 +1,8 @@
 import { decodeEntities } from "../peoplesoft/shared";
 import { extractActionIds, extractFieldValue } from "../peoplesoft/parsers";
+import { BLUERA_ORIGIN, CAESAR_ORIGIN } from "../../shared/nu-hosts";
 import { DEFAULT_CAREER_CODE, PAGE_ID } from "./constants";
 import type { CtecCourseSeed, CtecIndexedEntry, CtecRowSeed } from "./types";
-
-const CAESAR_ORIGIN = "https://caesar.ent.northwestern.edu";
 
 export function normalizeCareerCode(value: string | null | undefined): string {
   const normalized = (value ?? "").trim().toUpperCase();
@@ -57,7 +56,7 @@ export function extractBlueraUrl(responseText: string): string | null {
   // bypassing the PeopleSoft portal redirect from DoPortalUrl.
   const selectedId = trimmed.match(/[?&]SelectedIDforPrint=([^&]+)/i)?.[1] ?? null;
   if (selectedId) {
-    return `https://northwestern.bluera.com/northwestern/rpvf-eng.aspx?lang=eng&redi=1&SelectedIDforPrint=${selectedId}&ReportType=2&regl=en-US`;
+    return `${BLUERA_ORIGIN}/northwestern/rpvf-eng.aspx?lang=eng&redi=1&SelectedIDforPrint=${selectedId}&ReportType=2&regl=en-US`;
   }
 
   try {

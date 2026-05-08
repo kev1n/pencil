@@ -149,37 +149,16 @@ function renderBody(
   </div>`;
 }
 
-// Centered status callout when there's no loaded data yet — auth required,
-// error, loading, or not-found. Replaces the rich body with a single
-// message + (optionally) an action button. Identity in the header is still
-// drawn from input.identity so the user knows what course they were
-// looking at while the data fetches.
+// Centered status callout when there's no loaded data yet — error, loading,
+// or not-found. Replaces the rich body with a single message + (optionally)
+// an action button. Identity in the header is still drawn from
+// input.identity so the user knows what course they were looking at while
+// the data fetches.
 function renderStatusBody(
   input: AnalyticsModalInput,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult {
   const inner = (() => {
-    if (input.authUrl) {
-      return html`<h3 class="bc-paper-ctec-modal-status-title">
-          ${input.awaitingAuth
-            ? "Waiting for Northwestern login…"
-            : "Northwestern login required"}
-        </h3>
-        <p class="bc-paper-ctec-modal-status-text">
-          ${input.awaitingAuth
-            ? "Finish signing in on the Northwestern tab. CTEC reports will load automatically once you're back."
-            : "pencil.nu needs a CAESAR login to load the CTEC reports for this course."}
-        </p>
-        <button
-          type="button"
-          class="bc-btn bc-btn--primary bc-btn--pill"
-          @click=${(event: Event) => {
-            preventAndStop(event);
-            callbacks.onLogin();
-          }}
-        >${input.awaitingAuth ? "Reopen login" : "Open Northwestern login"}</button>`;
-    }
-
     if (input.errorMessage) {
       return html`<h3 class="bc-paper-ctec-modal-status-title">
           Couldn't load CTEC reports
@@ -219,10 +198,9 @@ function renderStatusBody(
     return "";
   })();
 
-  const cardCls =
-    input.authUrl || input.errorMessage
-      ? "bc-paper-ctec-modal-status-card is-warn"
-      : "bc-paper-ctec-modal-status-card";
+  const cardCls = input.errorMessage
+    ? "bc-paper-ctec-modal-status-card is-warn"
+    : "bc-paper-ctec-modal-status-card";
 
   return html`<div class="bc-paper-ctec-modal-status-body">
     <div class=${cardCls}>${inner}</div>

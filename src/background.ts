@@ -9,9 +9,16 @@ import type {
   OpenSilentAuthTabMessage,
   OpenSilentAuthTabResponse
 } from "./shared/messages";
+import { BLUERA_HOSTNAME, CAESAR_HOSTNAME } from "./shared/nu-hosts";
 
-const FETCH_TIMEOUT_MS = 30_000;
+const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
 const fetchControllers = new Map<string, AbortController>();
+
+function abortWithTimeoutReason(controller: AbortController, ms: number): void {
+  controller.abort(
+    new DOMException(`Request timed out after ${Math.round(ms / 1000)}s.`, "TimeoutError")
+  );
+}
 
 // Failsafe circuit breaker: if we ever exceed CIRCUIT_BREAKER_MAX requests
 // to NU institutional hosts within CIRCUIT_BREAKER_WINDOW_MS — regardless of
@@ -19,18 +26,13 @@ const fetchControllers = new Map<string, AbortController>();
 // extension. Reloading invalidates content scripts in open tabs, so any
 // runaway loop dies the moment its next sendMessage fails.
 //
-// NOT covered: direct same-origin fetches that bypass the background worker.
-// Specifically, peoplesoft/http.ts (when running on caesar.ent) and the
-// `fetch()` in enrollment-navigation/augmentation.ts call window.fetch
-// directly. They won't increment this counter and won't be stopped by a
-// runtime.reload(). If we ever need a true global limit, route every
-// CAESAR/Bluera request through this worker.
+// Coverage is total: every CAESAR / Bluera fetch in the extension routes
+// through this worker (see peoplesoft/http.ts, remote-fetch.ts), so the
+// breaker sees and counts every NU request regardless of source page or
+// feature.
 const CIRCUIT_BREAKER_WINDOW_MS = 60_000;
 const CIRCUIT_BREAKER_MAX = 150;
-const CIRCUIT_BREAKER_HOSTS = new Set([
-  "caesar.ent.northwestern.edu",
-  "northwestern.bluera.com"
-]);
+const CIRCUIT_BREAKER_HOSTS = new Set([CAESAR_HOSTNAME, BLUERA_HOSTNAME]);
 const requestTimestamps: number[] = [];
 let circuitTripped = false;
 
@@ -279,7 +281,8 @@ async function handleFetchBinary(
     return;
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeoutMs = message.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const timeout = setTimeout(() => abortWithTimeoutReason(controller, timeoutMs), timeoutMs);
   if (message.requestId) {
     fetchControllers.set(message.requestId, controller);
   }
@@ -330,7 +333,8 @@ async function handleFetchText(
     return;
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timeoutMs = message.timeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+  const timeout = setTimeout(() => abortWithTimeoutReason(controller, timeoutMs), timeoutMs);
   if (message.requestId) {
     fetchControllers.set(message.requestId, controller);
   }

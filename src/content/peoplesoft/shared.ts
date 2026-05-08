@@ -7,7 +7,8 @@ export const DEFAULT_CAREER_FIELD = "SSR_CLSRCH_WRK_ACAD_CAREER$2";
 export const DEFAULT_INSTITUTION_FIELD = "CLASS_SRCH_WRK2_INSTITUTION$31$";
 import { decodeEntities as decodeEntitiesPure } from "../../shared/decode-entities";
 
-export const CAESAR_ORIGIN = "https://caesar.ent.northwestern.edu";
+export { CAESAR_ORIGIN } from "../../shared/nu-hosts";
+import { CAESAR_ORIGIN } from "../../shared/nu-hosts";
 
 export type CareerCode = "UGRD" | "TGS";
 

@@ -29,13 +29,12 @@ export interface ModalDataControllerDeps {
   // bar / schedule chips.
   state: {
     resolved: Map<string, PaperCtecWidgetData>;
-    inFlight: Map<string, Promise<PaperCtecWidgetData>>;
+    inFlight: Map<string, Promise<PaperCtecWidgetData | null>>;
     analyticsResolved: Map<string, PaperCtecAnalyticsState>;
     analyticsInFlight: Map<string, Promise<PaperCtecAnalyticsState>>;
     loadingMessages: Map<string, { message: string; updatedAt: number }>;
   };
   callbacks: {
-    generation: () => number;
     setProgress: (key: string, message: string) => void;
     syncStatusBar: () => void;
     syncSideCard: () => void;
@@ -45,8 +44,9 @@ export interface ModalDataControllerDeps {
     // published terms shift the rating/responses count.
     renderForKey: (key: string, data: PaperCtecWidgetData) => void;
   };
-  // Injectable for tests. Default wires the production fetcher.
-  fetcher?: typeof fetchCtecCourseAnalytics;
+  // Wraps fetchCtecCourseAnalytics through withAuthRecovery. Returns null
+  // when the user cancels the auth-recovery popup.
+  fetcher: typeof fetchCtecCourseAnalytics;
 }
 
 export interface ModalDataController {
@@ -66,7 +66,7 @@ export function createModalDataController(
   deps: ModalDataControllerDeps
 ): ModalDataController {
   const { state, callbacks } = deps;
-  const fetcher = deps.fetcher ?? fetchCtecCourseAnalytics;
+  const fetcher = deps.fetcher;
 
   // Distinct from analyticsInFlight: tracks background "check for new CTECs"
   // passes that must NOT flip the modal to a loading state. The user keeps
@@ -140,7 +140,7 @@ export function createModalDataController(
       : Math.max(previousTarget, parsedCount + batchSize);
     analyticsTargetCount.set(context.key, nextTarget);
 
-    const start = async (): Promise<PaperCtecAnalyticsState> => {
+    const start = async (): Promise<PaperCtecAnalyticsState | null> => {
       const currentFrontPageJob = state.inFlight.get(context.key);
       if (currentFrontPageJob) {
         await currentFrontPageJob.catch(() => undefined);
@@ -155,17 +155,26 @@ export function createModalDataController(
         },
         nextTarget
       );
+      // null = user canceled the auth-recovery popup. Surface as null so
+      // the .then below leaves analyticsResolved untouched (modal falls
+      // back to "no data yet").
+      if (result === null) return null;
 
       return result.state === "found"
         ? { state: "found", analytics: result.analytics }
         : result;
     };
 
-    const generation = callbacks.generation();
-    const isStale = () => generation !== callbacks.generation();
     const job = start()
       .then((resultState) => {
-        if (isStale()) return resultState;
+        if (resultState === null) {
+          // Cancel path — surface as a non-storing terminal so the
+          // analyticsInFlight bookkeeping resolves cleanly.
+          return {
+            state: "error" as const,
+            message: "Sign-in canceled."
+          } satisfies PaperCtecAnalyticsState;
+        }
         state.analyticsResolved.set(context.key, resultState);
         if (resultState.state === "error") {
           showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
@@ -182,7 +191,6 @@ export function createModalDataController(
           state: "error",
           message: error instanceof Error ? error.message : String(error)
         };
-        if (isStale()) return errorState;
         state.analyticsResolved.set(context.key, errorState);
         showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
         return errorState;
@@ -192,7 +200,6 @@ export function createModalDataController(
         if (!state.inFlight.has(context.key)) {
           state.loadingMessages.delete(context.key);
         }
-        if (isStale()) return;
         callbacks.syncStatusBar();
         callbacks.syncSideCard();
         callbacks.syncView();
@@ -241,9 +248,6 @@ export function createModalDataController(
     // Re-render so the refresh button immediately shows "Checking…".
     callbacks.syncView();
 
-    const generation = callbacks.generation();
-    const isStale = () => generation !== callbacks.generation();
-
     void (async () => {
       try {
         const result = await fetcher(
@@ -255,7 +259,9 @@ export function createModalDataController(
           /* forceRefreshLinks */ true
         );
 
-        if (isStale()) return;
+        // null = user canceled the auth-recovery popup. Don't flash
+        // success or error — leave existing data in place.
+        if (result === null) return;
 
         if (result.state === "found") {
           state.analyticsResolved.set(context.key, {
@@ -291,15 +297,6 @@ export function createModalDataController(
             state.resolved.set(context.key, widgetData);
             callbacks.renderForKey(context.key, widgetData);
           }
-        } else if (result.state === "auth-required") {
-          state.analyticsResolved.set(context.key, {
-            state: "auth-required",
-            loginUrl: result.loginUrl
-          });
-          setRefreshFlash(context.key, {
-            kind: "auth",
-            loginUrl: result.loginUrl
-          });
         } else if (result.state === "error") {
           state.analyticsResolved.set(context.key, {
             state: "error",
@@ -315,7 +312,6 @@ export function createModalDataController(
           setRefreshFlash(context.key, { kind: "success", addedCount: 0 });
         }
       } catch (error) {
-        if (isStale()) return;
         setRefreshFlash(context.key, {
           kind: "error",
           message: error instanceof Error ? error.message : String(error)
@@ -323,13 +319,9 @@ export function createModalDataController(
         showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
       } finally {
         analyticsBackgroundRefresh.delete(context.key);
-        // Don't `return` from finally — that swallows any pending throw from
-        // the try/catch chain. Skip the post-refresh sync work instead.
-        if (!isStale()) {
-          callbacks.syncStatusBar();
-          callbacks.syncSideCard();
-          callbacks.syncView();
-        }
+        callbacks.syncStatusBar();
+        callbacks.syncSideCard();
+        callbacks.syncView();
       }
     })();
   }

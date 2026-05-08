@@ -89,15 +89,12 @@ export function renderLoading(
 export function renderWidget(
   widget: HTMLElement,
   data: PaperCtecWidgetData,
-  onAuthChipClick?: () => void,
   onOpenAnalytics?: () => void,
   getPreviewData?: AnalyticsPreviewSource
 ): void {
   // Title is updated via direct DOM (lit-html targets the widget's children;
   // the host's title attribute is independent).
-  if (data.state === "auth-required") {
-    widget.title = "Click to open the Northwestern login prompt for pencil.nu.";
-  } else if (data.state === "error") {
+  if (data.state === "error") {
     widget.title = data.message;
   } else {
     widget.removeAttribute("title");
@@ -105,7 +102,7 @@ export function renderWidget(
 
   // chips list is captured before render so we can pass it through to the
   // analytics-preview hover wiring after lit-html plants the DOM.
-  const summary = buildWidgetSummary(data, onAuthChipClick);
+  const summary = buildWidgetSummary(data);
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>${summary}</div>`,
@@ -130,8 +127,7 @@ export function renderWidget(
 // the chip set is easy to follow without weaving render() ergonomics
 // through the data-state branches.
 function buildWidgetSummary(
-  data: PaperCtecWidgetData,
-  onAuthChipClick?: () => void
+  data: PaperCtecWidgetData
 ): TemplateResult | TemplateResult[] {
   if (data.state === "not-found") {
     return makeChip("spark", "No CTEC", "is-muted");
@@ -144,10 +140,6 @@ function buildWidgetSummary(
       "is-muted",
       "Northwestern has not authorized this NetID to view CTECs."
     );
-  }
-
-  if (data.state === "auth-required") {
-    return makeAuthChipTemplate(onAuthChipClick);
   }
 
   if (data.state === "error") {
@@ -407,26 +399,6 @@ function makeAnalyticsButton(onClick: () => void): HTMLElement {
   return button;
 }
 
-function makeAuthChipTemplate(onClick?: () => void): TemplateResult {
-  const handler = onClick
-    ? (event: Event) => {
-        preventAndStop(event);
-        onClick();
-      }
-    : undefined;
-
-  return html`<button
-    type="button"
-    class=${`${WIDGET_CLASS}-chip is-warn ${WIDGET_CLASS}-chip-button`}
-    title="Open the Northwestern login prompt for pencil.nu."
-    @pointerdown=${handler}
-    @click=${preventAndStop}
-    @keydown=${(event: KeyboardEvent) => {
-      if (event.key !== "Enter" && event.key !== " ") return;
-      handler?.(event);
-    }}
-  >${iconTemplate("lock")}Login needed</button>`;
-}
 
 // (Previously this file exported `buildWidgetSignature` for the
 // hand-rolled idempotent-render pattern. lit-html now does that diffing

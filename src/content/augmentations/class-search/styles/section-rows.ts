@@ -172,9 +172,24 @@ export function sectionRowsStyles(): string {
       flex-wrap: wrap;
       min-width: 0;
     }
+    /* Spinner + message stay glued together as a single inline-flex unit
+       on one line. The message truncates with ellipsis when the column
+       is too narrow, so the spinner can never end up above the message. */
+    .bc-cs-ctec-loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      min-width: 0;
+      max-width: 100%;
+    }
     .bc-cs-ctec-message {
+      min-width: 0;
       color: var(--bc-color-text-muted);
       font-size: var(--bc-font-11);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .bc-cs-ctec-spinner {
       display: inline-block;

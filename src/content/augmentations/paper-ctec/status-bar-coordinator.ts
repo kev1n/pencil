@@ -1,14 +1,10 @@
 // Coordinator for the bottom-of-screen "Loading CTECs · X/N classes checked"
-// status bar on paper.nu. Owns:
-//   - the syncStatusBar re-entrancy guard
-//   - the AuthFlow.syncFromStatus pump (decides whether to render the auth
-//     modal alongside the status bar)
+// status bar on paper.nu. Owns the syncStatusBar re-entrancy guard.
 //
 // Extracted from PaperCtecAugmentation (Wave 6d). The bulk of the work
 // (deriving the data shape) lives in session.buildStatusBarData; this
 // coordinator just wires the inputs and routes outputs.
 
-import type { AuthFlow } from "./auth-flow";
 import type {
   PaperCtecAnalyticsState,
   PaperCtecStatusBarData,
@@ -30,8 +26,6 @@ export type StatusBarCoordinatorDeps = {
   getAnalyticsInFlight(): Map<string, unknown>;
   /** Per-chip latest progress message map. */
   getLoadingMessages(): Map<string, ProgressMessage>;
-  /** AuthFlow handle (optional — undefined on non-paper hosts). */
-  authFlow(): AuthFlow | undefined;
   /**
    * Pure derivation function — passed in so tests can stub the data shape.
    * Defaults to session.buildStatusBarData in the augmentation wiring.
@@ -43,9 +37,8 @@ export type StatusBarCoordinatorDeps = {
     inFlight: Map<string, unknown>;
     analyticsInFlight: Map<string, unknown>;
     loadingMessages: Map<string, ProgressMessage>;
-    awaitingAuthRetry: boolean;
   }): PaperCtecStatusBarData | null;
-  /** Side-effect: paint the status bar (or hide when null). */
+  /** Side-effect: paint the status bar. */
   renderStatusBar(doc: Document, data: PaperCtecStatusBarData): void;
 };
 
@@ -68,18 +61,15 @@ export function createStatusBarCoordinator(
     if (syncing) return;
     syncing = true;
     try {
-      const auth = deps.authFlow();
       const status = deps.buildStatusBarData({
         visibleKeys: deps.getVisibleKeys(),
         resolved: deps.getResolved(),
         analyticsResolved: deps.getAnalyticsResolved(),
         inFlight: deps.getInFlight(),
         analyticsInFlight: deps.getAnalyticsInFlight(),
-        loadingMessages: deps.getLoadingMessages(),
-        awaitingAuthRetry: auth?.isAwaitingRetry() ?? false
+        loadingMessages: deps.getLoadingMessages()
       });
       if (status) deps.renderStatusBar(doc, status);
-      auth?.syncFromStatus(doc, status);
     } finally {
       syncing = false;
     }

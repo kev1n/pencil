@@ -100,12 +100,10 @@ function makeDeps(
     attachCartButton: vi.fn(),
     isCustomScheduleCard: vi.fn().mockReturnValue(false),
     isCtecAccessDenied: vi.fn().mockReturnValue(false),
-    openAuthModal: vi.fn(),
     openAnalyticsModal: vi.fn(),
     renderIdle: vi.fn(),
     renderLoading: vi.fn(),
     renderWidget: vi.fn(),
-    generation: vi.fn().mockReturnValue(0),
     setProgress: vi.fn(),
     syncStatusBar: vi.fn(),
     syncSideCard: vi.fn(),
@@ -183,7 +181,6 @@ describe("createChipFetchCoordinator — syncTargets", () => {
     expect(deps.renderWidget).toHaveBeenCalledWith(
       expect.anything(),
       { state: "no-access" },
-      expect.any(Function),
       undefined,
       undefined
     );
@@ -272,14 +269,16 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
     }
   });
 
-  it("auto-resumes a kick on the next sync if userActivated is set but inFlight is empty", () => {
+  it("auto-resumes a kick on the next sync if userActivated is set but inFlight + resolved are empty", () => {
     const deps = makeDeps();
     const coord = createChipFetchCoordinator(deps);
-    // Simulate: user clicked Load CTEC, fetch was interrupted (e.g. auth
-    // flow cleared inFlight via invalidateAfterAuth). userActivated stays.
+    // Simulate: user clicked Load CTEC, fetch was cleared by some external
+    // path (e.g. modal close mid-fetch) without resolving. userActivated stays.
     const target = makeTarget();
     coord.kickTargetFetch(target);
-    coord.invalidateAfterAuth();
+    coord.state.inFlight.clear();
+    coord.state.resolved.clear();
+    coord.state.loadingMessages.clear();
     expect(coord.state.inFlight.has("chip-1")).toBe(false);
     expect(coord.hasUserActivated("chip-1")).toBe(true);
 

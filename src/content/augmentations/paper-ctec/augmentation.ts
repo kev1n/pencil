@@ -12,16 +12,17 @@ import { showToast } from "../../../shared/toast";
 import { isCtecAccessDenied } from "../../ctec-index/access";
 import { CTEC_ERROR_TOAST_MESSAGE } from "../ctec-links/rate-limit";
 import {
-  fetchCtecReportAggregate,
   getCachedReportAggregate,
   getCtecCourseAnalyticsSnapshot,
-  hasCachedReportAggregate
+  hasCachedReportAggregate,
+  type CtecReportAggregateResult
 } from "../ctec-links/reports";
+import type { CtecLinkParams } from "../ctec-links/types";
 import {
   createAuthRecovery,
   type AuthRecovery
 } from "../class-search/auth-recovery";
-import { AuthFlow } from "./auth-flow";
+import { fetchAggregateWithAuth, fetchAnalyticsWithAuth } from "../../auth/ctec-fetch";
 import { buildModalDisplayData } from "./modal-data";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
@@ -35,8 +36,8 @@ import {
   teardownPageForCleanup
 } from "./dom";
 import { ModalController } from "./modal-controller";
-import { buildStatusBarData, clearAuthRequiredStates } from "./session";
-import type { PaperCtecAnalyticsState } from "./types";
+import { buildStatusBarData } from "./session";
+import type { PaperCtecAnalyticsState, PaperCtecWidgetData } from "./types";
 import {
   injectStyles,
   renderIdle,
@@ -76,12 +77,6 @@ function isCustomScheduleCard(card: HTMLElement): boolean {
   return card.style.borderStyle === "dashed";
 }
 
-// Top-level orchestration for the paper.nu augmentation. Wave 6d slimmed
-// this to a wiring layer over four coordinators (chip-fetch, chip-cart,
-// status-bar, side-card) plus AuthFlow + ModalController. State that
-// crosses coordinators (resolved / inFlight / loadingMessages, etc.)
-// lives on chip-fetch and is referenced by status-bar / modal via getter
-// callbacks.
 export class PaperCtecAugmentation implements Augmentation {
   readonly id = "paper-ctec";
 
@@ -95,12 +90,10 @@ export class PaperCtecAugmentation implements Augmentation {
   private readonly analyticsResolved = new Map<string, PaperCtecAnalyticsState>();
   private readonly analyticsInFlight = new Map<string, Promise<PaperCtecAnalyticsState>>();
 
-  private focusListenerAttached = false;
-  private readonly auth?: AuthFlow;
-  // Drives the "open SSO popup tab + auto-retry" handshake for chip
-  // add-to-cart (cart-flow.ts wraps the cart chain in withAuthRecovery).
-  // Distinct from `auth` (the modal-driven CTEC fetch flow): this one is
-  // class-search-style — toast + popup + automatic retry, no modal.
+  // Drives the "open SSO popup tab + auto-retry" handshake. Single instance
+  // shared across chip-fetch (Load CTEC), chip-cart (Add to cart), and the
+  // modal's batch + refresh fetches so concurrent failures coalesce onto
+  // one popup.
   private readonly authRecovery: AuthRecovery = createAuthRecovery({
     chromeRuntime: chrome.runtime,
     windowLocation: { assign: (url: string | URL) => window.location.assign(url) }
@@ -108,12 +101,6 @@ export class PaperCtecAugmentation implements Augmentation {
   private readonly modal: ModalController;
 
   constructor() {
-    if (isPaperHost()) {
-      this.auth = new AuthFlow({
-        onInvalidate: (doc) => this.invalidateAndRerun(doc)
-      });
-    }
-
     void initCartCache();
 
     this.chipCart = createChipCartCoordinator({
@@ -135,7 +122,8 @@ export class PaperCtecAugmentation implements Augmentation {
     this.chipFetch = createChipFetchCoordinator({
       ctecCreditPool,
       showToast,
-      fetchAggregate: fetchCtecReportAggregate,
+      fetchAggregate: (params, titleHint, onProgress, options) =>
+        this.fetchAggregateForChip(params, titleHint, onProgress, options),
       getCachedAggregate: getCachedReportAggregate,
       getCourseAnalyticsSnapshot: getCtecCourseAnalyticsSnapshot,
       getAggregateLimit: getRecentAggregationTerms,
@@ -159,12 +147,10 @@ export class PaperCtecAugmentation implements Augmentation {
       },
       isCustomScheduleCard,
       isCtecAccessDenied,
-      openAuthModal: () => this.openAuthModal(),
       openAnalyticsModal: (source) => this.modal.openModal(source),
       renderIdle,
       renderLoading,
       renderWidget,
-      generation: () => this.generation(),
       setProgress: (key, message) => this.setProgress(key, message),
       syncStatusBar: () => this.statusBar.syncStatusBar(document),
       syncSideCard: () => this.sideCard.syncSideCard(document),
@@ -179,7 +165,6 @@ export class PaperCtecAugmentation implements Augmentation {
       getInFlight: () => this.chipFetch.state.inFlight,
       getAnalyticsInFlight: () => this.analyticsInFlight,
       getLoadingMessages: () => this.chipFetch.state.loadingMessages,
-      authFlow: () => this.auth,
       buildStatusBarData,
       renderStatusBar
     });
@@ -204,24 +189,46 @@ export class PaperCtecAugmentation implements Augmentation {
         loadingMessages: this.chipFetch.state.loadingMessages
       },
       {
-        generation: () => this.generation(),
-        isAwaitingRetry: () => this.auth?.isAwaitingRetry() ?? false,
-        markAwaitingRetry: () => this.auth?.markAwaitingRetry(),
         setProgress: (key, message) => this.setProgress(key, message),
         syncStatusBar: () => this.statusBar.syncStatusBar(document),
         syncSideCard: () => this.sideCard.syncSideCard(document),
-        renderForKey: (key, data) => this.chipFetch.renderForKey(key, data)
+        renderForKey: (key, data) => this.chipFetch.renderForKey(key, data),
+        fetchAnalytics: (params, titleHint, recentAggregateLimit, onProgress, fetchLimit, forceRefreshLinks) =>
+          fetchAnalyticsWithAuth(
+            this.authRecovery,
+            params,
+            titleHint,
+            recentAggregateLimit,
+            onProgress,
+            fetchLimit,
+            forceRefreshLinks
+          )
       }
     );
 
     this.chipCart.start();
   }
 
+  private async fetchAggregateForChip(
+    params: CtecLinkParams,
+    titleHint: string,
+    onProgress: (message: string) => void,
+    options: { fetchLimit: number; aggregateLimit: number }
+  ): Promise<PaperCtecWidgetData | null> {
+    const result = await fetchAggregateWithAuth(
+      this.authRecovery,
+      params,
+      titleHint,
+      onProgress,
+      options
+    );
+    return result === null ? null : aggregateResultToWidgetData(result);
+  }
+
   run(doc: Document = document): void {
     if (!this.appliesToPage(doc)) return;
 
     injectStyles();
-    this.ensureFocusRetry();
     this.syncCardHoverStyle(doc);
 
     const targets = collectScheduleTargets(doc);
@@ -260,40 +267,19 @@ export class PaperCtecAugmentation implements Augmentation {
     );
   }
 
-  private invalidateAndRerun(doc: Document): void {
-    clearAuthRequiredStates(this.chipFetch.state.resolved, this.analyticsResolved);
-    this.chipFetch.invalidateAfterAuth();
-    this.modal.invalidate();
-    this.run(doc);
-  }
-
-  private openAuthModal(): void {
-    if (!this.auth) return;
-    this.auth.openManually();
-    this.statusBar.syncStatusBar(document);
-  }
-
-  private generation(): number {
-    return this.auth?.getGeneration() ?? 0;
-  }
-
   private setProgress(key: string, message: string): void {
     this.chipFetch.state.loadingMessages.set(key, { message, updatedAt: Date.now() });
     this.statusBar.syncStatusBar(document);
   }
+}
 
-  private ensureFocusRetry(): void {
-    if (this.focusListenerAttached || !this.auth) return;
-    const auth = this.auth;
-
-    const retryIfNeeded = () => {
-      if (!auth.shouldRetryOnFocus()) return;
-      if (document.visibilityState === "hidden") return;
-      auth.retry(document);
-    };
-
-    window.addEventListener("focus", retryIfNeeded);
-    document.addEventListener("visibilitychange", retryIfNeeded);
-    this.focusListenerAttached = true;
+function aggregateResultToWidgetData(
+  result: CtecReportAggregateResult
+): PaperCtecWidgetData {
+  if (result.state === "found") {
+    return { state: "found", aggregate: result.aggregate };
   }
+  if (result.state === "no-access") return { state: "no-access" };
+  if (result.state === "not-found") return { state: "not-found" };
+  return { state: "error", message: result.message };
 }

@@ -39,7 +39,7 @@ import {
   isCaesarAuthRequiredError
 } from "../class-search/caesar-search/types";
 import { withSilentAuthRecovery } from "../../auth/silent-recovery";
-import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
+import { NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
 import {
   descriptionMatchesCatalog,
   entryMatchesCourse,
@@ -47,7 +47,7 @@ import {
   isAuthResponse,
   termToSortKey
 } from "./helpers";
-import { CTEC_BATCH_SIZE } from "./rate-limit";
+import { CTEC_BATCH_SIZE, CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
 import { resolveCareerCandidates, SCHOOL_LABELS } from "./subject-careers";
 import type { CtecLinkData, CtecLinkEntry, CtecLinkParams } from "./types";
 
@@ -128,8 +128,11 @@ async function fetchCtecLinksInternal(
   // `CaesarAuthRequiredError` whenever PeopleSoft hands us an SSO page; the
   // wrapper retries through Layer 1 (background fetch to landing page) then
   // Layer 2 (inactive 10s tab) before giving up. If both silent layers
-  // fail, we surface the legacy `{ state: "auth-required" }` shape so
-  // paper-ctec's AuthFlow can render its visible modal.
+  // fail, surface `auth-required` carrying the URL we were just trying —
+  // the cart-page widget renders that as an inline log-in link, and the
+  // chip-side callers (paper-ctec / class-search) re-throw it through
+  // their withAuthRecovery wrapper so a real popup tab opens to the right
+  // SSO endpoint.
   try {
     return await withSilentAuthRecovery(
       () => fetchCtecLinksCore(params, forceRefresh, onProgress),
@@ -140,7 +143,7 @@ async function fetchCtecLinksInternal(
       return { state: "no-access" };
     }
     if (isCaesarAuthRequiredError(error)) {
-      return { state: "auth-required", loginUrl: CTEC_AUTH_URL };
+      return { state: "auth-required", loginUrl: error.loginUrl };
     }
     throw error;
   }
@@ -404,9 +407,11 @@ async function fetchCourseEntries(
   const resultsUrl = buildSubjectResultsUrl(subject, career);
   let html: string;
   try {
-    const response = await fetchPeopleSoftGetResult(resultsUrl);
+    const response = await fetchPeopleSoftGetResult(resultsUrl, {
+      timeoutMs: CTEC_FETCH_TIMEOUT_MS
+    });
     if (isUnauthorizedStatus(response.status)) {
-      throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+      throw new CaesarAuthRequiredError(resultsUrl);
     }
     html = response.text;
   } catch (e) {
@@ -419,7 +424,7 @@ async function fetchCourseEntries(
   if (detectAndMarkUnauthorized(html, "subject-results GET")) {
     throw new CtecAccessDeniedError();
   }
-  if (isAuthResponse(html)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+  if (isAuthResponse(html)) throw new CaesarAuthRequiredError(resultsUrl);
 
   const doc = new DOMParser().parseFromString(html, "text/html");
   const form = doc.forms.namedItem("win0");
@@ -441,10 +446,11 @@ async function fetchCourseEntries(
   try {
     const response = await fetchPeopleSoftResult(
       actionUrl,
-      buildActionParams(baseParams, targetCourse.actionId)
+      buildActionParams(baseParams, targetCourse.actionId),
+      { timeoutMs: CTEC_FETCH_TIMEOUT_MS }
     );
     if (isUnauthorizedStatus(response.status)) {
-      throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+      throw new CaesarAuthRequiredError(actionUrl);
     }
     courseResponse = response.text;
   } catch (e) {
@@ -457,7 +463,7 @@ async function fetchCourseEntries(
   if (detectAndMarkUnauthorized(courseResponse, "course POST")) {
     throw new CtecAccessDeniedError();
   }
-  if (isAuthResponse(courseResponse)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+  if (isAuthResponse(courseResponse)) throw new CaesarAuthRequiredError(actionUrl);
 
   const allClassRows = collectClassRowsFromText(courseResponse);
   if (allClassRows.length === 0) return { type: "not-found" };
@@ -498,10 +504,11 @@ async function fetchCourseEntries(
     try {
       const response = await fetchPeopleSoftResult(
         classActionUrl,
-        buildActionParams(classParams, row.actionId)
+        buildActionParams(classParams, row.actionId),
+        { timeoutMs: CTEC_FETCH_TIMEOUT_MS }
       );
       if (isUnauthorizedStatus(response.status)) {
-        throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+        throw new CaesarAuthRequiredError(classActionUrl);
       }
       classResponse = response.text;
     } catch (e) {
@@ -521,7 +528,7 @@ async function fetchCourseEntries(
     if (detectAndMarkUnauthorized(classResponse, "class POST")) {
       throw new CtecAccessDeniedError();
     }
-    if (isAuthResponse(classResponse)) throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+    if (isAuthResponse(classResponse)) throw new CaesarAuthRequiredError(classActionUrl);
 
     const blueraUrl = extractBlueraUrl(classResponse);
     resultEntries.push({

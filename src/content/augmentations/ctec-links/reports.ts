@@ -13,13 +13,10 @@ import { fetchTextResultViaBackground } from "../../remote-fetch";
 import { getCurrentPeopleSoftTaskSignal } from "../../peoplesoft/traffic";
 import { extractChartFromImage } from "../paper-ctec/chart-extract";
 import { fetchCtecLinksBackground, readCoursePendingRowCount } from "./fetcher";
-import {
-  CaesarAuthRequiredError,
-  isCaesarAuthRequiredError
-} from "../class-search/caesar-search/types";
-import { withSilentAuthRecovery } from "../../auth/silent-recovery";
-import { CTEC_AUTH_URL, NOT_FOUND_ACTION_ID } from "./constants";
+import { CaesarAuthRequiredError } from "../class-search/caesar-search/types";
+import { NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesCourse, isAuthResponse, termToSortKey } from "./helpers";
+import { CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
 import type { CtecLinkParams } from "./types";
 
 export type CtecAggregateMetric = {
@@ -73,14 +70,12 @@ export type CtecCourseAnalytics = {
 
 export type CtecReportAggregateResult =
   | { state: "found"; aggregate: CtecReportAggregate }
-  | { state: "auth-required"; loginUrl: string }
   | { state: "no-access" }
   | { state: "not-found" }
   | { state: "error"; message: string };
 
 export type CtecCourseAnalyticsResult =
   | { state: "found"; analytics: CtecCourseAnalytics }
-  | { state: "auth-required"; loginUrl: string }
   | { state: "no-access" }
   | { state: "not-found" }
   | { state: "error"; message: string };
@@ -90,9 +85,12 @@ type FetchCtecReportAggregateOptions = {
   aggregateLimit?: number;
 };
 
+// Auth-required is signaled via thrown CaesarAuthRequiredError and handled
+// at the call site (chip coordinators wrap in withAuthRecovery to drive
+// the popup-and-retry flow). The "found" entries / aggregate / analytics
+// results are the only success shapes.
 type EnsureReportEntriesResult =
   | { state: "found"; entries: CtecIndexedEntry[] }
-  | { state: "auth-required"; loginUrl: string }
   | { state: "no-access" }
   | { state: "not-found" }
   | { state: "error"; message: string };
@@ -276,42 +274,25 @@ function getIndexedEntriesForCourse(
   return selectEntriesForTitle(baseEntries, titleHint);
 }
 
+// CAESAR-side discovery runs once per call (its own withSilentAuthRecovery
+// lives inside fetchCtecLinksInternal). The Bluera fetch loop throws
+// CaesarAuthRequiredError on SSO bounce; callers wrap this whole function
+// in withAuthRecovery so the popup-and-retry flow restarts only the
+// Bluera loop on each attempt — not the entire CAESAR discovery.
 async function ensureReportEntries(
   params: CtecLinkParams,
   titleHint?: string,
   onProgress?: (message: string) => void,
   options: { fetchLimit?: number; forceRefreshLinks?: boolean } = {}
 ): Promise<EnsureReportEntriesResult> {
-  // Wrap in the shared silent SSO walk. The core throws
-  // `CaesarAuthRequiredError` for auth-required responses; the wrapper
-  // tries Layer 1 + Layer 2 silently before letting the error escape, at
-  // which point we surface the legacy `auth-required` shape so the
-  // paper-ctec modal still works.
-  try {
-    return await withSilentAuthRecovery(
-      () => ensureReportEntriesCore(params, titleHint, onProgress, options),
-      isCaesarAuthRequiredError
-    );
-  } catch (error) {
-    if (isCaesarAuthRequiredError(error)) {
-      return { state: "auth-required", loginUrl: error.loginUrl };
-    }
-    throw error;
+  const links = await fetchCtecLinksBackground(
+    params,
+    options.forceRefreshLinks ?? false,
+    onProgress
+  );
+  if (links.state === "auth-required") {
+    throw new CaesarAuthRequiredError(links.loginUrl);
   }
-}
-
-async function ensureReportEntriesCore(
-  params: CtecLinkParams,
-  titleHint?: string,
-  onProgress?: (message: string) => void,
-  options: { fetchLimit?: number; forceRefreshLinks?: boolean } = {}
-): Promise<EnsureReportEntriesResult> {
-  const links = await fetchCtecLinksBackground(params, options.forceRefreshLinks ?? false, onProgress);
-  // fetchCtecLinksBackground runs its own silent-recovery cascade
-  // internally — by the time it surfaces `auth-required`, Layer 1 and
-  // Layer 2 already failed for this round. Pass through directly without
-  // throwing; that keeps the outer wrapper here from re-running the same
-  // silent layers and wasting a second tab open.
   if (links.state !== "found") return links;
 
   let entries = sortEntries(getIndexedEntriesForCourse(params, titleHint));
@@ -336,13 +317,14 @@ async function ensureReportEntriesCore(
 
     const response = await fetchTextResultViaBackground(url, {
       method: "GET",
-      signal: getCurrentPeopleSoftTaskSignal() ?? undefined
+      signal: getCurrentPeopleSoftTaskSignal() ?? undefined,
+      timeoutMs: CTEC_FETCH_TIMEOUT_MS
     });
     if (isAuthResponse(response.text)) {
       throw new CaesarAuthRequiredError(url);
     }
     if (response.status === 401 || response.status === 403) {
-      throw new CaesarAuthRequiredError(CTEC_AUTH_URL);
+      throw new CaesarAuthRequiredError(url);
     }
     if (response.status < 200 || response.status >= 300) {
       return { state: "error", message: `Request failed (${response.status}).` };

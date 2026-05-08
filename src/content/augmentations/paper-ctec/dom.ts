@@ -3,7 +3,6 @@ import { extractSubjectAndCatalog } from "../ctec-links/helpers";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
   ANALYTICS_MODAL_ID,
-  AUTH_MODAL_ID,
   COMPACT_CARD_FEATURE_ID,
   NO_HOVER_LIFT_CLASS,
   SIDECARD_ANALYTICS_PANEL_CLASS,
@@ -309,7 +308,6 @@ export function teardownPageForCleanup(doc: Document): void {
   }
 
   doc.getElementById(STATUS_BAR_ID)?.remove();
-  doc.getElementById(AUTH_MODAL_ID)?.remove();
   doc.getElementById(ANALYTICS_MODAL_ID)?.remove();
   doc.getElementById(STYLE_ID)?.remove();
 }

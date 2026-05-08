@@ -4,20 +4,11 @@ import {
   createStatusBarCoordinator,
   type StatusBarCoordinatorDeps
 } from "./status-bar-coordinator";
-import type { AuthFlow } from "./auth-flow";
 import type {
   PaperCtecAnalyticsState,
   PaperCtecStatusBarData,
   PaperCtecWidgetData
 } from "./types";
-
-function makeAuth(overrides: Partial<AuthFlow> = {}): AuthFlow {
-  return {
-    isAwaitingRetry: vi.fn().mockReturnValue(false),
-    syncFromStatus: vi.fn(),
-    ...overrides
-  } as unknown as AuthFlow;
-}
 
 function makeDeps(
   overrides: Partial<StatusBarCoordinatorDeps> = {}
@@ -31,7 +22,6 @@ function makeDeps(
     getInFlight: vi.fn().mockReturnValue(new Map<string, unknown>()),
     getAnalyticsInFlight: vi.fn().mockReturnValue(new Map<string, unknown>()),
     getLoadingMessages: vi.fn().mockReturnValue(new Map<string, { message: string; updatedAt: number }>()),
-    authFlow: vi.fn().mockReturnValue(undefined),
     buildStatusBarData: vi.fn().mockReturnValue(null),
     renderStatusBar: vi.fn(),
     ...overrides
@@ -58,7 +48,6 @@ describe("createStatusBarCoordinator — derivation + render", () => {
     expect(args.visibleKeys).toBe(visibleKeys);
     expect(args.resolved).toBe(resolved);
     expect(args.inFlight).toBe(inFlight);
-    expect(args.awaitingAuthRetry).toBe(false);
   });
 
   it("renders the status bar when buildStatusBarData returns a non-null payload", () => {
@@ -69,8 +58,7 @@ describe("createStatusBarCoordinator — derivation + render", () => {
       activeCount: 2,
       foundCount: 1,
       notFoundCount: 0,
-      errorCount: 0,
-      authCount: 0
+      errorCount: 0
     };
     const renderStatusBar = vi.fn();
     const deps = makeDeps({
@@ -82,56 +70,15 @@ describe("createStatusBarCoordinator — derivation + render", () => {
     expect(renderStatusBar).toHaveBeenCalledWith(document, status);
   });
 
-  it("does not render when status is null but still calls auth.syncFromStatus(null)", () => {
-    const auth = makeAuth();
+  it("does not render when status is null", () => {
     const renderStatusBar = vi.fn();
     const deps = makeDeps({
-      authFlow: () => auth,
       buildStatusBarData: vi.fn().mockReturnValue(null),
       renderStatusBar
     });
     const coord = createStatusBarCoordinator(deps);
     coord.syncStatusBar(document);
     expect(renderStatusBar).not.toHaveBeenCalled();
-    expect(auth.syncFromStatus).toHaveBeenCalledWith(document, null);
-  });
-});
-
-describe("createStatusBarCoordinator — auth integration", () => {
-  it("threads awaitingAuthRetry from the AuthFlow into buildStatusBarData", () => {
-    const auth = makeAuth({
-      isAwaitingRetry: vi.fn().mockReturnValue(true)
-    } as Partial<AuthFlow>);
-    const buildStatusBarData = vi.fn().mockReturnValue(null);
-    const deps = makeDeps({
-      authFlow: () => auth,
-      buildStatusBarData
-    });
-    const coord = createStatusBarCoordinator(deps);
-    coord.syncStatusBar(document);
-    expect(buildStatusBarData.mock.calls[0][0].awaitingAuthRetry).toBe(true);
-  });
-
-  it("forwards the derived status payload to AuthFlow.syncFromStatus", () => {
-    const auth = makeAuth();
-    const status: PaperCtecStatusBarData = {
-      state: "auth-required",
-      totalCount: 1,
-      resolvedCount: 1,
-      activeCount: 0,
-      foundCount: 0,
-      notFoundCount: 0,
-      errorCount: 0,
-      authCount: 1,
-      loginUrl: "https://login"
-    };
-    const deps = makeDeps({
-      authFlow: () => auth,
-      buildStatusBarData: vi.fn().mockReturnValue(status)
-    });
-    const coord = createStatusBarCoordinator(deps);
-    coord.syncStatusBar(document);
-    expect(auth.syncFromStatus).toHaveBeenCalledWith(document, status);
   });
 
   it("re-entry guard: a recursive sync triggered inside renderStatusBar is suppressed", () => {
@@ -143,8 +90,7 @@ describe("createStatusBarCoordinator — auth integration", () => {
       activeCount: 0,
       foundCount: 1,
       notFoundCount: 0,
-      errorCount: 0,
-      authCount: 0
+      errorCount: 0
     };
     const buildStatusBarData = vi.fn().mockImplementation(() => {
       calls += 1;
@@ -177,8 +123,7 @@ describe("createStatusBarCoordinator — start/stop", () => {
       activeCount: 0,
       foundCount: 1,
       notFoundCount: 0,
-      errorCount: 0,
-      authCount: 0
+      errorCount: 0
     };
     const deps = makeDeps({
       buildStatusBarData: vi.fn().mockReturnValue(status),

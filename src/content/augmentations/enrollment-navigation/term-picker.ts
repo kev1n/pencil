@@ -6,6 +6,7 @@
 // and pair each radio with its term/career label cells.
 
 import { runPeopleSoftTask } from "../../peoplesoft";
+import { fetchPeopleSoftGetResult } from "../../peoplesoft/http";
 
 import { extractContextFromHtml, parseContext, persistContext } from "./state";
 import { buildTermSelectorUrl, getPageId } from "./term-url";
@@ -199,19 +200,16 @@ export async function fetchTermPickerState(
   return runPeopleSoftTask(
     "background",
     async () => {
-      const res = await fetch(termSelectorUrl, {
-        method: "GET",
-        credentials: "include",
-      });
+      const res = await fetchPeopleSoftGetResult(termSelectorUrl);
 
-      if (!res.ok) return null;
+      if (res.status < 200 || res.status >= 300) return null;
 
-      const html = await res.text();
+      const html = res.text;
       const parser = new DOMParser();
       const nextDoc = parser.parseFromString(html, "text/html");
 
       if (getPageId(nextDoc) !== TERM_PAGE_ID) {
-        const context = extractContextFromHtml(html) ?? parseContext(res.url);
+        const context = extractContextFromHtml(html) ?? parseContext(res.finalUrl);
         if (context) persistContext(context);
         return null;
       }

@@ -28,7 +28,7 @@ export type SideCardCoordinatorDeps = {
   /** Front-page resolved state map (read-only). */
   getResolved(): Map<string, PaperCtecWidgetData>;
   /** Front-page in-flight state map (read-only). */
-  getInFlight(): Map<string, Promise<PaperCtecWidgetData>>;
+  getInFlight(): Map<string, Promise<PaperCtecWidgetData | null>>;
   /** Sync cache reader: true when we already have an aggregate cached. */
   hasCachedReportAggregate(
     params: CtecLinkParams,

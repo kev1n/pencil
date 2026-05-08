@@ -4,7 +4,6 @@ import {
   subscribe as subscribeCartCache
 } from "../../cart-cache";
 import type { Augmentation } from "../../framework";
-import { CTEC_AUTH_URL } from "../ctec-links/constants";
 import { ModalController } from "../paper-ctec/modal-controller";
 import { STYLE_ID as PAPER_CTEC_STYLE_ID } from "../paper-ctec/constants";
 import { ANALYTICS_MODAL_ID as PAPER_CTEC_MODAL_ID } from "../paper-ctec/constants";
@@ -28,6 +27,7 @@ import {
   type RelatedSectionOption
 } from "./caesar-search";
 import { createAuthRecovery, type AuthRecovery } from "./auth-recovery";
+import { fetchAnalyticsWithAuth } from "../../auth/ctec-fetch";
 import { createAddCartContext } from "./controllers/add-cart-context";
 import {
   createAddToCartController,
@@ -115,11 +115,12 @@ export class ClassSearchAugmentation implements Augmentation {
   // Per-key CTEC fetch + repaint coordinator. Shared across mount cycles
   // so the resolved map survives navigations away from / back to the
   // search page within a single content-script load. The Analytics-button
-  // click on the chip routes through `modal.openModal`; an auth-required
-  // chip opens CAESAR (which proxies the same SSO).
+  // click on the chip routes through `modal.openModal`. Auth recovery is
+  // delegated to the shared `authRecovery` so a stale CAESAR/Bluera
+  // session gets the silent → popup-and-retry cascade automatically.
   private readonly ctecCoordinator: CtecCoordinator = createCtecCoordinator({
     openAnalyticsModal: (source) => this.modal.openModal(source),
-    openAuthLogin: () => window.open(CTEC_AUTH_URL, "_blank")
+    authRecovery: this.authRecovery
   });
 
   // CTEC-analytics modal — same component paper-ctec uses, instantiated
@@ -131,7 +132,7 @@ export class ClassSearchAugmentation implements Augmentation {
   // fetches in either surface warm both.
   private readonly modalState = {
     resolved: new Map<string, PaperCtecWidgetData>(),
-    inFlight: new Map<string, Promise<PaperCtecWidgetData>>(),
+    inFlight: new Map<string, Promise<PaperCtecWidgetData | null>>(),
     analyticsResolved: new Map<string, PaperCtecAnalyticsState>(),
     analyticsInFlight: new Map<string, Promise<PaperCtecAnalyticsState>>(),
     loadingMessages: new Map<string, { message: string; updatedAt: number }>()
@@ -140,9 +141,6 @@ export class ClassSearchAugmentation implements Augmentation {
   private readonly modal: ModalController = new ModalController(
     this.modalState,
     {
-      generation: () => 0,
-      isAwaitingRetry: () => false,
-      markAwaitingRetry: () => undefined,
       setProgress: (key, message) => {
         this.modalState.loadingMessages.set(key, {
           message,
@@ -154,7 +152,24 @@ export class ClassSearchAugmentation implements Augmentation {
       // Background-refresh path: when a modal-driven refresh discovers
       // newly-published CTECs, the modal pushes the fresh widget data
       // back through here so the section-row chip updates too.
-      renderForKey: (key, data) => this.ctecCoordinator.renderForKey(key, data)
+      renderForKey: (key, data) => this.ctecCoordinator.renderForKey(key, data),
+      fetchAnalytics: (
+        params,
+        titleHint,
+        recentAggregateLimit,
+        onProgress,
+        fetchLimit,
+        forceRefreshLinks
+      ) =>
+        fetchAnalyticsWithAuth(
+          this.authRecovery,
+          params,
+          titleHint,
+          recentAggregateLimit,
+          onProgress,
+          fetchLimit,
+          forceRefreshLinks
+        )
     }
   );
 

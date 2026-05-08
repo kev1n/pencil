@@ -6,17 +6,12 @@ import type { PaperCtecStatusBarData } from "./types";
 import { iconTemplate, type IconName } from "./ui-shared";
 
 // Mounts (and re-renders) the persistent status bar in the paper.nu action
-// row. Auth-required hides the bar entirely — the auth modal carries the
-// signal in that case.
+// row. Auth-required is no longer a status state — the popup-and-retry
+// flow handles credentials silently in the background.
 export function renderStatusBar(
   doc: Document,
   data: PaperCtecStatusBarData
 ): void {
-  if (data.state === "auth-required") {
-    hideStatusBar(doc);
-    return;
-  }
-
   const host = findActionHost(doc);
   if (!host) return;
   ensureActionHostLayout(host);
@@ -87,13 +82,6 @@ function hasPaperActions(candidate: HTMLElement): boolean {
 }
 
 function buildStatusCopy(data: PaperCtecStatusBarData): string {
-  if (data.state === "auth-required") {
-    const prefix = data.awaitingAuthRetry
-      ? "Waiting for Northwestern login to resume CTECs on Paper"
-      : "Northwestern login required to continue CTECs on Paper";
-    return `${prefix} · ${data.resolvedCount}/${data.totalCount} classes checked`;
-  }
-
   if (data.state === "loading") {
     const detail = data.latestMessage
       ? ` · ${data.latestMessage}`
@@ -112,10 +100,6 @@ function buildStatusCopy(data: PaperCtecStatusBarData): string {
 }
 
 function buildStatusTitle(data: PaperCtecStatusBarData): string {
-  if (data.state === "auth-required") {
-    return "pencil.nu needs one Northwestern login before it can keep reading CTEC reports for this Paper schedule.";
-  }
-
   if (data.state === "loading") {
     return "pencil.nu is reading Northwestern CTEC data and attaching summaries to the current Paper schedule.";
   }
@@ -124,7 +108,6 @@ function buildStatusTitle(data: PaperCtecStatusBarData): string {
 }
 
 function statusIcon(state: PaperCtecStatusBarData["state"]): IconName {
-  if (state === "auth-required") return "lock";
   if (state === "ready") return "stack";
   return "spark";
 }

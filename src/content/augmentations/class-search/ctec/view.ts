@@ -45,14 +45,19 @@ export function renderIdle(host: HTMLElement, onLoad: () => void): void {
   );
 }
 
-export function renderLoading(host: HTMLElement, message = "CTEC…"): void {
+export function renderLoading(
+  host: HTMLElement,
+  message = "Connecting to Northwestern CTEC…"
+): void {
   host.dataset.state = "loading";
   host.title = "pencil.nu is loading Northwestern CTEC data for this section.";
 
   render(
     html`<div class="bc-cs-ctec-summary">
-      <span class="bc-cs-ctec-spinner" role="status" aria-label="Loading CTEC"></span>
-      <span class="bc-cs-ctec-message">${message}</span>
+      <span class="bc-cs-ctec-loading">
+        <span class="bc-cs-ctec-spinner" role="status" aria-label="Loading CTEC"></span>
+        <span class="bc-cs-ctec-message">${message}</span>
+      </span>
     </div>`,
     host
   );
@@ -61,14 +66,11 @@ export function renderLoading(host: HTMLElement, message = "CTEC…"): void {
 export function renderResolved(
   host: HTMLElement,
   data: PaperCtecWidgetData,
-  onAuthClick: () => void,
   onAnalyticsClick: () => void,
   getPreviewData?: () => ModalDisplayData | null
 ): void {
   host.dataset.state = data.state;
-  if (data.state === "auth-required") {
-    host.title = "Click to open the Northwestern login prompt for pencil.nu.";
-  } else if (data.state === "error") {
+  if (data.state === "error") {
     host.title = data.message;
   } else if (data.state === "no-access") {
     host.title = "Northwestern has not authorized this NetID to view CTECs.";
@@ -78,7 +80,7 @@ export function renderResolved(
 
   render(
     html`<div class="bc-cs-ctec-summary">
-      ${buildSummary(data, onAuthClick)}
+      ${buildSummary(data)}
       ${data.state === "found"
         ? renderAnalyticsButton(onAnalyticsClick)
         : ""}
@@ -119,8 +121,7 @@ function renderAnalyticsButton(onClick: () => void): TemplateResult {
 }
 
 function buildSummary(
-  data: PaperCtecWidgetData,
-  onAuthClick: () => void
+  data: PaperCtecWidgetData
 ): TemplateResult | TemplateResult[] {
   if (data.state === "not-found") {
     return makeChip("spark", "No CTEC", "is-muted");
@@ -133,19 +134,6 @@ function buildSummary(
       "is-muted",
       "Northwestern has not authorized this NetID to view CTECs."
     );
-  }
-
-  if (data.state === "auth-required") {
-    return html`<button
-      type="button"
-      class="bc-paper-ctec-chip is-warn bc-paper-ctec-chip-button"
-      title="Open the Northwestern login prompt for pencil.nu."
-      @click=${(event: Event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onAuthClick();
-      }}
-    >${iconTemplate("lock")}Login</button>`;
   }
 
   if (data.state === "error") {

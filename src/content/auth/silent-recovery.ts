@@ -22,6 +22,7 @@ import type {
   OpenSilentAuthTabMessage,
   OpenSilentAuthTabResponse
 } from "../../shared/messages";
+import { BLUERA_HOSTNAME, CAESAR_ORIGIN, safeHostname } from "../../shared/nu-hosts";
 import { fetchPeopleSoftGet } from "../peoplesoft/http";
 
 // Hitting this URL silently re-handshakes through NetID SSO when the CAESAR
@@ -30,8 +31,7 @@ import { fetchPeopleSoftGet } from "../peoplesoft/http";
 // reused as the popup `loginUrl` when the silent re-handshake fails:
 // opening it in a real tab walks the user through Duo, then bounces them
 // back through the `psc/` post-auth pattern that `background.ts` watches.
-export const LANDING_PAGE_URL =
-  "https://caesar.ent.northwestern.edu/psc/csnu/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?";
+export const LANDING_PAGE_URL = `${CAESAR_ORIGIN}/psc/csnu/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_LANDINGPAGE.GBL?`;
 
 export const DEFAULT_SILENT_TAB_TIMEOUT_MS = 10_000;
 
@@ -85,12 +85,14 @@ export async function withSilentAuthRecovery<T>(
     return await action();
   } catch (err1) {
     if (!isAuthError(err1)) throw err1;
+    if (isBlueraAuthError(err1)) throw err1;
 
     await silentFetchHandshake();
     try {
       return await action();
     } catch (err2) {
       if (!isAuthError(err2)) throw err2;
+      if (isBlueraAuthError(err2)) throw err2;
 
       const recovered = await silentTabHandshake(opts.silentTabTimeoutMs);
       if (!recovered) throw err2;
@@ -98,4 +100,17 @@ export async function withSilentAuthRecovery<T>(
       return await action();
     }
   }
+}
+
+// Bluera maintains its own per-app session cookie that only forms when a
+// real browser tab walks the SAML POST-binding response. Background fetch
+// can't follow it, and an inactive Layer-2 tab to CAESAR's landing page
+// won't refresh Bluera either. Bypass silent recovery so the outer
+// withAuthRecovery jumps straight to the visible popup, which is the only
+// thing that actually fixes Bluera.
+function isBlueraAuthError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const url = (err as { loginUrl?: unknown }).loginUrl;
+  if (typeof url !== "string") return false;
+  return safeHostname(url) === BLUERA_HOSTNAME;
 }

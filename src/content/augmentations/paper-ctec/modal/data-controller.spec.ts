@@ -59,14 +59,13 @@ function makeDeps(
 } {
   const state: ModalDataControllerDeps["state"] = {
     resolved: new Map<string, PaperCtecWidgetData>(),
-    inFlight: new Map<string, Promise<PaperCtecWidgetData>>(),
+    inFlight: new Map<string, Promise<PaperCtecWidgetData | null>>(),
     analyticsResolved: new Map<string, PaperCtecAnalyticsState>(),
     analyticsInFlight: new Map<string, Promise<PaperCtecAnalyticsState>>(),
     loadingMessages: new Map<string, { message: string; updatedAt: number }>(),
     ...overrides.state
   };
   const callbacks: ModalDataControllerDeps["callbacks"] = {
-    generation: vi.fn().mockReturnValue(0),
     setProgress: vi.fn(),
     syncStatusBar: vi.fn(),
     syncSideCard: vi.fn(),
@@ -158,31 +157,28 @@ describe("createModalDataController — kickBatch", () => {
   });
 
   it("stale generation suppresses state writes (post-invalidate semantics)", async () => {
-    let resolveFetch: (v: { state: "found"; analytics: unknown }) => void = () => undefined;
-    const fetcher = vi.fn<CtecAnalyticsFetcher>().mockReturnValue(
-      new Promise((resolve) => {
-        resolveFetch = resolve as typeof resolveFetch;
-      })
-    );
-    const generation = vi.fn().mockReturnValue(0);
-    const { deps, state } = makeDeps({
-      fetcher,
-      callbacks: { generation }
+    // Auth-recovery is now centralized in the augmentation wrapper; the
+    // data controller never sees auth-required as a result and has no
+    // generation token. Cancel surfaces as a synthetic "Sign-in canceled"
+    // error returned from the wrapped fetcher; covered by the error case
+    // below.
+    const fetcher = vi.fn<CtecAnalyticsFetcher>().mockResolvedValue({
+      state: "error",
+      message: "Sign-in canceled."
     });
+    const { deps, state } = makeDeps({ fetcher });
     const controller = createModalDataController(deps);
 
     controller.kickBatch(makeSource());
-    // Bump the generation between fetch start and resolve — a login retry
-    // (clearAuthRequiredStates) does this in the real augmentation.
-    generation.mockReturnValue(1);
-    resolveFetch({ state: "found", analytics: { stub: true } });
     await vi.runAllTimersAsync();
     await vi.waitFor(() => {
       expect(state.analyticsInFlight.has("course-1")).toBe(false);
     });
 
-    // stale → analyticsResolved should NOT be written
-    expect(state.analyticsResolved.has("course-1")).toBe(false);
+    expect(state.analyticsResolved.get("course-1")).toEqual({
+      state: "error",
+      message: "Sign-in canceled."
+    });
   });
 });
 
@@ -226,24 +222,6 @@ describe("createModalDataController — kickRefresh", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
 
     resolveFetch({ state: "not-found" });
-  });
-
-  it("auth-required result → sets refresh flash with kind 'auth' + loginUrl", async () => {
-    const fetcher = vi.fn<CtecAnalyticsFetcher>().mockResolvedValue({
-      state: "auth-required",
-      loginUrl: "https://login.example.com"
-    });
-    const { deps } = makeDeps({ fetcher });
-    const controller = createModalDataController(deps);
-
-    controller.kickRefresh(makeSource());
-    await vi.runAllTimersAsync();
-    await vi.waitFor(() => {
-      expect(controller.isBackgroundRefreshing("course-1")).toBe(false);
-    });
-
-    const flash = controller.getRefreshFlash("course-1");
-    expect(flash).toEqual({ kind: "auth", loginUrl: "https://login.example.com" });
   });
 
   it("error result inside refresh → sets refresh flash with kind 'error'", async () => {
