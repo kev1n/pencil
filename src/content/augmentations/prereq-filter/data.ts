@@ -43,11 +43,20 @@ const STATUS_PRIORITY: Record<string, number> = {
   "In Cart": 3
 };
 
+// Canonical key matching the prereqs evaluator's `courseKey` (eligibility.ts):
+// "COMP_SCI 111-0" → "COMP_SCI 111" (the registrar's "-0" means no section
+// subdivision, so we drop it). Sequence courses ("MATH 220-1", "220-2")
+// keep the suffix because they're distinct courses.
+function historyKey(subject: string, number: string): string {
+  const bare = number.replace(/-0$/, "");
+  return `${subject} ${bare}`;
+}
+
 export function buildHistoryMap(): Map<string, EligibilityHistoryEntry> {
   const out = new Map<string, EligibilityHistoryEntry>();
   const cache = readCourseHistory();
   for (const entry of cache.entries) {
-    const key = `${entry.subject} ${entry.number}`;
+    const key = historyKey(entry.subject, entry.number);
     const status = entry.status ?? "";
     const candidate: EligibilityHistoryEntry = {
       status,

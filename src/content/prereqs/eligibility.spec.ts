@@ -200,6 +200,41 @@ describe("evaluateEligibility — when (program-membership condition)", () => {
   });
 });
 
+describe("evaluateEligibility — course-key normalization", () => {
+  it("strips '-0' section so node {number:'111', section:'0'} matches history key 'COMP_SCI 111'", () => {
+    const node: PrereqNode = course("COMP_SCI", "111");
+    const history = hist({ "COMP_SCI 111": { status: "Taken", grade: "A" } });
+    expect(evaluateEligibility(node, history).state).toBe("ready");
+  });
+
+  it("keeps non-zero section so MATH 220-1 stays distinct from 220-2", () => {
+    const node220_1: PrereqNode = course("MATH", "220", { section: "1" });
+    const node220_2: PrereqNode = course("MATH", "220", { section: "2" });
+    const history = hist({ "MATH 220-1": { status: "Taken", grade: "A" } });
+    expect(evaluateEligibility(node220_1, history).state).toBe("ready");
+    expect(evaluateEligibility(node220_2, history).state).toBe("blocked");
+  });
+
+  it("OR of four course alternatives where the user has the third → ready", () => {
+    const node: PrereqNode = {
+      kind: "any",
+      of: [
+        course("COMP_SCI", "110"),
+        course("COMP_SCI", "111"),
+        course("COMP_SCI", "150"),
+        course("COMP_SCI", "211"),
+        { kind: "consent", source: "instructor" }
+      ]
+    };
+    const history = hist({
+      "COMP_SCI 111": { status: "Taken", grade: "A" },
+      "COMP_SCI 150": { status: "Transferred", grade: null },
+      "COMP_SCI 211": { status: "Taken", grade: "A" }
+    });
+    expect(evaluateEligibility(node, history).state).toBe("ready");
+  });
+});
+
 describe("evaluateEligibility — recommended", () => {
   it("recommended course never blocks, regardless of history", () => {
     const node = course("COMP_ENG", "203", { recommended: true });
