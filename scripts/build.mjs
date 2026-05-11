@@ -139,6 +139,24 @@ if (watch) {
     await build(config);
     await copyStaticFiles(outdir);
     await writeManifest(outdir, manifest);
+    await assertFixtureNotBundled(outdir, target);
+  }
+}
+
+// Guard against accidentally bundling the prereqs golden-file fixture
+// (~900 KB) into the shipped extension. The fixture lives under
+// src/content/prereqs/__fixtures__/ and is only loaded by *.spec.ts;
+// esbuild won't pull it into dist/ unless something inside src/ imports
+// it. We assert by grepping for an id that appears nowhere else in the
+// codebase ("AF_AM_ST 319-0", the first fixture entry).
+async function assertFixtureNotBundled(outdir, target) {
+  const sentinel = "AF_AM_ST 319-0";
+  const bundle = resolve(outdir, "content/index.js");
+  const text = await readFile(bundle, "utf8");
+  if (text.includes(sentinel)) {
+    throw new Error(
+      `Build leak: prereqs fixture appears to be bundled in ${target}/content/index.js (found sentinel "${sentinel}"). Check that __fixtures__/prereqs-parsed.json is only imported from spec files.`
+    );
   }
 }
 

@@ -5,6 +5,7 @@ import { ctecLinksAugmentation } from "./ctec-links";
 import { enrollmentNavigationAugmentation } from "./enrollment-navigation";
 import { paperCombosAugmentation } from "./paper-combos";
 import { paperCtecAugmentation } from "./paper-ctec";
+import { prereqFilterAugmentation } from "./prereq-filter";
 import { seatsNotesAugmentation } from "./seats-notes";
 
 // CartPageHydrator isn't user-facing — it's the source-of-truth writer for
@@ -18,6 +19,7 @@ export const augmentationRegistry: Augmentation[] = [
   ctecLinksAugmentation,
   paperCtecAugmentation,
   paperCombosAugmentation,
+  prereqFilterAugmentation,
   seatsNotesAugmentation,
   cartPageHydrator
 ];

@@ -10,6 +10,7 @@ import {
   initRefreshScheduleButton
 } from "./sections/cache";
 import { initChangelogPanel } from "./sections/changelog";
+import { initCourseHistorySection } from "./sections/course-history";
 import { initCtecAccessStatus } from "./sections/ctec-access-status";
 import { initFeatureToggles } from "./sections/feature-toggles";
 import { initRecentTermsInput } from "./sections/recent-terms";
@@ -27,4 +28,5 @@ void initThemePicker();
 void initCtecAccessStatus();
 void renderGate();
 void initSchedulePanel();
+void initCourseHistorySection();
 initGateRefreshOnStorageChange();

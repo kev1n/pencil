@@ -4,6 +4,10 @@ import { mountAccessGateModal } from "./access-gate/modal";
 import { augmentationRegistry } from "./augmentations/registry";
 import { initModalCache } from "./augmentations/paper-ctec/modal-cache";
 import { initCartCache, runOpportunisticReconcile } from "./cart-cache";
+import {
+  initCourseHistoryCache,
+  runOpportunisticCourseHistoryReconcile
+} from "./course-history";
 import { mountCtecAccessDetector } from "./ctec-index/access-detector";
 import { bootstrapTheme } from "./design";
 import { gateTokensCss } from "./design/tokens";
@@ -32,6 +36,9 @@ new AugmentationRunner(augmentationRegistry).start();
 // gates on a 1hr stale check so we don't hit CAESAR on every page load.
 if (/caesar\.ent\.northwestern\.edu/i.test(window.location.host)) {
   void initCartCache().then(() => runOpportunisticReconcile());
+  // Same opportunistic pattern as cart-cache: needs the live PeopleSoft
+  // session cookies, gated on a 1hr stale check internally.
+  void initCourseHistoryCache().then(() => runOpportunisticCourseHistoryReconcile());
   // Queue indicator is also CAESAR-only — paper.nu has its own
   // status-bar surface and doesn't drive the PeopleSoft mutex.
   mountTrafficIndicator(document);

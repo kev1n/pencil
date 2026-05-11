@@ -11,6 +11,25 @@
   },
   "entries": [
     {
+      "version": "0.7.0",
+      "date": "2026-05-11",
+      "headline": "See what you're eligible to take, on Paper.nu",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "Paper.nu search now shows little eligibility badges on every course based on what you've already taken in CAESAR — click the chip above the results to hide the ones you can't take yet."
+        },
+        {
+          "kind": "feat",
+          "text": "Schedule cards on Paper.nu pick up a small ✓ or ? marker — hover to see what the course is asking for."
+        },
+        {
+          "kind": "feat",
+          "text": "Your CAESAR course history is now cached and viewable in the popup under \"My courses\"."
+        }
+      ]
+    },
+    {
       "version": "0.6.0",
       "date": "2026-05-08",
       "headline": "Missing grad year? You're in; schedule combinations",

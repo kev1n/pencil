@@ -89,6 +89,16 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         id: "paper-combos",
         label: "Schedule Combinations",
         description: "Show the in-page combinations bar on Paper.nu. Use the on/off switch on Paper itself to actually start cycling combos."
+      },
+      {
+        id: "prereq-filter",
+        label: "Prereq Filter",
+        description: "Adds eligibility badges to Paper.nu search results and schedule cards, based on your CAESAR course history. Click the in-page chip to filter the search list."
+      },
+      {
+        id: "prereq-filter-unknown-as-eligible",
+        label: "Treat Unknown as Eligible",
+        description: "When the prereq filter can't verify a requirement (e.g. free-form prose, standing, or a placement test), keep the course visible instead of hiding it."
       }
     ]
   },

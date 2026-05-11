@@ -1,5 +1,7 @@
 import { bindActionButton } from "../../content/framework";
 import { CART_CACHE_STORAGE_KEY } from "../../content/cart-cache/types";
+import { COURSE_HISTORY_STORAGE_KEY } from "../../content/course-history/types";
+import { clearParsedPrereqs } from "../../content/prereqs";
 import { CTEC_ACCESS_STORAGE_KEY } from "../../content/ctec-index/access-shared";
 import { CTEC_INDEX_STORAGE_KEY } from "../../content/ctec-index/storage";
 import {
@@ -76,6 +78,22 @@ export function initCacheButtons(): void {
     buttonText: "Clear cart cache",
     cleanup: async () => {
       await chrome.storage.local.remove(CART_CACHE_STORAGE_KEY);
+    }
+  });
+
+  makeClearCacheButton({
+    containerId: "clear-course-history-cache",
+    buttonText: "Clear course history cache",
+    cleanup: async () => {
+      await chrome.storage.local.remove(COURSE_HISTORY_STORAGE_KEY);
+    }
+  });
+
+  makeClearCacheButton({
+    containerId: "clear-prereqs-cache",
+    buttonText: "Clear prereqs cache",
+    cleanup: async () => {
+      await clearParsedPrereqs();
     }
   });
 }

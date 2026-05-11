@@ -25,7 +25,13 @@ const DEFAULT_FEATURE_STATES: Record<string, boolean> = {
   // hidden, combos cycled) is gated by `paper-combos-active`, flipped
   // by the bar's on-page toggle and default OFF.
   "paper-combos": true,
-  "paper-combos-active": false
+  "paper-combos-active": false,
+  // Prereq-filter mounts on paper.nu and paints small ✓/?/etc. badges on
+  // search results and schedule cards. Default ON because the chip itself
+  // defaults to "All" (shows everything, just paints badges) — only when
+  // the user clicks the chip to "Eligible" does anything actually hide.
+  "prereq-filter": true,
+  "prereq-filter-unknown-as-eligible": true
 };
 
 // In-memory settings loaded from extension storage on startup.
