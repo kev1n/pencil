@@ -1,6 +1,8 @@
 import { type LookupClassMessage } from "../../shared/messages";
+import { resolveCareerCandidates } from "../nu-careers";
 import {
   CAESAR_ORIGIN,
+  type CareerCode,
   DEFAULT_CAREER_FIELD,
   DEFAULT_CLASS_FIELD,
   DEFAULT_INSTITUTION_FIELD,
@@ -93,18 +95,31 @@ export function readContextCodes(): {
 export function buildCareerCandidates(
   message: LookupClassMessage,
   contextCareer: string | null
-): Array<"UGRD" | "TGS"> {
+): CareerCode[] {
   const normalizedContext = normalizeCareer(contextCareer);
-  const normalizedHint = normalizeCareer(message.careerHint ?? null);
-  const candidates: Array<"UGRD" | "TGS"> = [];
+  const normalizedHint = normalizeCareer(message.careerHint);
+  const candidates: CareerCode[] = [];
 
-  const push = (value: "UGRD" | "TGS" | null) => {
+  const push = (value: CareerCode | null) => {
     if (!value) return;
     if (!candidates.includes(value)) candidates.push(value);
   };
 
   push(normalizedHint);
   push(normalizedContext);
+
+  // When the caller knows the course identifier, use nu-careers to pull in
+  // the schools that actually catalogue this subject (Law, SPS, Kellogg
+  // grad, etc.). The resolver already terminates with ["UGRD","TGS"] for
+  // unknown subjects, so we get a sensible fallback for free.
+  if (message.subjectHint && message.catalogHint) {
+    for (const career of resolveCareerCandidates(message.subjectHint, message.catalogHint)) {
+      push(career);
+    }
+  }
+
+  // Last-resort fallback when the caller couldn't supply identifier hints
+  // (e.g. seats-notes when the cart row label fails to parse).
   push("UGRD");
   push("TGS");
   return candidates;

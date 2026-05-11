@@ -1,7 +1,17 @@
 export type LookupClassMessage = {
   type: "lookup-class";
   classNumber: string;
-  careerHint?: "UGRD" | "TGS";
+  // Single career to try first when the caller knows the school. Kept as
+  // an open string because the resolver normalizes/widens it (see
+  // `peoplesoft/shared.ts:normalizeCareer`).
+  careerHint?: string;
+  // Course identifier hints. When both are set, the lookup widens its
+  // career candidates beyond UGRD+TGS using nu-careers (Law, SPS,
+  // Kellogg-grad, etc.) so the search hits the right catalog on the first
+  // round-trip. When either is missing, the lookup falls back to the
+  // legacy UGRD-then-TGS order with the `careerHint` first.
+  subjectHint?: string;
+  catalogHint?: string;
   // CAESAR term (STRM) for the lookup. When set, overrides the term that
   // would otherwise be inferred from window.location.href / the entry-form
   // default. Required when the caller is not on a CAESAR page that already

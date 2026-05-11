@@ -346,6 +346,7 @@ export function createAddToCartController(deps: AddToCartDeps): AddToCartControl
             classNumber,
             termId: ctx.termId,
             institution: ctx.institution,
+            subject: ctx.row.course.subject,
             bareCatalog: bareCatalogNumber(ctx.row.course.catalog)
           })
         );

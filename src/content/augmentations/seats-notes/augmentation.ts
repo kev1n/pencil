@@ -19,7 +19,7 @@ import {
   SEATS_HEADER_CLASS,
   STYLE_ID
 } from "./constants";
-import { extractCareerHint, extractClassNumber, isDisabledClassRow } from "./helpers";
+import { extractClassNumber, extractCourseIdentifier, isDisabledClassRow } from "./helpers";
 import { toFailure, toSeatsNotesResult } from "./parser";
 import {
   buildPeopleSoftCreditToast,
@@ -133,12 +133,17 @@ export class SeatsNotesAugmentation implements Augmentation {
       }
 
       const link = row.querySelector<HTMLAnchorElement>(CLASS_LINK_SELECTOR);
-      const careerHint = extractCareerHint(link?.textContent ?? "");
+      const { subject, catalog } = extractCourseIdentifier(link?.textContent ?? "");
 
       let result: SeatsNotesResult;
       try {
         const lookupResponse = await lookupClass(
-          { type: "lookup-class", classNumber: key, careerHint },
+          {
+            type: "lookup-class",
+            classNumber: key,
+            subjectHint: subject,
+            catalogHint: catalog
+          },
           {
             priority: "background",
             owner: "seats-notes",

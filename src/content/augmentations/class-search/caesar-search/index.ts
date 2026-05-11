@@ -17,7 +17,6 @@ export {
 } from "./types";
 
 export {
-  careerOrderFor,
   matchCaesarGroup,
   matchCaesarSection,
   normalizeSectionNumber,

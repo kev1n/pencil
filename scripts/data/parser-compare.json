@@ -1,0 +1,1009 @@
+{
+  "generatedAt": "2026-05-11T08:34:14.742Z",
+  "totals": {
+    "paper": {
+      "fullCoverage": 607,
+      "anyMiss": 16,
+      "codesTruth": 1275,
+      "codesCovered": 1248,
+      "rawFallback": 1,
+      "nullParse": 0,
+      "freeform": 281,
+      "topicLeaf": 167
+    },
+    "catalog": {
+      "fullCoverage": 623,
+      "anyMiss": 0,
+      "codesTruth": 1275,
+      "codesCovered": 1275,
+      "rawFallback": 0,
+      "nullParse": 0,
+      "freeform": 344,
+      "topicLeaf": 344
+    }
+  },
+  "buckets": {
+    "both-full": {
+      "total": 607,
+      "samples": [
+        {
+          "code": "AFST 392-2",
+          "prereqRawText": "Prerequisite: AFST 392-1.",
+          "truth": [
+            "AFST 392-1"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "AFST 392-1"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "AFST 392-1"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "AFST 392-1"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "AFST 392-1"
+          }
+        },
+        {
+          "code": "ANTHRO 368-0",
+          "prereqRawText": "Prerequisite: ANTHRO 211-0 or consent of instructor.",
+          "truth": [
+            "ANTHRO 211-0"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ANTHRO 211-0"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ANTHRO 211-0",
+                "consent:instructor"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ANTHRO 211-0"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ANTHRO 211-0",
+                "consent:instructor"
+              ]
+            }
+          }
+        },
+        {
+          "code": "ARABIC 111-2",
+          "prereqRawText": "Prerequisite: ARABIC 111-1 or equivalent.",
+          "truth": [
+            "ARABIC 111-1"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 111-1"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 111-1[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 111-1"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 111-1[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 111-3",
+          "prereqRawText": "Prerequisite: ARABIC 111-2 or equivalent.",
+          "truth": [
+            "ARABIC 111-2"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 111-2"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 111-2[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 111-2"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 111-2[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 121-1",
+          "prereqRawText": "Prerequisite: ARABIC 111-3 or equivalent.",
+          "truth": [
+            "ARABIC 111-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 111-3"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 111-3[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 111-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 111-3[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 121-2",
+          "prereqRawText": "Prerequisite: ARABIC 121-1 or equivalent.",
+          "truth": [
+            "ARABIC 121-1"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 121-1"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 121-1[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 121-1"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 121-1[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 121-3",
+          "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+          "truth": [
+            "ARABIC 121-2"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 121-2"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 121-2[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 121-2"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 121-2[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 125-0",
+          "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+          "truth": [
+            "ARABIC 121-2"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 121-2"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 121-2[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 121-2"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 121-2[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 211-1",
+          "prereqRawText": "Prerequisite: ARABIC 121-3 or equivalent.",
+          "truth": [
+            "ARABIC 121-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 121-3"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 121-3[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 121-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 121-3[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 211-2",
+          "prereqRawText": "Prerequisite: ARABIC 211-1 or equivalent.",
+          "truth": [
+            "ARABIC 211-1"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 211-1"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 211-1[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 211-1"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 211-1[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 211-3",
+          "prereqRawText": "Prerequisite: ARABIC 211-2 or equivalent.",
+          "truth": [
+            "ARABIC 211-2"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 211-2"
+            ],
+            "missed": [],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": "ARABIC 211-2[≈]"
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 211-2"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": "ARABIC 211-2[≈]"
+          }
+        },
+        {
+          "code": "ARABIC 216-0",
+          "prereqRawText": "Prerequisite: ARABIC 121-3 or permission of the instructor.",
+          "truth": [
+            "ARABIC 121-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ARABIC 121-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ARABIC 121-3",
+                "consent:instructor"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ARABIC 121-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ARABIC 121-3",
+                "consent:instructor"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "paper-full-catalog-miss": {
+      "total": 0,
+      "samples": []
+    },
+    "catalog-full-paper-miss": {
+      "total": 16,
+      "samples": [
+        {
+          "code": "ITALIAN 201-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent.",
+          "truth": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ],
+            "missed": [
+              "ITALIAN 134-3"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3[≈]"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3",
+              "ITALIAN 134-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3",
+                "ITALIAN 134-3[≈]"
+              ]
+            }
+          }
+        },
+        {
+          "code": "ITALIAN 203-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent.",
+          "truth": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ],
+            "missed": [
+              "ITALIAN 134-3"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3[≈]"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3",
+              "ITALIAN 134-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3",
+                "ITALIAN 134-3[≈]"
+              ]
+            }
+          }
+        },
+        {
+          "code": "ITALIAN 205-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent proficiency.",
+          "truth": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ],
+            "missed": [
+              "ITALIAN 134-3"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3[≈]"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3",
+              "ITALIAN 134-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3",
+                "ITALIAN 134-3[≈]"
+              ]
+            }
+          }
+        },
+        {
+          "code": "ITALIAN 207-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent proficiency.",
+          "truth": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ],
+            "missed": [
+              "ITALIAN 134-3"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3[≈]"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3",
+              "ITALIAN 134-3"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ITALIAN 102-3",
+                "ITALIAN 133-3",
+                "ITALIAN 134-3[≈]"
+              ]
+            }
+          }
+        },
+        {
+          "code": "MATH 365-0",
+          "prereqRawText": "Prerequisites: ([MATH 230-2 or MATH 228-2] and MATH 240-0) or MATH 290-3 or MATH 291-3.",
+          "truth": [
+            "MATH 230-2",
+            "MATH 228-2",
+            "MATH 240-0",
+            "MATH 290-3",
+            "MATH 291-3"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "MATH 230-2",
+              "MATH 240-0",
+              "MATH 290-3",
+              "MATH 291-3"
+            ],
+            "missed": [
+              "MATH 228-2"
+            ],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                {
+                  "kind": "all",
+                  "of": [
+                    "MATH 230-2",
+                    "MATH 240-0"
+                  ]
+                },
+                "MATH 290-3",
+                "MATH 291-3"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "MATH 230-2",
+              "MATH 228-2",
+              "MATH 240-0",
+              "MATH 290-3",
+              "MATH 291-3"
+            ],
+            "missed": [],
+            "warnings": [
+              "unclosed-RBRACKET",
+              "unclosed-RPAREN"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                {
+                  "kind": "any",
+                  "of": [
+                    "MATH 230-2",
+                    "MATH 228-2"
+                  ]
+                },
+                "MATH 240-0",
+                {
+                  "kind": "any",
+                  "of": [
+                    "MATH 290-3",
+                    "MATH 291-3"
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "code": "SOC_POL 331-0",
+          "prereqRawText": "Prerequisites: ECON 202-0 (Intro to Microeconomics) or equivalent and a 200-level statistics class (SESP 210-0, STAT 202-0, STAT 210-0 and PSYCH 201-0 are all suitable).",
+          "truth": [
+            "ECON 202-0",
+            "SESP 210-0",
+            "STAT 202-0",
+            "STAT 210-0",
+            "PSYCH 201-0"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0"
+            ],
+            "missed": [
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ECON 202-0",
+                {
+                  "kind": "all",
+                  "of": [
+                    "topic:equivalent",
+                    "SESP 210-0"
+                  ]
+                }
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0",
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "missed": [],
+            "warnings": [
+              "unclosed-RPAREN"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "ECON 202-0[≈]",
+                "lvl-wild:statistics class-200",
+                "SESP 210-0",
+                "STAT 202-0",
+                "STAT 210-0",
+                "PSYCH 201-0"
+              ]
+            }
+          }
+        },
+        {
+          "code": "SOC_POL 332-0",
+          "prereqRawText": "Prerequisites: ECON 202-0 (Intro to Microeconomics) or equivalent and a 200-level statistics class (SESP 210-0, STAT 202-0, STAT 210-0 and PSYCH 201-0 are all suitable).",
+          "truth": [
+            "ECON 202-0",
+            "SESP 210-0",
+            "STAT 202-0",
+            "STAT 210-0",
+            "PSYCH 201-0"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0"
+            ],
+            "missed": [
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ECON 202-0",
+                {
+                  "kind": "all",
+                  "of": [
+                    "topic:equivalent",
+                    "SESP 210-0"
+                  ]
+                }
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0",
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "missed": [],
+            "warnings": [
+              "unclosed-RPAREN"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "ECON 202-0[≈]",
+                "lvl-wild:statistics class-200",
+                "SESP 210-0",
+                "STAT 202-0",
+                "STAT 210-0",
+                "PSYCH 201-0"
+              ]
+            }
+          }
+        },
+        {
+          "code": "SOC_POL 333-0",
+          "prereqRawText": "Prerequisites: ECON 202-0 (Intro to Microeconomics) or equivalent and a 200-level statistics class (SESP 210-0, STAT 202-0, STAT 210-0 and PSYCH 201-0 are all suitable).",
+          "truth": [
+            "ECON 202-0",
+            "SESP 210-0",
+            "STAT 202-0",
+            "STAT 210-0",
+            "PSYCH 201-0"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0"
+            ],
+            "missed": [
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "ECON 202-0",
+                {
+                  "kind": "all",
+                  "of": [
+                    "topic:equivalent",
+                    "SESP 210-0"
+                  ]
+                }
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "ECON 202-0",
+              "SESP 210-0",
+              "STAT 202-0",
+              "STAT 210-0",
+              "PSYCH 201-0"
+            ],
+            "missed": [],
+            "warnings": [
+              "unclosed-RPAREN"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "ECON 202-0[≈]",
+                "lvl-wild:statistics class-200",
+                "SESP 210-0",
+                "STAT 202-0",
+                "STAT 210-0",
+                "PSYCH 201-0"
+              ]
+            }
+          }
+        },
+        {
+          "code": "BUSCOM 670P",
+          "prereqRawText": "Prerequisite: BUSCOM 601S Business Associations or BUSCOM 602L Corporations is a pre-requisite for this course. Candidates who seek their own placement must secure professor permission to enroll.",
+          "truth": [
+            "BUSCOM 601S",
+            "BUSCOM 602L"
+          ],
+          "paper": {
+            "parsedCodes": [],
+            "missed": [
+              "BUSCOM 601S",
+              "BUSCOM 602L"
+            ],
+            "warnings": [
+              "freeform",
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "topic:BUSCOM 601S Business Associations",
+                "topic:BUSCOM 602L Corporations is a pre-requis"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "BUSCOM 601S",
+              "BUSCOM 602L"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "BUSCOM 601S-",
+                "BUSCOM 602L-"
+              ]
+            }
+          }
+        },
+        {
+          "code": "BUSCOM 726",
+          "prereqRawText": "Prerequisite: Bankruptcy BUSCOM 665 or equivalent or permission of instructor is required.",
+          "truth": [
+            "BUSCOM 665"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "BUSCOM 665-0"
+            ],
+            "missed": [
+              "BUSCOM 665"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "BUSCOM 665-0[≈]",
+                "consent:instructor"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "BUSCOM 665"
+            ],
+            "missed": [],
+            "warnings": [
+              "topic:Bankruptcy",
+              "topic:is required."
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "topic:Bankruptcy",
+                {
+                  "kind": "any",
+                  "of": [
+                    "BUSCOM 665-[≈]",
+                    "consent:instructor"
+                  ]
+                },
+                "topic:is required."
+              ]
+            }
+          }
+        },
+        {
+          "code": "CRIM 621",
+          "prereqRawText": "Prerequisite: CRIM 520 Criminal Law AND Pre-requisite OR Co-requisite: LITARB 635 Evidence/LITARB 606 Evidence (ITA).",
+          "truth": [
+            "CRIM 520",
+            "LITARB 635",
+            "LITARB 606"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "CRIM 520-0",
+              "LITARB 635-0"
+            ],
+            "missed": [
+              "CRIM 520",
+              "LITARB 635",
+              "LITARB 606"
+            ],
+            "warnings": [
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                {
+                  "kind": "all",
+                  "of": [
+                    "CRIM 520-0",
+                    "topic:Pre-requisite"
+                  ]
+                },
+                "LITARB 635-0[concur:required]"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "CRIM 520",
+              "LITARB 635",
+              "LITARB 606"
+            ],
+            "missed": [],
+            "warnings": [],
+            "parsed": {
+              "kind": "any",
+              "of": [
+                "CRIM 520-",
+                "LITARB 635-[concur:required]",
+                "LITARB 606-"
+              ]
+            }
+          }
+        },
+        {
+          "code": "LAWSTUDY 719",
+          "prereqRawText": "Prerequisites: LAWSTUDY 540 Communication and Legal Reasoning I & LAWSTUDY 540 Communication and Legal Reasoning II Students will be assessed on the drafting and editing of three graded research and writing assignments and one oral argument, as well as class participation which will include ungraded in-class assignments.",
+          "truth": [
+            "LAWSTUDY 540"
+          ],
+          "paper": {
+            "parsedCodes": [
+              "LAWSTUDY 540-0"
+            ],
+            "missed": [
+              "LAWSTUDY 540"
+            ],
+            "warnings": [
+              "freeform",
+              "freeform",
+              "freeform",
+              "freeform",
+              "freeform"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "LAWSTUDY 540-0",
+                "topic:Legal Reasoning II Students will be asse",
+                "topic:editing of three graded research",
+                "topic:writing assignments",
+                "topic:one oral argument",
+                "topic:as well as class participation which wil"
+              ]
+            }
+          },
+          "catalog": {
+            "parsedCodes": [
+              "LAWSTUDY 540"
+            ],
+            "missed": [],
+            "warnings": [
+              "topic:Communication",
+              "topic:Legal Reasoning I"
+            ],
+            "parsed": {
+              "kind": "all",
+              "of": [
+                "LAWSTUDY 540-",
+                "topic:Communication",
+                "topic:Legal Reasoning I",
+                "LAWSTUDY 540-"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "both-miss": {
+      "total": 0,
+      "samples": []
+    }
+  },
+  "topNewParserWarnings": [
+    [
+      "topic:*",
+      780
+    ],
+    [
+      "unclosed-RPAREN",
+      8
+    ],
+    [
+      "unclosed-RBRACKET",
+      1
+    ]
+  ]
+}

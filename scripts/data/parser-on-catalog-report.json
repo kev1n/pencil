@@ -1,0 +1,479 @@
+{
+  "generatedAt": "2026-05-11T08:13:17.917Z",
+  "totalWithPrereqs": 936,
+  "counts": {
+    "structured": 654,
+    "structured-with-warnings": 281,
+    "raw": 1,
+    "null": 0
+  },
+  "topUnknownLeaves": [],
+  "samples": {
+    "structured": [
+      {
+        "code": "AFST 392-2",
+        "prereqRawText": "Prerequisite: AFST 392-1.",
+        "prereqLinkedCourses": [
+          "AFST 392-1"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "AFST",
+          "number": "392",
+          "section": "1"
+        },
+        "warnings": []
+      },
+      {
+        "code": "ANTHRO 240-0",
+        "prereqRawText": "Prerequisite: None.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "none"
+        },
+        "warnings": []
+      },
+      {
+        "code": "ANTHRO 307-0",
+        "prereqRawText": "Prerequisite: None.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "none"
+        },
+        "warnings": []
+      },
+      {
+        "code": "ANTHRO 368-0",
+        "prereqRawText": "Prerequisite: ANTHRO 211-0 or consent of instructor.",
+        "prereqLinkedCourses": [
+          "ANTHRO 211-0"
+        ],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "ANTHRO",
+              "number": "211",
+              "section": "0"
+            },
+            {
+              "kind": "consent",
+              "source": "instructor"
+            }
+          ]
+        },
+        "warnings": []
+      },
+      {
+        "code": "ARABIC 111-1",
+        "prereqRawText": "Prerequisite: None or placement exam results.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "none"
+            },
+            {
+              "kind": "placement",
+              "exam": "department"
+            }
+          ]
+        },
+        "warnings": []
+      },
+      {
+        "code": "ARABIC 114-0",
+        "prereqRawText": "Prerequisite: 121-2.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "121",
+          "section": "2"
+        },
+        "warnings": []
+      },
+      {
+        "code": "ARABIC 216-0",
+        "prereqRawText": "Prerequisite: ARABIC 121-3 or permission of the instructor.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-3"
+        ],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "ARABIC",
+              "number": "121",
+              "section": "3"
+            },
+            {
+              "kind": "consent",
+              "source": "instructor"
+            }
+          ]
+        },
+        "warnings": []
+      },
+      {
+        "code": "ARABIC 245-0",
+        "prereqRawText": "Prerequisite: ARABIC 121-3 and ARABIC 125-0 or permission of the instructor. May be repeated for credit with different topic.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-3",
+          "ARABIC 125-0"
+        ],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "all",
+              "of": [
+                {
+                  "kind": "course",
+                  "subject": "ARABIC",
+                  "number": "121",
+                  "section": "3"
+                },
+                {
+                  "kind": "course",
+                  "subject": "ARABIC",
+                  "number": "125",
+                  "section": "0"
+                }
+              ]
+            },
+            {
+              "kind": "consent",
+              "source": "instructor"
+            }
+          ]
+        },
+        "warnings": []
+      },
+      {
+        "code": "ARABIC 399-0",
+        "prereqRawText": "Prerequisite: consent of instructor.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "consent",
+          "source": "instructor"
+        },
+        "warnings": []
+      },
+      {
+        "code": "ART 260-0",
+        "prereqRawText": "Prerequisite: junior standing in the major, or junior or senior standing in the minor.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "standing",
+          "level": "junior",
+          "scope": {
+            "type": "program",
+            "names": [
+              "major",
+              "or junior",
+              "senior standing in the minor"
+            ]
+          }
+        },
+        "warnings": []
+      },
+      {
+        "code": "ART 360-0",
+        "prereqRawText": "Prerequisite: ART 260-0 and Junior or Senior standing in major.",
+        "prereqLinkedCourses": [
+          "ART 260-0"
+        ],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "all",
+              "of": [
+                {
+                  "kind": "course",
+                  "subject": "ART",
+                  "number": "260",
+                  "section": "0"
+                },
+                {
+                  "kind": "standing",
+                  "level": "junior"
+                }
+              ]
+            },
+            {
+              "kind": "standing",
+              "level": "senior",
+              "scope": {
+                "type": "major"
+              }
+            }
+          ]
+        },
+        "warnings": []
+      },
+      {
+        "code": "ART_HIST 390-0",
+        "prereqRawText": "Prerequisite: 300-level art history course.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "course",
+          "subject": "ART_HIST",
+          "number": "300",
+          "section": "LEVEL"
+        },
+        "warnings": []
+      }
+    ],
+    "structured-with-warnings": [
+      {
+        "code": "ANTHRO 340-0",
+        "prereqRawText": "Prerequisite: 200-level social science or African studies course or consent of instructor.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "ANTHRO",
+              "number": "200",
+              "section": "LEVEL"
+            },
+            {
+              "kind": "topic",
+              "topic": "African studies course"
+            },
+            {
+              "kind": "consent",
+              "source": "instructor"
+            }
+          ]
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ANTHRO 369-0",
+        "prereqRawText": "Prerequisite: 300-level course in anthropology or sociology.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "ANTHRO",
+              "number": "300",
+              "section": "LEVEL"
+            },
+            {
+              "kind": "topic",
+              "topic": "sociology"
+            }
+          ]
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 111-2",
+        "prereqRawText": "Prerequisite: ARABIC 111-1 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 111-1"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "111",
+          "section": "1",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 111-3",
+        "prereqRawText": "Prerequisite: ARABIC 111-2 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 111-2"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "111",
+          "section": "2",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 121-1",
+        "prereqRawText": "Prerequisite: ARABIC 111-3 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 111-3"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "111",
+          "section": "3",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 121-2",
+        "prereqRawText": "Prerequisite: ARABIC 121-1 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-1"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "121",
+          "section": "1",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 121-3",
+        "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-2"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "121",
+          "section": "2",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 125-0",
+        "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-2"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "121",
+          "section": "2",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 211-1",
+        "prereqRawText": "Prerequisite: ARABIC 121-3 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 121-3"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "121",
+          "section": "3",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 211-2",
+        "prereqRawText": "Prerequisite: ARABIC 211-1 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 211-1"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "211",
+          "section": "1",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 211-3",
+        "prereqRawText": "Prerequisite: ARABIC 211-2 or equivalent.",
+        "prereqLinkedCourses": [
+          "ARABIC 211-2"
+        ],
+        "parsed": {
+          "kind": "course",
+          "subject": "ARABIC",
+          "number": "211",
+          "section": "2",
+          "equivalentOk": true
+        },
+        "warnings": [
+          "freeform"
+        ]
+      },
+      {
+        "code": "ARABIC 304-0",
+        "prereqRawText": "Prerequisite: Strong performance in two or average performance in three 200-level Arabic courses, or instructor permission.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "any",
+          "of": [
+            {
+              "kind": "topic",
+              "topic": "Strong performance in two"
+            },
+            {
+              "kind": "course",
+              "subject": "THREE",
+              "number": "200",
+              "section": "LEVEL"
+            },
+            {
+              "kind": "consent",
+              "source": "instructor"
+            }
+          ]
+        },
+        "warnings": [
+          "freeform"
+        ]
+      }
+    ],
+    "raw": [
+      {
+        "code": "JOUR 390-0",
+        "prereqRawText": "Prerequisites: Vary depending on the course.",
+        "prereqLinkedCourses": [],
+        "parsed": {
+          "kind": "raw",
+          "text": "Vary depending on the course",
+          "reason": "vary-by-topic"
+        },
+        "warnings": []
+      }
+    ],
+    "null": []
+  }
+}

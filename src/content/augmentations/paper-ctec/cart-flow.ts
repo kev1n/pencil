@@ -127,6 +127,7 @@ async function addChipSectionToCartCore(
     classNumber: caesarSection.classNumber,
     termId,
     institution: INSTITUTION_DEFAULT,
+    subject: params.subject,
     bareCatalog: bareCatalogNumber(params.catalogNumber)
   });
 

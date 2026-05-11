@@ -257,13 +257,3 @@ export function locateByClassNumber(
   return null;
 }
 
-// 400-level NU classes are catalogued under TGS even when undergrads can
-// take them (see project memory). For everything else, undergrad-first
-// matches the typical case. Two-element list so a wrong first guess always
-// has a fallback.
-export function careerOrderFor(bareCatalog: string): string[] {
-  const num = parseInt(bareCatalog, 10);
-  const gradFirst = Number.isFinite(num) && num >= 400;
-  return gradFirst ? ["TGS", "UGRD"] : ["UGRD", "TGS"];
-}
-

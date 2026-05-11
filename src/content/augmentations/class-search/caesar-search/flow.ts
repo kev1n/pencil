@@ -13,8 +13,8 @@ import {
   looksLikeError,
   serializeFormFromDoc
 } from "./forms";
+import { resolveCareerCandidates } from "../../../nu-careers";
 import {
-  careerOrderFor,
   locateByClassNumber,
   parseAjaxFragment,
   parseCaesarGroups,
@@ -96,7 +96,7 @@ function fail(error: string, extras: FailExtras = {}): CartFlowResult {
 async function searchCaesarCatalogInternal(
   input: CaesarSearchInput
 ): Promise<CaesarSearchResult> {
-  const careers = careerOrderFor(input.bareCatalog);
+  const careers = resolveCareerCandidates(input.subject, input.bareCatalog);
   let lastError: string | null = null;
   let lastGroups: CaesarCourseGroup[] = [];
 
@@ -155,10 +155,12 @@ async function addSectionToCartInternal(input: CartFlowInput): Promise<CartFlowR
       return { ok: false, error: "Missing CAESAR class number — load CAESAR data first." };
     }
 
-    // Step 1: POST class-number search → search results page. Loop the
-    // career candidates so 4xx classes (catalogued under TGS) resolve
-    // even when the user's class-search dropdown is set to UGRD.
-    const careers = careerOrderFor(input.bareCatalog);
+    // Step 1: POST class-number search → search results page. Walk the
+    // career candidates produced by `nu-careers.resolveCareerCandidates`
+    // so classes catalogued under Law, SPS, Kellogg-grad, etc. resolve
+    // — and so 4xx classes (catalogued under TGS) resolve even when the
+    // user's class-search dropdown is set to UGRD.
+    const careers = resolveCareerCandidates(input.subject, input.bareCatalog);
     let searchHtml: string | null = null;
     let groups: CaesarCourseGroup[] = [];
     let match: { group: CaesarCourseGroup; section: CaesarSection } | null = null;

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   buildClassNumberSearchParams,
   buildSearchPostParams,
-  careerOrderFor,
   isCartLandingPage,
   looksLikeError,
   matchCaesarGroup,
@@ -222,23 +221,6 @@ describe("normalizeSectionNumber", () => {
 
   it("returns the value unchanged for empty input", () => {
     expect(normalizeSectionNumber("")).toBe("");
-  });
-});
-
-describe("careerOrderFor", () => {
-  it("UGRD-first for sub-400 catalogs", () => {
-    expect(careerOrderFor("111")).toEqual(["UGRD", "TGS"]);
-    expect(careerOrderFor("330")).toEqual(["UGRD", "TGS"]);
-  });
-
-  it("TGS-first for 400-level catalogs", () => {
-    expect(careerOrderFor("400")).toEqual(["TGS", "UGRD"]);
-    expect(careerOrderFor("450")).toEqual(["TGS", "UGRD"]);
-  });
-
-  it("UGRD-first when input is non-numeric", () => {
-    expect(careerOrderFor("abc")).toEqual(["UGRD", "TGS"]);
-    expect(careerOrderFor("")).toEqual(["UGRD", "TGS"]);
   });
 });
 

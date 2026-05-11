@@ -7,7 +7,32 @@
 // catalog for it, and in practice it mirrors host departments. Users who
 // need it can pick it explicitly from the popup dropdown.
 
-export const SCHOOL_SUBJECTS: Record<string, readonly string[]> = {
+// Single source of truth for every CAESAR `ACAD_CAREER` code we recognize.
+// `CareerCode` is derived from this tuple so adding a school here flows the
+// type widening everywhere automatically. Codes without a subject list in
+// `SCHOOL_SUBJECTS` (e.g. KGSM) still need to be here so they participate
+// in the unknown-subject fan-out — that's how Kellogg's `BLAW` resolves.
+export const CAREER_CODES = [
+  "UGRD",
+  "TGS",
+  "KGSM",
+  "CNED",
+  "QUGR",
+  "CGRD",
+  "CNCR",
+  "NDGR",
+  "MUSG",
+  "ENGG",
+  "LAW",
+  "JRNG",
+  "EDG",
+  "UC",
+  "SPCG"
+] as const;
+
+export type CareerCode = (typeof CAREER_CODES)[number];
+
+export const SCHOOL_SUBJECTS: Record<CareerCode, readonly string[]> = {
   // Undergraduate (the big one)
   UGRD: [
     "AAL", "AFST", "AF_AM_ST", "ALT_CERT", "AMER_ST", "AMES", "ANIM_ART",
@@ -145,13 +170,19 @@ export const SCHOOL_SUBJECTS: Record<string, readonly string[]> = {
   SPCG: [
     "COMM_ST", "CSD", "DANCE", "EPICS", "HLTH_COM", "MSC", "MSLCE", "RTVF",
     "SAI"
-  ]
+  ],
+
+  // Kellogg School of Management. We don't have Kellogg's CTEC subject
+  // dropdown, but the CAESAR career code is needed so unknown-subject
+  // lookups (e.g. BLAW 435) fan out to it.
+  KGSM: []
 };
 
 // Short labels for progress messages ("Trying education grad…").
-export const SCHOOL_LABELS: Record<string, string> = {
+export const SCHOOL_LABELS: Record<CareerCode | "CSRM", string> = {
   UGRD: "undergraduate",
   TGS: "graduate school",
+  KGSM: "Kellogg",
   CNED: "SPS undergraduate",
   QUGR: "Qatar undergraduate",
   CGRD: "professional studies grad",
@@ -167,33 +198,30 @@ export const SCHOOL_LABELS: Record<string, string> = {
   CSRM: "consortium"
 };
 
-// Fallback when a subject isn't in our snapshot (e.g. a brand-new subject
-// NU added after this file was last refreshed). Preserves the historical
-// UGRD-then-TGS behavior so unknown subjects still resolve.
-const DEFAULT_FALLBACK: readonly string[] = ["UGRD", "TGS"];
-
-// Career priority orderings. The two arrays must include every key in
-// SCHOOL_SUBJECTS — defensive code below appends any missing ones.
-const PRIORITY_UNDERGRAD_FIRST: readonly string[] = [
+// Career priority orderings. The two arrays must include every code in
+// CAREER_CODES — defensive code below appends any missing ones. These also
+// serve as the fan-out list for unknown subjects, so codes without a
+// subject mapping (KGSM) still need a slot.
+const PRIORITY_UNDERGRAD_FIRST: readonly CareerCode[] = [
   "UGRD", "CNED", "QUGR",
-  "ENGG", "EDG", "JRNG", "LAW", "MUSG", "SPCG",
+  "ENGG", "EDG", "JRNG", "LAW", "MUSG", "SPCG", "KGSM",
   "TGS", "CGRD",
   "UC", "NDGR", "CNCR"
 ];
 
-const PRIORITY_GRAD_FIRST: readonly string[] = [
-  "TGS", "ENGG", "EDG", "JRNG", "LAW", "MUSG", "SPCG", "CGRD",
+const PRIORITY_GRAD_FIRST: readonly CareerCode[] = [
+  "TGS", "KGSM", "ENGG", "EDG", "JRNG", "LAW", "MUSG", "SPCG", "CGRD",
   "UGRD", "CNED", "QUGR",
   "UC", "NDGR", "CNCR"
 ];
 
-let invertedCache: Map<string, Set<string>> | null = null;
+let invertedCache: Map<string, Set<CareerCode>> | null = null;
 
-function inverted(): Map<string, Set<string>> {
+function inverted(): Map<string, Set<CareerCode>> {
   if (invertedCache) return invertedCache;
-  const m = new Map<string, Set<string>>();
-  for (const [career, subjects] of Object.entries(SCHOOL_SUBJECTS)) {
-    for (const s of subjects) {
+  const m = new Map<string, Set<CareerCode>>();
+  for (const career of CAREER_CODES) {
+    for (const s of SCHOOL_SUBJECTS[career]) {
       let set = m.get(s);
       if (!set) {
         set = new Set();
@@ -210,22 +238,21 @@ function inverted(): Map<string, Set<string>> {
 // for the given catalog number. 100-399 leans undergrad-first; 400+ leans
 // grad-first (NU 400-level CTECs are typically catalogued under TGS even
 // when the course is open to undergrads — see project memory). Unknown
-// subjects fall back to ["UGRD", "TGS"], matching the pre-fanout behavior.
+// subjects fan out across every known career in priority order so classes
+// catalogued under careers we lack subject data for (e.g. Kellogg's BLAW)
+// still resolve.
 export function resolveCareerCandidates(
   subject: string,
   catalogNumber: string
-): string[] {
+): CareerCode[] {
   const num = parseInt(catalogNumber, 10);
   const gradFirst = Number.isFinite(num) && num >= 400;
-
-  const owners = inverted().get(subject);
-  if (!owners || owners.size === 0) {
-    return gradFirst ? ["TGS", "UGRD"] : [...DEFAULT_FALLBACK];
-  }
-
   const priority = gradFirst ? PRIORITY_GRAD_FIRST : PRIORITY_UNDERGRAD_FIRST;
 
-  const ordered: string[] = [];
+  const owners = inverted().get(subject);
+  if (!owners || owners.size === 0) return [...priority];
+
+  const ordered: CareerCode[] = [];
   for (const c of priority) {
     if (owners.has(c)) ordered.push(c);
   }

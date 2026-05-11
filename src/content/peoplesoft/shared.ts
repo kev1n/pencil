@@ -9,8 +9,14 @@ import { decodeEntities as decodeEntitiesPure } from "../../shared/decode-entiti
 
 export { CAESAR_ORIGIN } from "../../shared/nu-hosts";
 import { CAESAR_ORIGIN } from "../../shared/nu-hosts";
+import { CAREER_CODES, type CareerCode } from "../nu-careers";
 
-export type CareerCode = "UGRD" | "TGS";
+// `CareerCode` and the underlying code list are owned by `nu-careers.ts` —
+// peoplesoft re-exports the type so call sites that only import from this
+// module don't need to know that. `normalizeCareer` accepts any known code;
+// unknown values fall back to null so calls don't end up passing
+// `ACAD_CAREER=GARBAGE` to PeopleSoft.
+export type { CareerCode };
 
 export type SearchContext = {
   actionUrl: string;
@@ -39,9 +45,8 @@ export function sanitizeClassNumber(value: string): string {
   return digits.slice(0, 10);
 }
 
-export function normalizeCareer(value: string | null): CareerCode | null {
+export function normalizeCareer(value: string | null | undefined): CareerCode | null {
   if (!value) return null;
   const upper = value.toUpperCase();
-  if (upper === "UGRD" || upper === "TGS") return upper;
-  return null;
+  return (CAREER_CODES as readonly string[]).includes(upper) ? (upper as CareerCode) : null;
 }

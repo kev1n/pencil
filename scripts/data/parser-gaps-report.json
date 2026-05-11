@@ -1,0 +1,1782 @@
+{
+  "generatedAt": "2026-05-11T08:15:20.708Z",
+  "totalWithPrereqs": 936,
+  "totalLinkedCodes": 1272,
+  "totalCoveredInParse": 1244,
+  "buckets": {
+    "full-coverage-no-warn": {
+      "total": 420,
+      "samples": [
+        {
+          "code": "AFST 392-2",
+          "prereqRawText": "Prerequisite: AFST 392-1.",
+          "linked": [
+            "AFST 392-1"
+          ],
+          "parsedCodes": [
+            "AFST 392-1"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "AFST 392-1"
+        },
+        {
+          "code": "ANTHRO 368-0",
+          "prereqRawText": "Prerequisite: ANTHRO 211-0 or consent of instructor.",
+          "linked": [
+            "ANTHRO 211-0"
+          ],
+          "parsedCodes": [
+            "ANTHRO 211-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ANTHRO 211-0",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ARABIC 216-0",
+          "prereqRawText": "Prerequisite: ARABIC 121-3 or permission of the instructor.",
+          "linked": [
+            "ARABIC 121-3"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ARABIC 121-3",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ARABIC 245-0",
+          "prereqRawText": "Prerequisite: ARABIC 121-3 and ARABIC 125-0 or permission of the instructor. May be repeated for credit with different topic.",
+          "linked": [
+            "ARABIC 121-3",
+            "ARABIC 125-0"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-3",
+            "ARABIC 125-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "all",
+                "of": [
+                  "ARABIC 121-3",
+                  "ARABIC 125-0"
+                ]
+              },
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ART 360-0",
+          "prereqRawText": "Prerequisite: ART 260-0 and Junior or Senior standing in major.",
+          "linked": [
+            "ART 260-0"
+          ],
+          "parsedCodes": [
+            "ART 260-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "all",
+                "of": [
+                  "ART 260-0",
+                  "standing:junior"
+                ]
+              },
+              "standing:senior"
+            ]
+          }
+        },
+        {
+          "code": "ASIAN_LC 392-0",
+          "prereqRawText": "Prerequisite: ASIAN_LC 202-0 or ASIAN_LC 204-0 or ASIAN_LC 205-0 or ASIAN_LC 224-0 or ASIAN_LC 265-0 (C- or better); or consent of instructor.",
+          "linked": [
+            "ASIAN_LC 202-0",
+            "ASIAN_LC 204-0",
+            "ASIAN_LC 205-0",
+            "ASIAN_LC 224-0",
+            "ASIAN_LC 265-0"
+          ],
+          "parsedCodes": [
+            "ASIAN_LC 202-0",
+            "ASIAN_LC 204-0",
+            "ASIAN_LC 205-0",
+            "ASIAN_LC 224-0",
+            "ASIAN_LC 265-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ASIAN_LC 202-0",
+              "ASIAN_LC 204-0",
+              "ASIAN_LC 205-0",
+              "ASIAN_LC 224-0",
+              "ASIAN_LC 265-0",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ASTRON 321-0",
+          "prereqRawText": "Prerequisite: ASTRON 220-1 or ASTRON 220-2.",
+          "linked": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "parsedCodes": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ASTRON 220-1",
+              "ASTRON 220-2"
+            ]
+          }
+        },
+        {
+          "code": "ASTRON 325-0",
+          "prereqRawText": "Prerequisite: ASTRON 220-1 or ASTRON 220-2.",
+          "linked": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "parsedCodes": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ASTRON 220-1",
+              "ASTRON 220-2"
+            ]
+          }
+        },
+        {
+          "code": "ASTRON 329-0",
+          "prereqRawText": "Prerequisite: ASTRON 220-1 or ASTRON 220-2.",
+          "linked": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "parsedCodes": [
+            "ASTRON 220-1",
+            "ASTRON 220-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ASTRON 220-1",
+              "ASTRON 220-2"
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 233-0",
+          "prereqRawText": "Prerequisite: Students must have completed BIOL_SCI 232-0. Must be taken concurrently with BIOL_SCI 203-0 or BIOL_SCI 241-0.",
+          "linked": [
+            "BIOL_SCI 232-0",
+            "BIOL_SCI 203-0",
+            "BIOL_SCI 241-0"
+          ],
+          "parsedCodes": [
+            "BIOL_SCI 232-0",
+            "BIOL_SCI 203-0",
+            "BIOL_SCI 241-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "BIOL_SCI 232-0",
+              {
+                "kind": "any",
+                "of": [
+                  "BIOL_SCI 203-0",
+                  "BIOL_SCI 241-0"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 234-0",
+          "prereqRawText": "Prerequisite: Students must have completed BIOL_SCI 233-0.",
+          "linked": [
+            "BIOL_SCI 233-0"
+          ],
+          "parsedCodes": [
+            "BIOL_SCI 233-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "BIOL_SCI 233-0"
+        },
+        {
+          "code": "BIOL_SCI 239-0",
+          "prereqRawText": "Prerequisites: CHEM 151-0 or CHEM 171-0. Enrollment by successful score on the annual BioSci placement exam or permission of instructor.",
+          "linked": [
+            "CHEM 151-0",
+            "CHEM 171-0"
+          ],
+          "parsedCodes": [
+            "CHEM 151-0",
+            "CHEM 171-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "CHEM 151-0",
+              "CHEM 171-0",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 301-0",
+          "prereqRawText": "Prerequisites: Students must have completed BIOL_SCI 201-0 or BIOL_SCI 239-0, and CHEM 210-1 or CHEM 212-1 or CHEM 215-1 or CHEM 217-1 to register for this course.",
+          "linked": [
+            "BIOL_SCI 201-0",
+            "BIOL_SCI 239-0",
+            "CHEM 215-1",
+            "CHEM 217-1"
+          ],
+          "parsedCodes": [
+            "BIOL_SCI 201-0",
+            "BIOL_SCI 239-0",
+            "CHEM 210-1",
+            "CHEM 212-1",
+            "CHEM 215-1",
+            "CHEM 217-1"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "CHEM 210-1",
+            "CHEM 212-1"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "BIOL_SCI 201-0",
+              {
+                "kind": "all",
+                "of": [
+                  "BIOL_SCI 239-0",
+                  "CHEM 210-1"
+                ]
+              },
+              "CHEM 212-1",
+              "CHEM 215-1",
+              "CHEM 217-1"
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 303-0",
+          "prereqRawText": "Prerequisite: Students must have completed BIOL_SCI 301-0 to register for this course.",
+          "linked": [
+            "BIOL_SCI 301-0"
+          ],
+          "parsedCodes": [
+            "BIOL_SCI 301-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "BIOL_SCI 301-0"
+        },
+        {
+          "code": "BIOL_SCI 307-0",
+          "prereqRawText": "Prerequisite: Students must have completed BIOL SCI 202-0 or BIOL_SCI 240-0, 203-0 or BIOL_SCI 241-0, and BIOL_SCI 301-0; or NEUROSCI 206-0 in order to register for this course.",
+          "linked": [
+            "BIOL_SCI 240-0",
+            "BIOL_SCI 241-0",
+            "BIOL_SCI 301-0",
+            "NEUROSCI 206-0"
+          ],
+          "parsedCodes": [
+            "SCI 202-0",
+            "BIOL_SCI 240-0",
+            "BIOL_SCI 203-0",
+            "BIOL_SCI 241-0",
+            "BIOL_SCI 301-0",
+            "NEUROSCI 206-0"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "SCI 202-0",
+            "BIOL_SCI 203-0"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "SCI 202-0",
+              {
+                "kind": "all",
+                "of": [
+                  "BIOL_SCI 240-0",
+                  "BIOL_SCI 203-0"
+                ]
+              },
+              {
+                "kind": "all",
+                "of": [
+                  "BIOL_SCI 241-0",
+                  "BIOL_SCI 301-0"
+                ]
+              },
+              "NEUROSCI 206-0"
+            ]
+          }
+        }
+      ]
+    },
+    "full-coverage-with-warn": {
+      "total": 184,
+      "samples": [
+        {
+          "code": "ARABIC 111-2",
+          "prereqRawText": "Prerequisite: ARABIC 111-1 or equivalent.",
+          "linked": [
+            "ARABIC 111-1"
+          ],
+          "parsedCodes": [
+            "ARABIC 111-1"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 111-1"
+        },
+        {
+          "code": "ARABIC 111-3",
+          "prereqRawText": "Prerequisite: ARABIC 111-2 or equivalent.",
+          "linked": [
+            "ARABIC 111-2"
+          ],
+          "parsedCodes": [
+            "ARABIC 111-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 111-2"
+        },
+        {
+          "code": "ARABIC 121-1",
+          "prereqRawText": "Prerequisite: ARABIC 111-3 or equivalent.",
+          "linked": [
+            "ARABIC 111-3"
+          ],
+          "parsedCodes": [
+            "ARABIC 111-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 111-3"
+        },
+        {
+          "code": "ARABIC 121-2",
+          "prereqRawText": "Prerequisite: ARABIC 121-1 or equivalent.",
+          "linked": [
+            "ARABIC 121-1"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-1"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 121-1"
+        },
+        {
+          "code": "ARABIC 121-3",
+          "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+          "linked": [
+            "ARABIC 121-2"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 121-2"
+        },
+        {
+          "code": "ARABIC 125-0",
+          "prereqRawText": "Prerequisite: ARABIC 121-2 or equivalent.",
+          "linked": [
+            "ARABIC 121-2"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 121-2"
+        },
+        {
+          "code": "ARABIC 211-1",
+          "prereqRawText": "Prerequisite: ARABIC 121-3 or equivalent.",
+          "linked": [
+            "ARABIC 121-3"
+          ],
+          "parsedCodes": [
+            "ARABIC 121-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 121-3"
+        },
+        {
+          "code": "ARABIC 211-2",
+          "prereqRawText": "Prerequisite: ARABIC 211-1 or equivalent.",
+          "linked": [
+            "ARABIC 211-1"
+          ],
+          "parsedCodes": [
+            "ARABIC 211-1"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 211-1"
+        },
+        {
+          "code": "ARABIC 211-3",
+          "prereqRawText": "Prerequisite: ARABIC 211-2 or equivalent.",
+          "linked": [
+            "ARABIC 211-2"
+          ],
+          "parsedCodes": [
+            "ARABIC 211-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 211-2"
+        },
+        {
+          "code": "ARABIC 316-2",
+          "prereqRawText": "Prerequisite: ARABIC 211-3 or equivalent.",
+          "linked": [
+            "ARABIC 211-3"
+          ],
+          "parsedCodes": [
+            "ARABIC 211-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 211-3"
+        },
+        {
+          "code": "ARABIC 316-3",
+          "prereqRawText": "Prerequisite: ARABIC 211-3 or equivalent.",
+          "linked": [
+            "ARABIC 211-3"
+          ],
+          "parsedCodes": [
+            "ARABIC 211-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 211-3"
+        },
+        {
+          "code": "ASTRON 305-0",
+          "prereqRawText": "Prerequisites: PHYSICS 135-1, PHYSICS 135-2, PHYSICS 135-3 (or equivalent) or PHYSICS 332-0; MATH 220-2 or equivalent.",
+          "linked": [
+            "PHYSICS 135-1",
+            "PHYSICS 135-2",
+            "PHYSICS 135-3",
+            "PHYSICS 332-0",
+            "MATH 220-2"
+          ],
+          "parsedCodes": [
+            "PHYSICS 135-1",
+            "PHYSICS 135-2",
+            "PHYSICS 135-3",
+            "PHYSICS 332-0",
+            "MATH 220-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "all",
+                    "of": [
+                      "PHYSICS 135-1",
+                      "PHYSICS 135-2",
+                      "PHYSICS 135-3"
+                    ]
+                  },
+                  "PHYSICS 332-0"
+                ]
+              },
+              "MATH 220-2"
+            ]
+          }
+        },
+        {
+          "code": "ASTRON 314-0",
+          "prereqRawText": "Prerequisites: PHYSICS 330-1 and PHYSICS 330-2, or equivalent.",
+          "linked": [
+            "PHYSICS 330-1",
+            "PHYSICS 330-2"
+          ],
+          "parsedCodes": [
+            "PHYSICS 330-1",
+            "PHYSICS 330-2"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "PHYSICS 330-1",
+              "PHYSICS 330-2"
+            ]
+          }
+        },
+        {
+          "code": "ASTRON 331-0",
+          "prereqRawText": "Prerequisites: PHYSICS 135-1, PHYSICS 135-2, & PHYSICS 135-3, or equivalent.",
+          "linked": [
+            "PHYSICS 135-1",
+            "PHYSICS 135-2",
+            "PHYSICS 135-3"
+          ],
+          "parsedCodes": [
+            "PHYSICS 135-1",
+            "PHYSICS 135-2",
+            "PHYSICS 135-3"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "PHYSICS 135-1",
+              "PHYSICS 135-2",
+              "PHYSICS 135-3"
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 202-0",
+          "prereqRawText": "Prerequisite: Students must have completed, with a C- or better, BIOL_SCI 201-0 to register for this course. Must be taken concurrently with BIOL_SCI 232-0.",
+          "linked": [
+            "BIOL_SCI 201-0",
+            "BIOL_SCI 232-0"
+          ],
+          "parsedCodes": [
+            "BIOL_SCI 201-0",
+            "BIOL_SCI 232-0"
+          ],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform",
+            "freeform",
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "all",
+                    "of": [
+                      "topic:Students must have completed",
+                      "topic:with a C-"
+                    ]
+                  },
+                  {
+                    "kind": "all",
+                    "of": [
+                      "topic:better",
+                      "BIOL_SCI 201-0"
+                    ]
+                  }
+                ]
+              },
+              "BIOL_SCI 232-0"
+            ]
+          }
+        }
+      ]
+    },
+    "missing-some": {
+      "total": 19,
+      "samples": [
+        {
+          "code": "CHEM 217-1",
+          "prereqRawText": "Prerequisites: CHEM 132-0 and CHEM 142-0, or CHEM 152-0 and CHEM 162-0, or CHEM 172-0 and CHEM 182-0 (C- or better), or department placement. Must be taken concurrently with CHEM 237-1. Students may not receive credit for both CHEM 217-1 and 212-1.",
+          "linked": [
+            "CHEM 132-0",
+            "CHEM 142-0",
+            "CHEM 152-0",
+            "CHEM 162-0",
+            "CHEM 172-0",
+            "CHEM 182-0",
+            "CHEM 237-1",
+            "CHEM 217-1"
+          ],
+          "parsedCodes": [
+            "CHEM 132-0",
+            "CHEM 142-0",
+            "CHEM 152-0",
+            "CHEM 162-0",
+            "CHEM 172-0",
+            "CHEM 182-0",
+            "CHEM 237-1"
+          ],
+          "missed": [
+            "CHEM 217-1"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 132-0",
+                      "CHEM 142-0"
+                    ]
+                  },
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 152-0",
+                      "CHEM 162-0"
+                    ]
+                  },
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 172-0",
+                      "CHEM 182-0"
+                    ]
+                  },
+                  "placement:department"
+                ]
+              },
+              "CHEM 237-1"
+            ]
+          }
+        },
+        {
+          "code": "CHEM 217-2",
+          "prereqRawText": "Prerequisites: CHEM 217-1 and CHEM 237-1 (C- or better). Must be taken concurrently with CHEM 237-2. Students may not receive credit for both CHEM 217-2 and 212-2.",
+          "linked": [
+            "CHEM 217-1",
+            "CHEM 237-1",
+            "CHEM 237-2",
+            "CHEM 217-2"
+          ],
+          "parsedCodes": [
+            "CHEM 217-1",
+            "CHEM 237-1",
+            "CHEM 237-2"
+          ],
+          "missed": [
+            "CHEM 217-2"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "CHEM 217-1",
+              "CHEM 237-1",
+              "CHEM 237-2"
+            ]
+          }
+        },
+        {
+          "code": "CHEM 217-3",
+          "prereqRawText": "Prerequisites: CHEM 217-2 and CHEM 237-2 (C- or better). Must be taken concurrently with CHEM 235-3. Students may not receive credit for both CHEM 217-3 and 212-3.",
+          "linked": [
+            "CHEM 217-2",
+            "CHEM 237-2",
+            "CHEM 235-3",
+            "CHEM 217-3"
+          ],
+          "parsedCodes": [
+            "CHEM 217-2",
+            "CHEM 237-2",
+            "CHEM 235-3"
+          ],
+          "missed": [
+            "CHEM 217-3"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "CHEM 217-2",
+              "CHEM 237-2",
+              "CHEM 235-3"
+            ]
+          }
+        },
+        {
+          "code": "CHEM 237-1",
+          "prereqRawText": "Prerequisites: CHEM 132-0 and CHEM 142-0, or CHEM 152-0 and CHEM 162-0, or CHEM 172-0 and CHEM 182-0 (C- or better), or equivalent. Must be taken concurrently with CHEM 217-1. Students may not receive credit for both CHEM 237-1 and 232-1.",
+          "linked": [
+            "CHEM 132-0",
+            "CHEM 142-0",
+            "CHEM 152-0",
+            "CHEM 162-0",
+            "CHEM 172-0",
+            "CHEM 182-0",
+            "CHEM 217-1",
+            "CHEM 237-1"
+          ],
+          "parsedCodes": [
+            "CHEM 132-0",
+            "CHEM 142-0",
+            "CHEM 152-0",
+            "CHEM 162-0",
+            "CHEM 172-0",
+            "CHEM 182-0",
+            "CHEM 217-1"
+          ],
+          "missed": [
+            "CHEM 237-1"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 132-0",
+                      "CHEM 142-0"
+                    ]
+                  },
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 152-0",
+                      "CHEM 162-0"
+                    ]
+                  },
+                  {
+                    "kind": "all",
+                    "of": [
+                      "CHEM 172-0",
+                      "CHEM 182-0"
+                    ]
+                  },
+                  "topic:equivalent. . Students"
+                ]
+              },
+              "CHEM 217-1"
+            ]
+          }
+        },
+        {
+          "code": "CHEM 237-2",
+          "prereqRawText": "Prerequisites: CHEM 217-1 and CHEM 237-1 (C- or better). Must be taken concurrently with CHEM 217-2. Students may not receive credit for both CHEM 237-2 and 232-2.",
+          "linked": [
+            "CHEM 217-1",
+            "CHEM 237-1",
+            "CHEM 217-2",
+            "CHEM 237-2"
+          ],
+          "parsedCodes": [
+            "CHEM 217-1",
+            "CHEM 237-1",
+            "CHEM 217-2"
+          ],
+          "missed": [
+            "CHEM 237-2"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "CHEM 217-1",
+              "CHEM 237-1",
+              "CHEM 217-2"
+            ]
+          }
+        },
+        {
+          "code": "FRENCH 272-0",
+          "prereqRawText": "Prerequisite: FRENCH 210-0 or FRENCH 211-0, or consent of instructor. Credit not allowed for both FRENCH 272-0 and FRENCH 279-0.",
+          "linked": [
+            "FRENCH 210-0",
+            "FRENCH 211-0",
+            "FRENCH 272-0",
+            "FRENCH 279-0"
+          ],
+          "parsedCodes": [
+            "FRENCH 210-0",
+            "FRENCH 211-0"
+          ],
+          "missed": [
+            "FRENCH 272-0",
+            "FRENCH 279-0"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "FRENCH 210-0",
+              "FRENCH 211-0",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ITALIAN 201-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent.",
+          "linked": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "parsedCodes": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3"
+          ],
+          "missed": [
+            "ITALIAN 134-3"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ]
+          }
+        },
+        {
+          "code": "ITALIAN 203-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent.",
+          "linked": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "parsedCodes": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3"
+          ],
+          "missed": [
+            "ITALIAN 134-3"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ]
+          }
+        },
+        {
+          "code": "ITALIAN 205-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent proficiency.",
+          "linked": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "parsedCodes": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3"
+          ],
+          "missed": [
+            "ITALIAN 134-3"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ]
+          }
+        },
+        {
+          "code": "ITALIAN 207-0",
+          "prereqRawText": "Prerequisite: ITALIAN 102-3 or ITALIAN 133-3 / ITALIAN 134-3 or equivalent proficiency.",
+          "linked": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3",
+            "ITALIAN 134-3"
+          ],
+          "parsedCodes": [
+            "ITALIAN 102-3",
+            "ITALIAN 133-3"
+          ],
+          "missed": [
+            "ITALIAN 134-3"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ITALIAN 102-3",
+              "ITALIAN 133-3"
+            ]
+          }
+        },
+        {
+          "code": "MATH 365-0",
+          "prereqRawText": "Prerequisites: ([MATH 230-2 or MATH 228-2] and MATH 240-0) or MATH 290-3 or MATH 291-3.",
+          "linked": [
+            "MATH 230-2",
+            "MATH 228-2",
+            "MATH 240-0",
+            "MATH 290-3",
+            "MATH 291-3"
+          ],
+          "parsedCodes": [
+            "MATH 230-2",
+            "MATH 240-0",
+            "MATH 290-3",
+            "MATH 291-3"
+          ],
+          "missed": [
+            "MATH 228-2"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              {
+                "kind": "all",
+                "of": [
+                  "MATH 230-2",
+                  "MATH 240-0"
+                ]
+              },
+              "MATH 290-3",
+              "MATH 291-3"
+            ]
+          }
+        },
+        {
+          "code": "PORT 115-2",
+          "prereqRawText": "Prerequisite: PORT 115-1.This course is equivalent to PORT 121-3.",
+          "linked": [
+            "PORT 115-1",
+            "PORT 121-3"
+          ],
+          "parsedCodes": [
+            "PORT 115-1"
+          ],
+          "missed": [
+            "PORT 121-3"
+          ],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "PORT 115-1"
+        },
+        {
+          "code": "PSYCH 397-1",
+          "prereqRawText": "Prerequisites: PSYCH 301-0 and consent of instructor; PSYCH 397-2 must be taken with the same professor as PSYCH 397-1. Weinberg College limits on 398 and 399 enrollments also apply to 397.",
+          "linked": [
+            "PSYCH 301-0",
+            "PSYCH 397-2",
+            "PSYCH 397-1"
+          ],
+          "parsedCodes": [
+            "PSYCH 301-0",
+            "PSYCH 397-2",
+            "TO 397-0"
+          ],
+          "missed": [
+            "PSYCH 397-1"
+          ],
+          "extraInParse": [
+            "TO 397-0"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "PSYCH 301-0",
+              "consent:instructor",
+              "PSYCH 397-2",
+              "TO 397-0"
+            ]
+          }
+        },
+        {
+          "code": "PSYCH 397-2",
+          "prereqRawText": "Prerequisites: PSYCH 301-0 and consent of instructor; PSYCH 397-2 must be taken with the same professor as PSYCH 397-1. Weinberg College limits on 398 and 399 enrollments also apply to 397.",
+          "linked": [
+            "PSYCH 301-0",
+            "PSYCH 397-2",
+            "PSYCH 397-1"
+          ],
+          "parsedCodes": [
+            "PSYCH 301-0",
+            "PSYCH 397-2",
+            "TO 397-0"
+          ],
+          "missed": [
+            "PSYCH 397-1"
+          ],
+          "extraInParse": [
+            "TO 397-0"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "PSYCH 301-0",
+              "consent:instructor",
+              "PSYCH 397-2",
+              "TO 397-0"
+            ]
+          }
+        },
+        {
+          "code": "SOC_POL 331-0",
+          "prereqRawText": "Prerequisites: ECON 202-0 (Intro to Microeconomics) or equivalent and a 200-level statistics class (SESP 210-0, STAT 202-0, STAT 210-0 and PSYCH 201-0 are all suitable).",
+          "linked": [
+            "ECON 202-0",
+            "SESP 210-0",
+            "STAT 202-0",
+            "STAT 210-0",
+            "PSYCH 201-0"
+          ],
+          "parsedCodes": [
+            "ECON 202-0",
+            "SESP 210-0"
+          ],
+          "missed": [
+            "STAT 202-0",
+            "STAT 210-0",
+            "PSYCH 201-0"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ECON 202-0",
+              {
+                "kind": "all",
+                "of": [
+                  "topic:equivalent",
+                  "SESP 210-0"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "missing-all": {
+      "total": 1,
+      "samples": [
+        {
+          "code": "BUSCOM 670P",
+          "prereqRawText": "Prerequisite: BUSCOM 601S Business Associations or BUSCOM 602L Corporations is a pre-requisite for this course. Candidates who seek their own placement must secure professor permission to enroll.",
+          "linked": [
+            "BUSCOM 601S",
+            "BUSCOM 602L"
+          ],
+          "parsedCodes": [],
+          "missed": [
+            "BUSCOM 601S",
+            "BUSCOM 602L"
+          ],
+          "extraInParse": [],
+          "warnings": [
+            "freeform",
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "topic:BUSCOM 601S Business Associations",
+              "topic:BUSCOM 602L Corporations is a pre-requisite for this course. Candidates who seek their own placement must secure professor permission to enroll"
+            ]
+          }
+        }
+      ]
+    },
+    "no-linked-no-warn": {
+      "total": 225,
+      "samples": [
+        {
+          "code": "ANTHRO 240-0",
+          "prereqRawText": "Prerequisite: None.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "none"
+        },
+        {
+          "code": "ANTHRO 307-0",
+          "prereqRawText": "Prerequisite: None.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "none"
+        },
+        {
+          "code": "ARABIC 111-1",
+          "prereqRawText": "Prerequisite: None or placement exam results.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "none",
+              "placement:department"
+            ]
+          }
+        },
+        {
+          "code": "ARABIC 114-0",
+          "prereqRawText": "Prerequisite: 121-2.",
+          "linked": [],
+          "parsedCodes": [
+            "ARABIC 121-2"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ARABIC 121-2"
+          ],
+          "warnings": [],
+          "parsedSummary": "ARABIC 121-2"
+        },
+        {
+          "code": "ARABIC 399-0",
+          "prereqRawText": "Prerequisite: consent of instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "consent:instructor"
+        },
+        {
+          "code": "ART 260-0",
+          "prereqRawText": "Prerequisite: junior standing in the major, or junior or senior standing in the minor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "standing:junior"
+        },
+        {
+          "code": "ART_HIST 390-0",
+          "prereqRawText": "Prerequisite: 300-level art history course.",
+          "linked": [],
+          "parsedCodes": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "warnings": [],
+          "parsedSummary": "ART_HIST 300-LEVEL"
+        },
+        {
+          "code": "ART_HIST 391-0",
+          "prereqRawText": "Prerequisite: 300-level art history course.",
+          "linked": [],
+          "parsedCodes": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "warnings": [],
+          "parsedSummary": "ART_HIST 300-LEVEL"
+        },
+        {
+          "code": "ART_HIST 395-0",
+          "prereqRawText": "Prerequisite: 300-level art history course.",
+          "linked": [],
+          "parsedCodes": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "warnings": [],
+          "parsedSummary": "ART_HIST 300-LEVEL"
+        },
+        {
+          "code": "ART_HIST 396-0",
+          "prereqRawText": "Prerequisite: 300-level art history course or consent of instructor.",
+          "linked": [],
+          "parsedCodes": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ART_HIST 300-LEVEL",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ART_HIST 399-0",
+          "prereqRawText": "Prerequisite: 300-level art history course.",
+          "linked": [],
+          "parsedCodes": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ART_HIST 300-LEVEL"
+          ],
+          "warnings": [],
+          "parsedSummary": "ART_HIST 300-LEVEL"
+        },
+        {
+          "code": "ASIAN_LC 397-0",
+          "prereqRawText": "Prerequisite: consent of the instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "consent:instructor"
+        },
+        {
+          "code": "BIOL_SCI 240-0",
+          "prereqRawText": "Prerequisite: BIOL SCI 239-0, co-requisite BIOL SCI 232-0.",
+          "linked": [],
+          "parsedCodes": [
+            "SCI 239-0",
+            "SCI 232-0"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "SCI 239-0",
+            "SCI 232-0"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "SCI 239-0",
+              "SCI 232-0"
+            ]
+          }
+        },
+        {
+          "code": "BIOL_SCI 241-0",
+          "prereqRawText": "Prerequisite: BIOL SCI 240-0; co-requisite BIOL SCI 233-0.",
+          "linked": [],
+          "parsedCodes": [
+            "SCI 240-0",
+            "SCI 233-0"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "SCI 240-0",
+            "SCI 233-0"
+          ],
+          "warnings": [],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "SCI 240-0",
+              "SCI 233-0"
+            ]
+          }
+        },
+        {
+          "code": "BLK_ST 331-0",
+          "prereqRawText": "Prerequisite: sophomore standing.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "standing:sophomore"
+        }
+      ]
+    },
+    "no-linked-with-warn": {
+      "total": 86,
+      "samples": [
+        {
+          "code": "ANTHRO 340-0",
+          "prereqRawText": "Prerequisite: 200-level social science or African studies course or consent of instructor.",
+          "linked": [],
+          "parsedCodes": [
+            "ANTHRO 200-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ANTHRO 200-LEVEL"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ANTHRO 200-LEVEL",
+              "topic:African studies course",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ANTHRO 369-0",
+          "prereqRawText": "Prerequisite: 300-level course in anthropology or sociology.",
+          "linked": [],
+          "parsedCodes": [
+            "ANTHRO 300-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ANTHRO 300-LEVEL"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "ANTHRO 300-LEVEL",
+              "topic:sociology"
+            ]
+          }
+        },
+        {
+          "code": "ARABIC 304-0",
+          "prereqRawText": "Prerequisite: Strong performance in two or average performance in three 200-level Arabic courses, or instructor permission.",
+          "linked": [],
+          "parsedCodes": [
+            "THREE 200-LEVEL"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "THREE 200-LEVEL"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "topic:Strong performance in two",
+              "THREE 200-LEVEL",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "ARABIC 316-1",
+          "prereqRawText": "Prerequisite: 211-3 or equivalent.",
+          "linked": [],
+          "parsedCodes": [
+            "ARABIC 211-3"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "ARABIC 211-3"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "ARABIC 211-3"
+        },
+        {
+          "code": "ART 399-0",
+          "prereqRawText": "Prerequisite: consent of department chair and director of undergraduate studies.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "consent:department",
+              "topic:director of undergraduate studies"
+            ]
+          }
+        },
+        {
+          "code": "ASIAN_LC 399-0",
+          "prereqRawText": "Prerequisite: consent of director of undergraduate studies and instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "consent:department",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "CHEM 308-0",
+          "prereqRawText": "Prerequisite: 1 quarter of physical chemistry or consent of instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "topic:1 quarter of physical chemistry",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "CIV_ENV 382-1",
+          "prereqRawText": "Prerequisite: senior standing in civil or environmental engineering or consent of instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "standing:senior",
+              "topic:environmental engineering",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "COMP_SCI 260-0",
+          "prereqRawText": "Prerequisites: N/A.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "topic:N/A"
+        },
+        {
+          "code": "COMP_SCI 372-0",
+          "prereqRawText": "Prerequisite: Senior Comp_sci or Senior Comp_Eng or Consent of instructor.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform",
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "any",
+            "of": [
+              "topic:Senior Comp_sci",
+              "topic:Senior Comp_Eng",
+              "consent:instructor"
+            ]
+          }
+        },
+        {
+          "code": "CSD 301-0",
+          "prereqRawText": "Prerequisite: sophomore standing or above.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": "standing:sophomore+"
+        },
+        {
+          "code": "DSGN 208-0",
+          "prereqRawText": "Prerequisite: Reserved for First-Year Students, Sophomores, and Juniors. Non-McCormick students only.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "program:reserved-for:First-Year Students",
+              "standing:sophomore",
+              "topic:Juniors. Non-McCormick students only"
+            ]
+          }
+        },
+        {
+          "code": "DSGN 381-0",
+          "prereqRawText": "Prerequisite: Students must have taken DSGN 106 or 208 and be in junior or senior standing.\".",
+          "linked": [],
+          "parsedCodes": [
+            "DSGN 106-0",
+            "DSGN 208-0"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "DSGN 106-0",
+            "DSGN 208-0"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              {
+                "kind": "any",
+                "of": [
+                  "DSGN 106-0",
+                  "DSGN 208-0"
+                ]
+              },
+              {
+                "kind": "any",
+                "of": [
+                  "topic:be in junior",
+                  "standing:senior"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "code": "ECON 201-0",
+          "prereqRawText": "Prerequisite: basic algebra and graphing.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [
+            "freeform",
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "topic:basic algebra",
+              "topic:graphing"
+            ]
+          }
+        },
+        {
+          "code": "FRENCH 299-SA",
+          "prereqRawText": "Prerequisite: Fulfillment of Weinberg College French language proficiency via AP Score of 5; French 121-3, 125-3 or 201; or validation of proficiency.",
+          "linked": [],
+          "parsedCodes": [
+            "FRENCH 121-3",
+            "FRENCH 125-3",
+            "FRENCH 201-0"
+          ],
+          "missed": [],
+          "extraInParse": [
+            "FRENCH 121-3",
+            "FRENCH 125-3",
+            "FRENCH 201-0"
+          ],
+          "warnings": [
+            "freeform"
+          ],
+          "parsedSummary": {
+            "kind": "all",
+            "of": [
+              "placement:AP",
+              {
+                "kind": "any",
+                "of": [
+                  {
+                    "kind": "all",
+                    "of": [
+                      "FRENCH 121-3",
+                      "FRENCH 125-3"
+                    ]
+                  },
+                  "FRENCH 201-0",
+                  "topic:validation of proficiency"
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "raw-fallback": {
+      "total": 1,
+      "samples": [
+        {
+          "code": "JOUR 390-0",
+          "prereqRawText": "Prerequisites: Vary depending on the course.",
+          "linked": [],
+          "parsedCodes": [],
+          "missed": [],
+          "extraInParse": [],
+          "warnings": [],
+          "parsedSummary": "raw:Vary depending on the course"
+        }
+      ]
+    }
+  }
+}

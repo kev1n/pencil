@@ -23,10 +23,14 @@ export function isDisabledClassRow(row: Element): boolean {
   );
 }
 
-export function extractCareerHint(text: string): "UGRD" | "TGS" | undefined {
+// Parses the CAESAR cart row label (e.g. "COMP_SCI 211-0 (12345)") into
+// the subject + bare catalog. Both are best-effort — when either is missing
+// the lookup falls back to UGRD-then-TGS inside `buildCareerCandidates`.
+export function extractCourseIdentifier(text: string): {
+  subject?: string;
+  catalog?: string;
+} {
+  const subject = text.match(/\b([A-Z][A-Z_]+[A-Z])\b/)?.[1];
   const catalog = text.match(/\b(\d{3})-\d\b/)?.[1];
-  if (!catalog) return undefined;
-  const value = Number(catalog);
-  if (!Number.isFinite(value)) return undefined;
-  return value >= 400 ? "TGS" : "UGRD";
+  return { subject, catalog };
 }

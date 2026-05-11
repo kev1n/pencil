@@ -37,7 +37,6 @@ import {
 } from "../views/section-detail";
 import { paintButtonLoading } from "../views/section-row";
 
-import { isGradCatalog } from "./section-detail-controller";
 
 export interface CartCardDetailsController {
   /**
@@ -117,14 +116,12 @@ export function createCartCardDetailsController(
     detailRow.innerHTML = "";
     detailRow.appendChild(renderSectionDetailLoading(doc));
     try {
-      const careerHint = isGradCatalog(bareCatalogNumber(entry.catalog))
-        ? "TGS"
-        : "UGRD";
       const lookupResponse = await lookupClass(
         {
           type: "lookup-class",
           classNumber: entry.classNumber,
-          careerHint,
+          subjectHint: entry.subject,
+          catalogHint: bareCatalogNumber(entry.catalog),
           termId: deps.getTermId()
         },
         {

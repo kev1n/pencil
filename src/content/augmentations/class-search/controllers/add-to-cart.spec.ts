@@ -124,6 +124,7 @@ describe("createAddToCartController — happy path", () => {
       classNumber: "12345",
       termId: "4750",
       institution: "NWUNV",
+      subject: "COMP_SCI",
       bareCatalog: "111"
     });
     expect(button.dataset.state).toBe("in-cart");

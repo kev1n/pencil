@@ -102,7 +102,8 @@ export type CartFlowInput = {
   classNumber: string; // 5-digit CAESAR class number (e.g. "34612")
   termId: string;
   institution: string;
-  bareCatalog: string; // drives career fallback order (TGS-first for 4xx)
+  subject: string; // "COMP_SCI", "LAW", etc. — drives career candidates via nu-careers
+  bareCatalog: string; // drives career candidates via nu-careers
 };
 
 export type CartFlowContinuationInput = {

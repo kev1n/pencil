@@ -48,7 +48,7 @@ import {
   termToSortKey
 } from "./helpers";
 import { CTEC_BATCH_SIZE, CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
-import { resolveCareerCandidates, SCHOOL_LABELS } from "./subject-careers";
+import { resolveCareerCandidates, SCHOOL_LABELS } from "../../nu-careers";
 import type { CtecLinkData, CtecLinkEntry, CtecLinkParams } from "./types";
 
 export async function fetchCtecLinks(
