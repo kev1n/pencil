@@ -27,17 +27,19 @@ describe("escapeHtml", () => {
 });
 
 describe("hasAnyFilter", () => {
+  const emptyDisciplines = new Set<never>();
+
   it("returns false for empty query", () => {
-    expect(hasAnyFilter({ termId: "X", query: "" })).toBe(false);
+    expect(hasAnyFilter({ termId: "X", query: "", disciplines: emptyDisciplines })).toBe(false);
   });
 
   it("returns false for whitespace-only query", () => {
-    expect(hasAnyFilter({ termId: "X", query: "   \t\n" })).toBe(false);
+    expect(hasAnyFilter({ termId: "X", query: "   \t\n", disciplines: emptyDisciplines })).toBe(false);
   });
 
   it("returns true for any non-whitespace query", () => {
-    expect(hasAnyFilter({ termId: "X", query: "a" })).toBe(true);
-    expect(hasAnyFilter({ termId: "X", query: "  hello  " })).toBe(true);
+    expect(hasAnyFilter({ termId: "X", query: "a", disciplines: emptyDisciplines })).toBe(true);
+    expect(hasAnyFilter({ termId: "X", query: "  hello  ", disciplines: emptyDisciplines })).toBe(true);
   });
 });
 

@@ -21,6 +21,10 @@ export type ShellViewProps = {
   /** Pre-built status element, owned by the augmentation. Inserted into
    *  the card so status writes show up in the right place. */
   statusEl: HTMLElement;
+  /** Optional host element for the Foundational Discipline filter chips.
+   *  When provided, it shares the status row so chips sit on the same line
+   *  as the result count. Test renders may omit it. */
+  filtersEl?: HTMLElement;
   /** Pre-built results element, owned by the augmentation. Inserted as
    *  the bottom child of the shell. */
   resultsEl: HTMLElement;
@@ -54,7 +58,14 @@ export function renderSearchShell(doc: Document, props: ShellViewProps): HTMLEle
 
   props.resultsEl.className = "bc-cs-results";
 
-  card.append(form, props.statusEl);
+  // Wrap status + filter chips in a single flex row so the chip toolbar
+  // shares the same line as "29 courses · 54 sections".
+  const statusRow = doc.createElement("div");
+  statusRow.className = "bc-cs-status-row";
+  statusRow.appendChild(props.statusEl);
+  if (props.filtersEl) statusRow.appendChild(props.filtersEl);
+
+  card.append(form, statusRow);
 
   root.append(header, card, props.resultsEl);
   return root;

@@ -284,6 +284,7 @@ export class ClassSearchAugmentation implements Augmentation {
           termId: state.filters.termId,
           info: state.info,
           statusEl: state.statusEl,
+          filtersEl: state.filtersEl,
           resultsEl: state.resultsEl,
           onQueryInput: (value) => {
             state.filters.query = value;
