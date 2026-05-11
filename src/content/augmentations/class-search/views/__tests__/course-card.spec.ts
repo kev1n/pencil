@@ -91,10 +91,12 @@ describe("renderCourseCard", () => {
       planEntry: makePlanEntry({ distros: "63", disciplines: "2" }),
       sectionRows: []
     });
-    const icons = card.querySelectorAll<SVGSVGElement>(
-      ".bc-cs-course-fds .bc-cs-fd-icon"
+    const wraps = card.querySelectorAll<HTMLSpanElement>(
+      ".bc-cs-course-fds .bc-cs-fd-icon-wrap"
     );
-    expect(Array.from(icons).map((i) => i.dataset.fd)).toEqual(["EDR", "SBS", "LA"]);
+    expect(Array.from(wraps).map((w) => w.dataset.fd)).toEqual(["EDR", "SBS", "LA"]);
+    // Each wrap carries the tooltip title so hover shows the full FD name.
+    expect(wraps[0].title).toBe("Empirical & Deductive Reasoning");
   });
 
   it("renders an empty fd row when the course has no matching tags", () => {
@@ -105,7 +107,7 @@ describe("renderCourseCard", () => {
       sectionRows: []
     });
     expect(
-      card.querySelectorAll(".bc-cs-course-fds .bc-cs-fd-icon").length
+      card.querySelectorAll(".bc-cs-course-fds .bc-cs-fd-icon-wrap").length
     ).toBe(0);
   });
 

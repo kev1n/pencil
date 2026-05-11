@@ -54,17 +54,36 @@ export function statusStyles(): string {
       user-select: none;
       transition: background-color var(--bc-tx-fast), border-color var(--bc-tx-fast), color var(--bc-tx-fast);
     }
+    /* Checkbox is hidden visually — the icon + active-state background
+       are the affordance — but stays clickable via the surrounding label
+       and focusable for keyboard / screen-reader users. */
     .bc-cs-fd-chip input {
-      accent-color: var(--bc-color-accent);
-      margin: 0;
-      width: 11px;
-      height: 11px;
-      cursor: pointer;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0,0,0,0);
+      white-space: nowrap;
+      border: 0;
+    }
+    .bc-cs-fd-chip:focus-within {
+      outline: 2px solid var(--bc-color-accent);
+      outline-offset: 1px;
     }
     .bc-cs-fd-chip .bc-cs-fd-icon {
-      width: 12px;
-      height: 12px;
+      width: 13px;
+      height: 13px;
       flex-shrink: 0;
+    }
+
+    /* Common wrapper around every FD icon — gives the tooltip a full
+       bounding-box hit area instead of just the stroked pixels. */
+    .bc-cs-fd-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      cursor: help;
     }
     .bc-cs-fd-chip:hover {
       border-color: var(--bc-color-border-strong);

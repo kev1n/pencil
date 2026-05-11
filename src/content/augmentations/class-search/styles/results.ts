@@ -103,7 +103,7 @@ export function resultsStyles(): string {
       grid-template-columns: auto 1fr auto;
       gap: 12px;
       padding: 12px 16px;
-      align-items: baseline;
+      align-items: center;
       background: var(--bc-color-bg-app);
       border-bottom: 1px solid var(--bc-color-border-strong);
     }
@@ -139,11 +139,11 @@ export function resultsStyles(): string {
       display: inline-flex;
       align-items: center;
       gap: 5px;
-      color: var(--bc-color-text-muted);
+      color: var(--bc-color-text-soft);
     }
     .bc-cs-course-fds .bc-cs-fd-icon {
-      width: 14px;
-      height: 14px;
+      width: 15px;
+      height: 15px;
       flex-shrink: 0;
     }
 

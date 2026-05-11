@@ -63,8 +63,18 @@ const ICONS: Record<FoundationalDisciplineCode, SvgShape[]> = {
 export function renderDisciplineIcon(
   doc: Document,
   code: FoundationalDisciplineCode
-): SVGSVGElement {
+): HTMLSpanElement {
   const fd = FOUNDATIONAL_DISCIPLINES.find((f) => f.code === code);
+  const label = fd?.label ?? code;
+
+  // Wrap in <span> so the HTML `title` attribute makes the full bounding
+  // box a tooltip target. SVG <title> children only fire when the cursor
+  // is over a stroked pixel, which is barely-usable for small line icons.
+  const wrap = doc.createElement("span");
+  wrap.className = "bc-cs-fd-icon-wrap";
+  wrap.title = label;
+  wrap.dataset.fd = code;
+
   const svg = doc.createElementNS(SVG_NS, "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("fill", "none");
@@ -72,14 +82,13 @@ export function renderDisciplineIcon(
   svg.setAttribute("stroke-width", "2");
   svg.setAttribute("stroke-linecap", "round");
   svg.setAttribute("stroke-linejoin", "round");
-  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("aria-label", label);
+  svg.setAttribute("role", "img");
   svg.classList.add("bc-cs-fd-icon");
-  svg.dataset.fd = code;
 
-  // <title> doubles as the hover tooltip and AT label.
-  const title = doc.createElementNS(SVG_NS, "title");
-  title.textContent = fd?.label ?? code;
-  svg.appendChild(title);
+  const titleEl = doc.createElementNS(SVG_NS, "title");
+  titleEl.textContent = label;
+  svg.appendChild(titleEl);
 
   for (const shape of ICONS[code]) {
     const el = doc.createElementNS(SVG_NS, shape.tag);
@@ -88,5 +97,7 @@ export function renderDisciplineIcon(
     }
     svg.appendChild(el);
   }
-  return svg;
+
+  wrap.appendChild(svg);
+  return wrap;
 }
