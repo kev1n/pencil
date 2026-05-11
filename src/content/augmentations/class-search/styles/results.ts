@@ -146,6 +146,15 @@ export function resultsStyles(): string {
       height: 15px;
       flex-shrink: 0;
     }
+    /* The course card uses overflow:hidden for rounded-corner clipping,
+       which also clips an upward-opening tooltip. Flip the FD tooltips
+       to open downward (inside the card body) and lift the z-index so
+       they sit above section rows. */
+    .bc-cs-course-fds .bc-tooltip {
+      bottom: auto;
+      top: calc(100% + 6px);
+      z-index: 50;
+    }
 
     .bc-cs-course-desc {
       font-size: var(--bc-font-12);
