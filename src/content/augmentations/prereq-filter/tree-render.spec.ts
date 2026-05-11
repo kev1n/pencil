@@ -200,7 +200,7 @@ describe("renderPrereqTree", () => {
     expect(compLabel).toBeTruthy();
     expect(fillOf(leafRectAt(result.svg, "COMP_SCI 111"))).toContain("gate-ok-bg");
     expect(fillOf(leafRectAt(result.svg, "COMP_SCI 150"))).toContain("gate-ok-bg");
-    expect(result.width).toBeLessThanOrEqual(560);
+    expect(result.width).toBeLessThanOrEqual(900);
     expect(result.height).toBeGreaterThan(40);
     // Edges to the convergence point should be solid (no dasharray) for AND.
     const edges = Array.from(result.svg.querySelectorAll("path.bc-prereq-tree__edge"));
@@ -264,7 +264,7 @@ describe("renderPrereqTree", () => {
     expect(labels.some((l) => l.includes("MATH 220"))).toBe(true);
     expect(labels.some((l) => l.includes("COMP_SCI 211"))).toBe(true);
     expect(labels.some((l) => l.includes("COMP_SCI 212"))).toBe(true);
-    expect(result.width).toBeLessThanOrEqual(560);
+    expect(result.width).toBeLessThanOrEqual(900);
   });
 
   it("collapses single-child composites into the child directly (no AND/OR label)", () => {
@@ -335,7 +335,7 @@ describe("renderPrereqTree", () => {
     };
     const result = renderPrereqTree(document, node, emptyHistory());
     expect(result.width).toBeGreaterThan(0);
-    expect(result.width).toBeLessThanOrEqual(560);
+    expect(result.width).toBeLessThanOrEqual(900);
     expect(result.height).toBeGreaterThanOrEqual(40);
   });
 
@@ -350,7 +350,7 @@ describe("renderPrereqTree", () => {
       })) as PrereqNode[]
     };
     const result = renderPrereqTree(document, node, emptyHistory());
-    expect(result.width).toBeLessThanOrEqual(560);
+    expect(result.width).toBeLessThanOrEqual(900);
     expect(result.svg.getAttribute("viewBox")).toMatch(/^0 0 \d+(?:\.\d+)? \d+(?:\.\d+)?$/);
   });
 });

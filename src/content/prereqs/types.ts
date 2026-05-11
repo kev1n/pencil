@@ -118,7 +118,12 @@ export type EligibilityResult = {
 
 // === Storage ==============================================================
 
-export const PREREQS_PARSED_STORAGE_KEY = "better-caesar:prereqs-parsed:v1";
+// v3: another one-shot invalidation, paired with the paper:plan:v3 bump
+// (paper-data.ts). Some users' caches still held parses derived from a
+// plan.json snapshot that pointed at retired course codes (e.g.
+// COMP_SCI 308). Shape is unchanged — bumping the key drops the old
+// payload and the next session re-parses fresh data.
+export const PREREQS_PARSED_STORAGE_KEY = "better-caesar:prereqs-parsed:v3";
 
 // Re-parse triggers: planRev change, OR parsedAt + TTL_MS < now. plan.json
 // is "static" (paper.nu publishes new revisions infrequently), so the TTL

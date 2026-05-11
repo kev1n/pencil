@@ -34,5 +34,10 @@ export const PREREQ_FILTER_CONFIG = {
   // Schedule grid card (weekly grid cells). Selector matches paper-ctec's
   // config so the badge mounts in the same DOM region.
   scheduleCard: ".schedule-grid-cols div.absolute.z-10.rounded-lg",
-  scheduleCardChipHost: "div.absolute.right-7.top-4.flex.items-center.gap-1"
+  // Paper-ctec mounts its "+ Cart" + analytics buttons inside this anchor
+  // (a direct child of the schedule card, positioned bottom-right). We
+  // prepend our badge there so it sits immediately to the left of the
+  // cart button. If paper-ctec is disabled or the anchor isn't mounted
+  // yet, the badge falls back to a floating absolute position.
+  scheduleCardActionsAnchor: ":scope > .bc-paper-ctec-actions-anchor"
 } as const;

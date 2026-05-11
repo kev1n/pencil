@@ -92,13 +92,13 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       },
       {
         id: "prereq-filter",
-        label: "Prereq Filter",
-        description: "Adds eligibility badges to Paper.nu search results and schedule cards, based on your CAESAR course history. Click the in-page chip to filter the search list."
+        label: "Prereq Filter (Experimental)",
+        description: "Paints eligibility badges on Paper.nu search results + schedule cards based on your CAESAR course history. Data quality caveat: Paper.nu's data is sometimes out of sync with the actual course requirements."
       },
       {
         id: "prereq-filter-unknown-as-eligible",
-        label: "Treat Unknown as Eligible",
-        description: "When the prereq filter can't verify a requirement (e.g. free-form prose, standing, or a placement test), keep the course visible instead of hiding it."
+        label: "Show Unverifiable Requirements",
+        description: "Default off — when the filter is on, courses whose requirements can't be verified automatically (free-form prose, standing, placement) are hidden alongside hard blocks. Turn this on to keep them visible."
       }
     ]
   },

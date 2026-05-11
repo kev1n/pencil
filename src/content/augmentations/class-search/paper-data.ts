@@ -9,7 +9,12 @@ const TERM_URL = (termId: string) => `https://cdn.dil.sh/paper-data/${termId}.js
 const STORAGE_PREFIX = "better-caesar:paper:";
 const META_KEY = `${STORAGE_PREFIX}meta:v1`;
 const SUBJECTS_KEY = `${STORAGE_PREFIX}subjects:v1`;
-const PLAN_KEY = `${STORAGE_PREFIX}plan:v1`;
+// v3: force another one-shot rebuild — paper.nu sometimes serves a
+// plan.json that carries stale `p` strings for courses whose prereqs
+// the registrar has since cleaned up (e.g. references to retired course
+// codes like COMP_SCI 308). info.plan doesn't always tick when the
+// content changes, so we periodically bump the key as a kill switch.
+const PLAN_KEY = `${STORAGE_PREFIX}plan:v3`;
 // v2: catalog now comes from per-term `n` (user-facing "111-3") instead of
 // `i` (CAESAR's internal padded id "002333").
 // v3: storage shape is byCourseKey Record so subject+catalog lookups are O(1).
@@ -181,9 +186,12 @@ export async function getDataMapInfo(): Promise<DataMapInfo> {
   if (infoPromise) return infoPromise;
   infoPromise = (async () => {
     const cached = await readCache<{ data: DataMapInfo; cachedAt: number }>(META_KEY);
-    // Bust meta cache after 6 hours so we pick up new term updates without
-    // requiring a popup-driven cache wipe.
-    if (cached && Date.now() - cached.cachedAt < 6 * 60 * 60 * 1000) {
+    // Meta cache lives 30 days. The actual data caches (plan, term)
+    // already key on `info.plan` / `info.terms[id].updated`, so they
+    // self-bust the moment a revision changes — no need for the meta
+    // cache to be short-lived. Manual cache invalidation lives in the
+    // popup; the version-suffixed storage keys are the kill switch.
+    if (cached && Date.now() - cached.cachedAt < 30 * 24 * 60 * 60 * 1000) {
       return cached.data;
     }
     const text = await fetchTextViaBackground(DATA_URL);
