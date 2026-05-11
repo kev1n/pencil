@@ -97,11 +97,21 @@ function worstOf(results: readonly EligibilityResult[]): EligibilityResult {
   return { state, missing, notes };
 }
 
+// Canonical course-identity key shared with `buildHistoryMap` in the
+// prereq-filter augmentation. The registrar treats "-0" as "no section
+// subdivision" — drop it so a prereq node `{number:"111", section:"0"}`
+// matches a history row "COMP_SCI 111-0". Multi-quarter sequences
+// (MATH 220-1, 220-2) keep their section so they stay distinct.
+function courseKey(node: Extract<PrereqNode, { kind: "course" }>): string {
+  const section = node.section && node.section !== "0" ? `-${node.section}` : "";
+  return `${node.subject} ${node.number}${section}`;
+}
+
 function evaluateCourse(
   node: Extract<PrereqNode, { kind: "course" }>,
   history: ReadonlyMap<string, EligibilityHistoryEntry>
 ): EligibilityResult {
-  const key = `${node.subject} ${node.number}`;
+  const key = courseKey(node);
   const entry = history.get(key);
   const notes: string[] = [];
   if (node.concurrent === "required") notes.push("concurrent enrollment required");

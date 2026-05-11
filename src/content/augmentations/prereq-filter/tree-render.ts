@@ -183,7 +183,7 @@ function courseLeaf(
     return leaf(`${label} (rec.)`, { variant: "ok", glyph: "✓", dashed: true, italic: true }, measure);
   }
 
-  const entry = history.get(`${node.subject} ${node.number}`);
+  const entry = history.get(courseHistoryKey(node));
   if (entry && entry.status === "In Progress") {
     return leaf(label, { variant: "warn", glyph: "⏳" }, measure);
   }
@@ -442,6 +442,13 @@ function stateToVariant(state: string): Variant {
     default:
       return "neutral";
   }
+}
+
+// Mirrors evaluator's courseKey: drop "-0" since it means "no section",
+// keep multi-quarter sequence suffixes ("MATH 220-1" stays distinct).
+function courseHistoryKey(node: Extract<PrereqNode, { kind: "course" }>): string {
+  const section = node.section && node.section !== "0" ? `-${node.section}` : "";
+  return `${node.subject} ${node.number}${section}`;
 }
 
 function standingLabel(node: Extract<PrereqNode, { kind: "standing" }>): string {
