@@ -77,9 +77,16 @@ export function applyFilters(
   scored.sort((a, b) => {
     if (a.bucket !== b.bucket) return a.bucket - b.bucket;
     if (a.tier !== b.tier) return a.tier - b.tier;
-    // Shorter title with all words matched is a more focused match. Puts
-    // "Machine Learning" ahead of "Biomedical Applications in Machine
-    // Learning" within the same bucket+tier.
+    // Id matches: searching "comp_sci 3" should list COMP_SCI 301, 305, …,
+    // 349, … in catalog order, not title-length order.
+    if (a.bucket === 0 || a.bucket === 2) {
+      const subjectDelta = a.row.course.subject.localeCompare(b.row.course.subject);
+      if (subjectDelta !== 0) return subjectDelta;
+      return compareCatalog(a.row.course.catalog, b.row.course.catalog);
+    }
+    // Title matches: shorter title with all words matched is a more focused
+    // hit. Puts "Machine Learning" ahead of "Biomedical Applications in
+    // Machine Learning" within the same bucket+tier.
     const lenDelta = a.row.course.title.length - b.row.course.title.length;
     if (lenDelta !== 0) return lenDelta;
     const aid = `${a.row.course.subject} ${a.row.course.catalog}`;
@@ -88,6 +95,23 @@ export function applyFilters(
   });
 
   return scored.map((s) => s.row);
+}
+
+function compareCatalog(a: string, b: string): number {
+  const aPrefix = a.split("-")[0];
+  const bPrefix = b.split("-")[0];
+  const aHasLetters = /[A-Za-z]/.test(aPrefix);
+  const bHasLetters = /[A-Za-z]/.test(bPrefix);
+  // Numeric prefixes (e.g. "349") ahead of letter-bearing ones (e.g. "901FI")
+  // so undergrad-style numbers list before exec-ed / continuing modules.
+  if (!aHasLetters && bHasLetters) return -1;
+  if (aHasLetters && !bHasLetters) return 1;
+  if (!aHasLetters && !bHasLetters) {
+    const aNum = parseInt(aPrefix, 10);
+    const bNum = parseInt(bPrefix, 10);
+    if (aNum !== bNum) return aNum - bNum;
+  }
+  return a.localeCompare(b);
 }
 
 function careerTier(course: PaperTermCourse, career: string): 0 | 1 {
