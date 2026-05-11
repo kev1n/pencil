@@ -82,15 +82,31 @@ describe("renderCourseCard", () => {
     expect(card.querySelector(".bc-cs-course-units")?.textContent).toBe("1.00 unit");
   });
 
-  it("does not render any tag/badge row (school, distro, discipline)", () => {
+  it("renders FD icons in chip order for matching distros/disciplines", () => {
+    const doc = fresh();
+    // distros "63" → LA (6) + SBS (3); disciplines "2" → EDR. Order
+    // returned should match FOUNDATIONAL_DISCIPLINES: EDR, SBS, LA.
+    const card = renderCourseCard(doc, {
+      row: makeRow(),
+      planEntry: makePlanEntry({ distros: "63", disciplines: "2" }),
+      sectionRows: []
+    });
+    const icons = card.querySelectorAll<SVGSVGElement>(
+      ".bc-cs-course-fds .bc-cs-fd-icon"
+    );
+    expect(Array.from(icons).map((i) => i.dataset.fd)).toEqual(["EDR", "SBS", "LA"]);
+  });
+
+  it("renders an empty fd row when the course has no matching tags", () => {
     const doc = fresh();
     const card = renderCourseCard(doc, {
       row: makeRow(),
-      planEntry: makePlanEntry({ distros: "2", disciplines: "B" }),
+      planEntry: makePlanEntry({ distros: "7", disciplines: undefined }),
       sectionRows: []
     });
-    expect(card.querySelector(".bc-cs-course-tags")).toBeNull();
-    expect(card.querySelector(".bc-cs-tag")).toBeNull();
+    expect(
+      card.querySelectorAll(".bc-cs-course-fds .bc-cs-fd-icon").length
+    ).toBe(0);
   });
 
   it("renders the description block when planEntry.description is present", () => {

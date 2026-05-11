@@ -6,6 +6,8 @@
 import { FOUNDATIONAL_DISCIPLINES } from "../types";
 import type { SearchFilters } from "../types";
 
+import { renderDisciplineIcon } from "./discipline-icons";
+
 export type FoundationalDisciplineChipsProps = {
   filters: SearchFilters;
   onChange(): void;
@@ -34,10 +36,11 @@ export function renderFoundationalDisciplineChips(
       props.onChange();
     });
 
+    const icon = renderDisciplineIcon(doc, fd.code);
     const text = doc.createElement("span");
     text.textContent = fd.short;
 
-    label.append(input, text);
+    label.append(input, icon, text);
     host.appendChild(label);
   }
 }

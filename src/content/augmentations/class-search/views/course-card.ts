@@ -16,8 +16,11 @@ import {
   type CaesarSearchResult
 } from "../caesar-search";
 import { formatCourseIdForDisplay } from "../catalog-format";
+import { foundationalDisciplinesFor } from "../discipline-match";
 import type { PaperCourse } from "../paper-data";
 import type { ResultRow } from "../types";
+
+import { renderDisciplineIcon } from "./discipline-icons";
 
 export type CourseCardProps = {
   row: ResultRow;
@@ -111,5 +114,12 @@ function buildHead(doc: Document, props: CourseCardProps): HTMLElement {
     }`;
   }
 
-  return el(doc, "div", { class: "bc-cs-course-head" }, [id, title, units]);
+  // FD badges sit immediately before the units cell so they share the
+  // course head's right-hand cluster. Order matches the filter chip order.
+  const fdCodes = foundationalDisciplinesFor(props.row.course, props.planEntry);
+  const fdRow = el(doc, "div", { class: "bc-cs-course-fds" });
+  for (const code of fdCodes) fdRow.appendChild(renderDisciplineIcon(doc, code));
+
+  const meta = el(doc, "div", { class: "bc-cs-course-meta" }, [fdRow, units]);
+  return el(doc, "div", { class: "bc-cs-course-head" }, [id, title, meta]);
 }

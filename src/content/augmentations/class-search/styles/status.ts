@@ -61,6 +61,11 @@ export function statusStyles(): string {
       height: 11px;
       cursor: pointer;
     }
+    .bc-cs-fd-chip .bc-cs-fd-icon {
+      width: 12px;
+      height: 12px;
+      flex-shrink: 0;
+    }
     .bc-cs-fd-chip:hover {
       border-color: var(--bc-color-border-strong);
       color: var(--bc-color-text);

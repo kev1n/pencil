@@ -130,6 +130,22 @@ export function resultsStyles(): string {
       white-space: nowrap;
       font-variant-numeric: tabular-nums;
     }
+    .bc-cs-course-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .bc-cs-course-fds {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: var(--bc-color-text-muted);
+    }
+    .bc-cs-course-fds .bc-cs-fd-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
 
     .bc-cs-course-desc {
       font-size: var(--bc-font-12);

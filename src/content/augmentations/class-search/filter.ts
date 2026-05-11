@@ -1,6 +1,6 @@
+import { matchesAnyDiscipline } from "./discipline-match";
 import type { PaperCourse, PaperSection, PaperTermCourse, SubjectInfo } from "./paper-data";
-import { FOUNDATIONAL_DISCIPLINES } from "./types";
-import type { FoundationalDisciplineCode, ResultRow, SearchFilters } from "./types";
+import type { ResultRow, SearchFilters } from "./types";
 
 // Replicated verbatim from paper.nu's src/data/shortcuts.json so a query like
 // "cs 349" expands to "comp_sci 349" before matching.
@@ -119,47 +119,6 @@ export function applyFilters(
   });
 
   return scored.map((s) => s.row);
-}
-
-// True when the course (or any of its term sections) carries at least one of
-// the requested FD codes. We check both the term-section tags (live data,
-// always present) and the catalog-level course tags (richer, sometimes
-// available where the section payload omits them).
-function matchesAnyDiscipline(
-  course: PaperTermCourse,
-  catalogIndex: Map<string, PaperCourse>,
-  codes: ReadonlySet<FoundationalDisciplineCode>
-): boolean {
-  const catalog = catalogIndex.get(`${course.subject} ${course.catalog}`);
-  for (const code of codes) {
-    const fd = FOUNDATIONAL_DISCIPLINES.find((f) => f.code === code);
-    if (!fd) continue;
-    if (catalog && courseHasFdTag(catalog, fd)) return true;
-    for (const section of course.sections) {
-      if (sectionHasFdTag(section, fd)) return true;
-    }
-  }
-  return false;
-}
-
-function courseHasFdTag(
-  course: PaperCourse,
-  fd: { distros?: string; disciplines?: string }
-): boolean {
-  if (fd.distros && course.distros && course.distros.includes(fd.distros)) return true;
-  if (fd.disciplines && course.disciplines && course.disciplines.includes(fd.disciplines))
-    return true;
-  return false;
-}
-
-function sectionHasFdTag(
-  section: PaperSection,
-  fd: { distros?: string; disciplines?: string }
-): boolean {
-  if (fd.distros && section.distros && section.distros.includes(fd.distros)) return true;
-  if (fd.disciplines && section.disciplines && section.disciplines.includes(fd.disciplines))
-    return true;
-  return false;
 }
 
 function compareCatalog(a: string, b: string): number {
