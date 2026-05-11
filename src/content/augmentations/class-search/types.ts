@@ -22,7 +22,36 @@ export type SearchFilters = {
   // matched (regex, `x` as digit wildcard) against the combined haystack of
   // subject display name, subject symbol, catalog number, and title.
   query: string;
+  // Weinberg Foundational Discipline narrowing. Empty set = no narrowing;
+  // a non-empty set keeps rows tagged with ANY of the selected FD codes
+  // (FoundationalDisciplineCode below).
+  disciplines: Set<FoundationalDisciplineCode>;
 };
+
+// Weinberg's six post-2023 Foundational Disciplines. Codes mirror Weinberg's
+// own FD-xx labels so the UI can shorten chips to "NS" / "EDR" / etc.
+export type FoundationalDisciplineCode = "NS" | "EDR" | "SBS" | "HS" | "EET" | "LA";
+
+// Each FD is sourced from either paper.nu's `distros` digit codes or
+// `disciplines` letter codes. Natural Sciences lives in the distros stream
+// (no letter code); the other five are letter-coded disciplines.
+//   distros: "1" Natural Sciences
+//   disciplines: A Empirical & Deductive, D Historical, E Ethical &
+//                Evaluative, F Literary & Artistic, G Social & Behavioral
+export const FOUNDATIONAL_DISCIPLINES: ReadonlyArray<{
+  code: FoundationalDisciplineCode;
+  label: string;
+  short: string;
+  distros?: string;
+  disciplines?: string;
+}> = [
+  { code: "NS",  label: "Natural Sciences",                short: "Nat Sci",  distros: "1" },
+  { code: "EDR", label: "Empirical & Deductive Reasoning", short: "Emp Ded",  disciplines: "A" },
+  { code: "SBS", label: "Social & Behavioral Sciences",    short: "Soc Beh",  disciplines: "G" },
+  { code: "HS",  label: "Historical Studies",              short: "History",  disciplines: "D" },
+  { code: "EET", label: "Ethical & Evaluative Thinking",   short: "Ethics",   disciplines: "E" },
+  { code: "LA",  label: "Literature & Arts",               short: "Lit Arts", disciplines: "F" }
+];
 
 export type ResultRow = {
   course: PaperTermCourse;
@@ -77,6 +106,9 @@ export type MountedState = {
   panelEl: HTMLDivElement;
   resultsEl: HTMLDivElement;
   statusEl: HTMLDivElement;
+  // Hosts the Foundational Discipline chip row. Lives in the status row so
+  // the chips share the same line as "29 courses · 54 sections".
+  filtersEl: HTMLDivElement;
   filters: SearchFilters;
   info: DataMapInfo;
   subjects: Record<string, SubjectInfo>;

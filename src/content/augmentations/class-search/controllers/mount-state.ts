@@ -26,7 +26,8 @@ import {
   readInstitutionFromNativeForm,
   readTermFromNativeForm
 } from "../page-detection";
-import { type MountedState, type ResultRow } from "../types";
+import { type FoundationalDisciplineCode, type MountedState, type ResultRow } from "../types";
+import { renderFoundationalDisciplineChips } from "../views/foundational-discipline-chips";
 import { setStatus } from "../views/shell";
 
 import { createCartCachePainter } from "./cart-cache-painter";
@@ -78,7 +79,11 @@ export function createMountState(deps: MountStateDeps): MountedState {
   const institution = readInstitutionFromNativeForm(doc) ?? INSTITUTION_DEFAULT;
   const initialTerm = readTermFromNativeForm(doc) ?? info.latest;
 
-  const filters = { termId: initialTerm, query: "" };
+  const filters = {
+    termId: initialTerm,
+    query: "",
+    disciplines: new Set<FoundationalDisciplineCode>()
+  };
   const catalogIndex = buildCatalogIndex(planCourses);
   const liveData = createCatalogLiveDataStore({
     institution,
@@ -88,6 +93,7 @@ export function createMountState(deps: MountStateDeps): MountedState {
   const cartButtons = createCartButtonRegistry();
   const resultsEl = doc.createElement("div");
   const statusEl = doc.createElement("div");
+  const filtersEl = doc.createElement("div");
 
   const getTermId = (): string => filters.termId;
   const liveCacheKey = (row: ResultRow): string => makeLiveCacheKey(getTermId(), row);
@@ -159,12 +165,21 @@ export function createMountState(deps: MountStateDeps): MountedState {
   });
   orchestratorRef.o = searchOrchestrator;
 
+  // Now that searchOrchestrator exists, populate the FD chip toolbar. Each
+  // toggle mutates `filters.disciplines` (shared ref with applyFilters) and
+  // triggers the same debounced re-search the query input uses.
+  renderFoundationalDisciplineChips(doc, filtersEl, {
+    filters,
+    onChange: () => searchOrchestrator.scheduleSearch()
+  });
+
   const state: MountedState = {
     doc,
     root: placeholder,
     panelEl: doc.createElement("div"),
     resultsEl,
     statusEl,
+    filtersEl,
     filters,
     info,
     subjects,
