@@ -479,6 +479,33 @@ export function renderTopBar(
 // — the only data paper.nu actually stamps onto the card DOM. Cards we
 // can't match (custom sections, partial DOM hydration) stay untouched —
 // they remain visible regardless of combo membership.
+//
+// Title matching is intentionally loose on the catalog number: paper.nu
+// cross-lists courses (e.g. COMP_SCI internal 022536 ships as both
+// "396-0" and "496-0" depending on which catalog the rendered card
+// landed on), and our cache stores only one of the two as `number`.
+// Strict `${subject} ${number}` prefix matching dropped cross-listed
+// cards on the floor. We now require the card title to start with the
+// section's subject, then disambiguate overlapping same-subject
+// sections by instructor surname — paper.nu writes the instructor name
+// as the third <p> of the card (paper-ctec relies on the same
+// position; see paper-ctec/dom.ts:113).
+function lastNameToken(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return "";
+  const tokens = trimmed.split(/\s+/);
+  return tokens[tokens.length - 1] ?? "";
+}
+
+function readCardInstructor(card: HTMLElement): string {
+  const tagged = card.querySelector<HTMLElement>(
+    '[data-bc-paper-role="instructor"]'
+  );
+  if (tagged?.textContent) return tagged.textContent.trim();
+  const paragraphs = card.querySelectorAll<HTMLParagraphElement>("p");
+  return paragraphs[2]?.textContent?.trim() ?? "";
+}
+
 function buildCardSectionMap(
   grid: HTMLElement,
   pool: ComboPool,
@@ -488,7 +515,8 @@ function buildCardSectionMap(
   const dayColumns = readDayColumns(grid);
 
   for (const section of pool.byId.values()) {
-    const expectedTitlePrefix = `${section.subject} ${section.number}`;
+    const subjectPrefix = `${section.subject} `;
+    const expectedSurname = lastNameToken(section.instructorNames[0] ?? "").toLowerCase();
     for (const block of section.blocks) {
       const dayCol = dayColumns[block.day];
       if (!dayCol) continue;
@@ -508,7 +536,17 @@ function buildCardSectionMap(
 
         const titleP = card.querySelector<HTMLElement>("p");
         const titleText = (titleP?.textContent ?? "").trim();
-        if (!titleText.startsWith(expectedTitlePrefix)) continue;
+        if (!titleText.startsWith(subjectPrefix)) continue;
+
+        // Best-effort instructor disambiguation. Skip when either side
+        // has no instructor data — single-section-per-slot is the
+        // common case and position+subject is already unique there.
+        if (expectedSurname) {
+          const cardInstructor = readCardInstructor(card).toLowerCase();
+          if (cardInstructor && !cardInstructor.includes(expectedSurname)) {
+            continue;
+          }
+        }
 
         result.set(card, section.sectionId);
         break;
