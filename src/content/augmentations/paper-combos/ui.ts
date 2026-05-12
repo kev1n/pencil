@@ -1,4 +1,5 @@
 import { el } from "../../framework";
+import { PAPER_CARD_ROLE, paperRoleSelector } from "../paper-ctec/dom";
 import { PAPER_COMBOS_CONFIG } from "./config";
 import {
   CARD_PIN_BUTTON_CLASS,
@@ -480,16 +481,10 @@ export function renderTopBar(
 // can't match (custom sections, partial DOM hydration) stay untouched —
 // they remain visible regardless of combo membership.
 //
-// Title matching is intentionally loose on the catalog number: paper.nu
-// cross-lists courses (e.g. COMP_SCI internal 022536 ships as both
-// "396-0" and "496-0" depending on which catalog the rendered card
-// landed on), and our cache stores only one of the two as `number`.
-// Strict `${subject} ${number}` prefix matching dropped cross-listed
-// cards on the floor. We now require the card title to start with the
-// section's subject, then disambiguate overlapping same-subject
-// sections by instructor surname — paper.nu writes the instructor name
-// as the third <p> of the card (paper-ctec relies on the same
-// position; see paper-ctec/dom.ts:113).
+// Title matches on subject only (no catalog number): paper.nu cross-
+// lists courses (e.g. internal 022536 → COMP_SCI 396-0 + 496-0) and
+// our cache stores just one number. Same-subject overlaps fall back
+// to instructor surname for disambiguation.
 function lastNameToken(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) return "";
@@ -499,7 +494,7 @@ function lastNameToken(name: string): string {
 
 function readCardInstructor(card: HTMLElement): string {
   const tagged = card.querySelector<HTMLElement>(
-    '[data-bc-paper-role="instructor"]'
+    paperRoleSelector(PAPER_CARD_ROLE.instructor)
   );
   if (tagged?.textContent) return tagged.textContent.trim();
   const paragraphs = card.querySelectorAll<HTMLParagraphElement>("p");

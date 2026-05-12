@@ -19,6 +19,21 @@ type PaperCtecCandidate = Omit<PaperCtecTarget, "widget"> & {
   content: HTMLElement;
 };
 
+// Role markers identify the meaningful <p> lines paper.nu renders inside
+// a schedule card. paper-ctec stamps these onto cards as a stable,
+// position-independent contract; paper-combos reads `instructor` too
+// (see paper-combos/ui.ts:readCardInstructor). Renaming a value here
+// requires updating every consumer — the constant is the contract.
+export const PAPER_CARD_ROLE = {
+  course: "course",
+  title: "title",
+  instructor: "instructor",
+  header: "header"
+} as const;
+export type PaperCardRole = (typeof PAPER_CARD_ROLE)[keyof typeof PAPER_CARD_ROLE];
+export const paperRoleSelector = (role: PaperCardRole): string =>
+  `[data-bc-paper-role="${role}"]`;
+
 // Locate every live chip widget that currently represents `key`. paper.nu
 // remounts schedule cards on every drag/scroll, so a key can map to zero,
 // one, or many widget nodes at any moment. Used by the chip-fetch and
@@ -108,15 +123,15 @@ function parseTarget(card: HTMLElement): PaperCtecCandidate | null {
   if (!content) return null;
 
   const paragraphs = Array.from(content.querySelectorAll<HTMLParagraphElement>("p"));
-  const courseLine = content.querySelector<HTMLParagraphElement>('[data-bc-paper-role="course"]') ?? paragraphs[0];
-  const titleLine = content.querySelector<HTMLParagraphElement>('[data-bc-paper-role="title"]') ?? paragraphs[1];
-  const instructorLine = content.querySelector<HTMLParagraphElement>('[data-bc-paper-role="instructor"]') ?? paragraphs[2];
+  const courseLine = content.querySelector<HTMLParagraphElement>(paperRoleSelector(PAPER_CARD_ROLE.course)) ?? paragraphs[0];
+  const titleLine = content.querySelector<HTMLParagraphElement>(paperRoleSelector(PAPER_CARD_ROLE.title)) ?? paragraphs[1];
+  const instructorLine = content.querySelector<HTMLParagraphElement>(paperRoleSelector(PAPER_CARD_ROLE.instructor)) ?? paragraphs[2];
 
   if (!courseLine || !instructorLine) return null;
 
-  courseLine.dataset.bcPaperRole = "course";
-  if (titleLine) titleLine.dataset.bcPaperRole = "title";
-  instructorLine.dataset.bcPaperRole = "instructor";
+  courseLine.dataset.bcPaperRole = PAPER_CARD_ROLE.course;
+  if (titleLine) titleLine.dataset.bcPaperRole = PAPER_CARD_ROLE.title;
+  instructorLine.dataset.bcPaperRole = PAPER_CARD_ROLE.instructor;
 
   applyCardLayout(content, courseLine, titleLine ?? null, instructorLine);
 
@@ -235,16 +250,16 @@ export function teardownCardForCleanup(card: HTMLElement): void {
   content.querySelector<HTMLElement>(`.${WIDGET_CLASS}`)?.remove();
 
   const courseLine = content.querySelector<HTMLParagraphElement>(
-    '[data-bc-paper-role="course"]'
+    paperRoleSelector(PAPER_CARD_ROLE.course)
   );
   const titleLine = content.querySelector<HTMLParagraphElement>(
-    '[data-bc-paper-role="title"]'
+    paperRoleSelector(PAPER_CARD_ROLE.title)
   );
   const instructorLine = content.querySelector<HTMLParagraphElement>(
-    '[data-bc-paper-role="instructor"]'
+    paperRoleSelector(PAPER_CARD_ROLE.instructor)
   );
   const head = content.querySelector<HTMLElement>(
-    '[data-bc-paper-role="header"]'
+    paperRoleSelector(PAPER_CARD_ROLE.header)
   );
 
   if (head) {
@@ -343,11 +358,11 @@ function applyCardLayout(
   titleLine?.classList.toggle("bc-paper-ctec-title-line", compact);
   instructorLine.classList.toggle("bc-paper-ctec-instructor-line", compact);
 
-  let head = content.querySelector<HTMLElement>('[data-bc-paper-role="header"]');
+  let head = content.querySelector<HTMLElement>(paperRoleSelector(PAPER_CARD_ROLE.header));
   if (compact) {
     if (!head) {
       head = content.ownerDocument.createElement("div");
-      head.dataset.bcPaperRole = "header";
+      head.dataset.bcPaperRole = PAPER_CARD_ROLE.header;
       head.className = "bc-paper-ctec-card-head";
     }
 
