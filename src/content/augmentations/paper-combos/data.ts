@@ -2,6 +2,7 @@ import { logQuiet } from "../../../shared/log";
 import {
   getPlanCourses,
   getTermCourses,
+  refreshTermCourses,
   type PaperSection
 } from "../class-search/paper-data";
 import { DEFAULT_UNITS } from "./constants";
@@ -150,6 +151,34 @@ function readScheduleSectionIds(raw: RawSerializedSchedule): string[] {
   return out;
 }
 
+type ResolvedSchedule = {
+  sections: ComboSection[];
+  byId: Map<string, ComboSection>;
+  unresolved: string[];
+};
+
+function resolveSchedule(
+  sectionIds: readonly string[],
+  lookup: Map<string, PaperSection>
+): ResolvedSchedule {
+  const sections: ComboSection[] = [];
+  const byId = new Map<string, ComboSection>();
+  const unresolved: string[] = [];
+  for (const sectionId of sectionIds) {
+    const raw = lookup.get(sectionId);
+    if (!raw) {
+      unresolved.push(sectionId);
+      continue;
+    }
+    const combo = toComboSection(raw);
+    if (!combo) continue;
+    if (byId.has(combo.sectionId)) continue;
+    sections.push(combo);
+    byId.set(combo.sectionId, combo);
+  }
+  return { sections, byId, unresolved };
+}
+
 function groupByCourse(
   sections: ComboSection[],
   unitsByCourse: Map<string, number>
@@ -212,17 +241,27 @@ export async function loadComboPool(): Promise<LoadComboPoolResult> {
     logQuiet("paper-combos.getPlanCourses", err);
   }
 
-  const lookup = buildSectionLookup(termCourses);
-  const sections: ComboSection[] = [];
-  const byId = new Map<string, ComboSection>();
-  for (const sectionId of sectionIds) {
-    const raw = lookup.get(sectionId);
-    if (!raw) continue;
-    const combo = toComboSection(raw);
-    if (!combo) continue;
-    if (byId.has(combo.sectionId)) continue;
-    sections.push(combo);
-    byId.set(combo.sectionId, combo);
+  // Resolve schedule section_ids against the cached per-term JSON. The
+  // user's data_schedule may legitimately reference sections paper.nu
+  // shipped after our cache was last validated (the meta cache only
+  // re-checks `info.terms.updated` every 6 hours). When the first pass
+  // turns up unresolved IDs, we force-refresh the term JSON once and
+  // re-resolve — cheap, and the refreshed cache benefits class-search
+  // and paper-ctec too. Sections still missing after refresh are
+  // genuinely outside paper.nu's catalog and stay silently dropped.
+  let lookup = buildSectionLookup(termCourses);
+  let { sections, byId, unresolved } = resolveSchedule(sectionIds, lookup);
+  if (unresolved.length > 0) {
+    try {
+      const refreshed = await refreshTermCourses(termId);
+      lookup = buildSectionLookup(refreshed);
+      ({ sections, byId, unresolved } = resolveSchedule(sectionIds, lookup));
+    } catch (err) {
+      logQuiet("paper-combos.refreshTermCourses", err);
+    }
+    if (unresolved.length > 0) {
+      logQuiet("paper-combos.unresolved-sections", unresolved);
+    }
   }
 
   if (sections.length === 0) return { state: "no-schedule" };

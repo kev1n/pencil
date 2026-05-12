@@ -323,6 +323,20 @@ export async function getTermCourses(termId: string): Promise<PaperTermCourse[]>
   return job;
 }
 
+// Force-refresh a term: drops the in-memory promise, the meta cache (so
+// `info.terms[termId].updated` re-reads fresh), and the term-storage
+// blob, then re-calls getTermCourses. Used by paper-combos when a
+// section_id in paper.nu's data_schedule is missing from our cache —
+// paper.nu shipped new sections and our `info.terms.updated` window
+// hasn't ticked over yet. Cheap (one network round-trip), and the
+// refreshed cache benefits every other augmentation too.
+export async function refreshTermCourses(termId: string): Promise<PaperTermCourse[]> {
+  termPromises.delete(termId);
+  infoPromise = null;
+  await chrome.storage.local.remove([META_KEY, TERM_KEY(termId)]);
+  return getTermCourses(termId);
+}
+
 // Gated behind a sentinel so we don't pay `chrome.storage.local.get(null)`
 // (which returns the full ~5MB plan blob) on every page load.
 export async function pruneStalePaperCaches(): Promise<void> {
