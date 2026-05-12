@@ -1,6 +1,11 @@
 import { decodeEntities as decodeEntitiesPure } from "../../../shared/decode-entities";
 import type { LookupClassResponse } from "../../../shared/messages";
-import type { SeatsNotesFailure, SeatsNotesResult, SeatsNotesSuccess } from "./types";
+import type {
+  CombinedSectionRow,
+  SeatsNotesFailure,
+  SeatsNotesResult,
+  SeatsNotesSuccess
+} from "./types";
 
 export function toSeatsNotesResult(response: LookupClassResponse): SeatsNotesResult {
   if (!response.ok) return { ok: false, error: response.error };
@@ -18,10 +23,13 @@ export function toSeatsNotesResult(response: LookupClassResponse): SeatsNotesRes
       waitListTotal: null,
       classAttributes: null,
       enrollmentRequirements: null,
-      classNotes: null
+      classNotes: null,
+      isCombinedSection: false,
+      combinedSectionRows: []
     };
   }
 
+  const isCombinedSection = /Combined Section Capacity/i.test(detailText);
   const success: SeatsNotesSuccess = {
     ok: true,
     requestedClassNumber: response.requestedClassNumber,
@@ -33,7 +41,9 @@ export function toSeatsNotesResult(response: LookupClassResponse): SeatsNotesRes
     waitListTotal: extractTextById(detailText, "SSR_CLS_DTL_WRK_WAIT_TOT"),
     classAttributes: extractLongTextById(detailText, "SSR_CLS_DTL_WRK_SSR_CRSE_ATTR_LONG"),
     enrollmentRequirements: extractEnrollmentRequirements(detailText),
-    classNotes: extractLongTextById(detailText, "DERIVED_CLSRCH_SSR_CLASSNOTE_LONG")
+    classNotes: extractLongTextById(detailText, "DERIVED_CLSRCH_SSR_CLASSNOTE_LONG"),
+    isCombinedSection,
+    combinedSectionRows: isCombinedSection ? extractCombinedSectionRows(detailText) : []
   };
 
   return success;
@@ -42,6 +52,63 @@ export function toSeatsNotesResult(response: LookupClassResponse): SeatsNotesRes
 export function toFailure(error: unknown): SeatsNotesFailure {
   const text = error instanceof Error ? error.message : "Unknown error.";
   return { ok: false, error: text };
+}
+
+// Parses CAESAR's "Combined Section" grid (#SCTN_CMBND$scroll$0). Each row's
+// CLASS_NAME cell looks like:
+//   "COMP_SCI 346-0-1\n\nLEC (16045)"
+// Status comes from an HTML-area cell with an <img alt="Open|Closed"> tag.
+// Enrolled / waitlist totals are in their own DERIVED_CLS_CMB_* spans.
+function extractCombinedSectionRows(responseText: string): CombinedSectionRow[] {
+  const rows: CombinedSectionRow[] = [];
+  const classNamePattern = /id=['"]CLASS_NAME\$(\d+)['"][^>]*>\s*([^<]+?)\s*<\/span>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = classNamePattern.exec(responseText)) !== null) {
+    const index = match[1]!;
+    const raw = decodeEntities(match[2] ?? "");
+    const parsed = parseClassNameCell(raw);
+    if (!parsed) continue;
+    rows.push({
+      classNumber: parsed.classNumber,
+      label: parsed.label,
+      component: parsed.component,
+      status: extractStatusForIndex(responseText, index),
+      enrolled: extractTextById(responseText, `DERIVED_CLS_CMB_ENRL_TOT$${index}`),
+      waitlist: extractTextById(responseText, `DERIVED_CLS_CMB_WAIT_TOT$${index}`)
+    });
+  }
+  return rows;
+}
+
+function parseClassNameCell(
+  raw: string
+): { classNumber: string; label: string; component: string | null } | null {
+  // The cell contains "SUBJ NNN-N-N\n\nCOMPONENT (CLASSNBR)" — collapsed
+  // whitespace gives "SUBJ NNN-N-N COMPONENT (CLASSNBR)".
+  const collapsed = raw.replace(/\s+/g, " ").trim();
+  const classNumMatch = /\((\d+)\)\s*$/.exec(collapsed);
+  if (!classNumMatch) return null;
+  const head = collapsed.slice(0, classNumMatch.index).trim();
+  // Split into label + trailing component token.
+  const tokens = head.split(/\s+/);
+  if (tokens.length < 2) return null;
+  const component = /^[A-Z]{2,4}$/.test(tokens[tokens.length - 1]!)
+    ? tokens.pop()!
+    : null;
+  const label = tokens.join(" ");
+  return { classNumber: classNumMatch[1]!, label, component };
+}
+
+function extractStatusForIndex(responseText: string, index: string): string | null {
+  // STATUS$N is a div containing <img alt="Open|Closed|..."> from a CAESAR
+  // image. We pull the alt text directly.
+  const escapedIndex = index.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const containerPattern = new RegExp(
+    `id=['"]win0divSTATUS\\$${escapedIndex}['"][\\s\\S]*?<img[^>]*alt=['"]([^'"]+)['"]`,
+    "i"
+  );
+  const altMatch = containerPattern.exec(responseText)?.[1];
+  return altMatch ? decodeEntities(altMatch) : null;
 }
 
 function extractEnrollmentRequirements(responseText: string): string | null {

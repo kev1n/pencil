@@ -12,8 +12,8 @@ import {
 } from "../class-search/auth-recovery";
 import { bareCatalogNumber } from "../class-search/catalog-format";
 import {
+  findTermCoursesByCatalog,
   getDataMapInfo,
-  getTermCourses,
   type PaperSection,
   type PaperTermCourse
 } from "../class-search/paper-data";
@@ -91,8 +91,12 @@ async function addChipSectionToCartCore(
     return { ok: false, error: "Couldn't determine the active paper.nu term." };
   }
 
-  const courses = await getTermCourses(termId);
-  const match = findSection(courses, params, titleHint);
+  const matchingCourses = await findTermCoursesByCatalog(
+    termId,
+    params.subject,
+    params.catalogNumber
+  );
+  const match = pickSection(matchingCourses, params, titleHint);
   if (!match) {
     return {
       ok: false,
@@ -177,8 +181,12 @@ export async function resolveChipSection(
   try {
     const { termId } = await getActivePaperTermId();
     if (!termId) return null;
-    const courses = await getTermCourses(termId);
-    const found = findSectionWithCourse(courses, params, titleHint);
+    const matchingCourses = await findTermCoursesByCatalog(
+      termId,
+      params.subject,
+      params.catalogNumber
+    );
+    const found = pickSectionWithCourse(matchingCourses, params, titleHint);
     if (!found) return null;
     return {
       termId,
@@ -196,35 +204,30 @@ export async function resolveChipSection(
   }
 }
 
-function findSectionWithCourse(
-  courses: PaperTermCourse[],
+function pickSectionWithCourse(
+  matchingCourses: PaperTermCourse[],
   params: CtecLinkParams,
   titleHint: string
 ): { course: PaperTermCourse; section: PaperSection } | null {
-  const section = findSection(courses, params, titleHint);
+  const section = pickSection(matchingCourses, params, titleHint);
   if (!section) return null;
-  for (const course of courses) {
+  for (const course of matchingCourses) {
     if (course.sections.includes(section)) return { course, section };
   }
   return null;
 }
 
-// Picks the section a chip represents from paper.nu's course data. We have
-// to disambiguate because a course can have many sections; we use the same
-// last-name instructor label the rest of the augmentation uses (so "Smith,
-// Jones" matches "Jones, Smith" too) and topic if the chip carries one.
-// Falls back to LEC over discussion/lab when multiple sections still tie.
-function findSection(
-  courses: PaperTermCourse[],
+// Picks the section a chip represents from a pre-filtered list of courses
+// (subject + catalog already narrowed via findTermCoursesByCatalog). We
+// disambiguate within those courses using the same last-name instructor
+// label the rest of the augmentation uses (so "Smith, Jones" matches
+// "Jones, Smith" too) and topic if the chip carries one. Falls back to LEC
+// over discussion/lab when multiple sections still tie.
+function pickSection(
+  matchingCourses: PaperTermCourse[],
   params: CtecLinkParams,
   titleHint: string
 ): PaperSection | null {
-  const targetCatalog = params.catalogNumber.toLowerCase();
-  const matchingCourses = courses.filter(
-    (c) =>
-      c.subject === params.subject &&
-      sameCatalog(c.catalog.toLowerCase(), targetCatalog)
-  );
   if (matchingCourses.length === 0) return null;
 
   const wantInstructor = sortedLower(params.instructor);
@@ -259,20 +262,6 @@ function sortedLower(value: string): string {
     .filter(Boolean)
     .sort()
     .join(",");
-}
-
-function sameCatalog(a: string, b: string): boolean {
-  if (a === b) return true;
-  // Tolerate paper.nu's "111" vs CAESAR-style "111-0".
-  if (a.replace(/-0$/, "") === b.replace(/-0$/, "")) return true;
-  // CTEC links strip catalog suffixes ("CHEM 105" instead of "CHEM 105-8")
-  // because the regex in ctec-links/helpers.ts only captures three digits.
-  // Treat bare-vs-suffixed as a match when the bare numbers agree;
-  // findSection's instructor + topic filters disambiguate from there.
-  const bareA = a.split("-")[0] ?? "";
-  const bareB = b.split("-")[0] ?? "";
-  if (bareA && bareA === bareB && (a === bareA || b === bareB)) return true;
-  return false;
 }
 
 // titleHint is "{topic} - {subtitle}" when a topic exists, otherwise the

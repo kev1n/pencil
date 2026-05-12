@@ -12,7 +12,11 @@ const SUBJECTS_KEY = `${STORAGE_PREFIX}subjects:v1`;
 const PLAN_KEY = `${STORAGE_PREFIX}plan:v1`;
 // v2: catalog now comes from per-term `n` (user-facing "111-3") instead of
 // `i` (CAESAR's internal padded id "002333").
-const CURRENT_TERM_CACHE_VERSION = 2;
+// v3: storage shape is now a `byCourseKey` Record<"SUBJ|catalog", PaperTermCourse>
+// so consumers get O(1) subject+catalog lookups without rebuilding an index
+// at every call site. `getTermCourses()` still returns an array (Object.values)
+// for backward compat with iterating callers.
+const CURRENT_TERM_CACHE_VERSION = 3;
 const TERM_KEY = (termId: string) =>
   `${STORAGE_PREFIX}term:v${CURRENT_TERM_CACHE_VERSION}:${termId}`;
 const PRUNE_VERSION_KEY = `${STORAGE_PREFIX}pruned:v1`;
@@ -164,13 +168,19 @@ type CachedTerm = {
   termId: string;
   updated: string;
   cachedAt: number;
-  courses: PaperTermCourse[];
+  // v3 storage shape: keyed by "SUBJECT|catalog" so subject+catalog lookups
+  // are O(1) for every consumer, with no per-call-site index rebuild.
+  byCourseKey: Record<string, PaperTermCourse>;
 };
 
 let infoPromise: Promise<DataMapInfo> | null = null;
 let subjectsPromise: Promise<Record<string, SubjectInfo>> | null = null;
 let planPromise: Promise<PaperCourse[]> | null = null;
-const termPromises = new Map<string, Promise<PaperTermCourse[]>>();
+const termIndexPromises = new Map<string, Promise<Record<string, PaperTermCourse>>>();
+
+function courseKey(subject: string, catalog: string): string {
+  return `${subject}|${catalog}`;
+}
 
 export async function getDataMapInfo(): Promise<DataMapInfo> {
   if (infoPromise) return infoPromise;
@@ -252,86 +262,139 @@ export async function getPlanCourses(): Promise<PaperCourse[]> {
   return planPromise;
 }
 
-export async function getTermCourses(termId: string): Promise<PaperTermCourse[]> {
-  const existing = termPromises.get(termId);
+async function getTermIndex(termId: string): Promise<Record<string, PaperTermCourse>> {
+  const existing = termIndexPromises.get(termId);
   if (existing) return existing;
   const job = (async () => {
     const info = await getDataMapInfo();
     const updated = info.terms[termId]?.updated ?? "";
     const cached = await readCache<CachedTerm>(TERM_KEY(termId));
     if (cached && cached.termId === termId && cached.updated === updated) {
-      return cached.courses;
+      return cached.byCourseKey;
     }
     const text = await fetchTextViaBackground(TERM_URL(termId));
     const raw = JSON.parse(text) as RawTermCourse[];
-    const courses: PaperTermCourse[] = raw.map((rc) => {
+    const byCourseKey: Record<string, PaperTermCourse> = {};
+    for (const rc of raw) {
       // CAESAR's per-term JSON stores two course-level identifiers: `i` is
       // the internal padded number (e.g. "002333") and `n` is the
       // user-facing catalog ("111-3"). paper.nu displays courses as
       // `subject n`; we follow suit.
       const userFacingCatalog = rc.n ?? rc.i;
-      return ({
-      course_id: `${rc.u};${userFacingCatalog}`,
-      subject: rc.u,
-      catalog: userFacingCatalog,
-      number: rc.n,
-      title: rc.t,
-      school: rc.c,
-      sections: (rc.s ?? []).map((rs) => ({
-        section_id: `${rs.u};${rs.i}`,
+      const course: PaperTermCourse = {
         course_id: `${rc.u};${userFacingCatalog}`,
-        subject: rs.u,
+        subject: rc.u,
         catalog: userFacingCatalog,
-        number: rs.n ?? userFacingCatalog,
-        title: rs.t,
-        topic: rs.k,
-        section: rs.s,
-        component: rs.c,
-        meeting_days: rs.m ?? [],
-        start_time: rs.x ?? [],
-        end_time: rs.y ?? [],
-        room: rs.l ?? [],
-        start_date: rs.d,
-        end_date: rs.e,
-        capacity: rs.a,
-        enrl_req: rs.q,
-        descs: rs.p,
-        distros: rs.o,
-        disciplines: rs.f,
+        number: rc.n,
+        title: rc.t,
         school: rc.c,
-        instructors: rs.r?.map((r) => ({
-          name: r.n,
-          phone: r.p,
-          campus_address: r.a,
-          office_hours: r.o,
-          bio: r.b,
-          url: r.u
+        sections: (rc.s ?? []).map((rs) => ({
+          section_id: `${rs.u};${rs.i}`,
+          course_id: `${rc.u};${userFacingCatalog}`,
+          subject: rs.u,
+          catalog: userFacingCatalog,
+          number: rs.n ?? userFacingCatalog,
+          title: rs.t,
+          topic: rs.k,
+          section: rs.s,
+          component: rs.c,
+          meeting_days: rs.m ?? [],
+          start_time: rs.x ?? [],
+          end_time: rs.y ?? [],
+          room: rs.l ?? [],
+          start_date: rs.d,
+          end_date: rs.e,
+          capacity: rs.a,
+          enrl_req: rs.q,
+          descs: rs.p,
+          distros: rs.o,
+          disciplines: rs.f,
+          school: rc.c,
+          instructors: rs.r?.map((r) => ({
+            name: r.n,
+            phone: r.p,
+            campus_address: r.a,
+            office_hours: r.o,
+            bio: r.b,
+            url: r.u
+          }))
         }))
-      }))
-    });
-    });
+      };
+      byCourseKey[courseKey(rc.u, userFacingCatalog)] = course;
+    }
     await writeCache(TERM_KEY(termId), {
       termId,
       updated,
       cachedAt: Date.now(),
-      courses
+      byCourseKey
     } satisfies CachedTerm);
-    return courses;
+    return byCourseKey;
   })();
-  termPromises.set(termId, job);
-  job.catch(() => termPromises.delete(termId));
+  termIndexPromises.set(termId, job);
+  job.catch(() => termIndexPromises.delete(termId));
   return job;
 }
 
-// Force-refresh a term: drops the in-memory promise, the meta cache (so
-// `info.terms[termId].updated` re-reads fresh), and the term-storage
+export async function getTermCourses(termId: string): Promise<PaperTermCourse[]> {
+  return Object.values(await getTermIndex(termId));
+}
+
+// O(1) subject+catalog lookup. Pass paper.nu's user-facing catalog form
+// (e.g. "346-0", not "346"). Returns null when not in the term — callers
+// fall back gracefully.
+export async function getTermCourseByKey(
+  termId: string,
+  subject: string,
+  catalog: string
+): Promise<PaperTermCourse | null> {
+  const idx = await getTermIndex(termId);
+  return idx[courseKey(subject, catalog)] ?? null;
+}
+
+// Catalog-fuzzy resolver for callers that may receive bare numbers ("105"
+// from a CTEC link whose regex only captures \d{3}). Tries exact match,
+// then the common "-0" suffix, and only falls back to a linear scan when
+// both miss. The common case stays O(1).
+export async function findTermCoursesByCatalog(
+  termId: string,
+  subject: string,
+  catalog: string
+): Promise<PaperTermCourse[]> {
+  const idx = await getTermIndex(termId);
+  const exact = idx[courseKey(subject, catalog)];
+  if (exact) return [exact];
+  const lower = catalog.toLowerCase();
+  // No suffix? Try the canonical "-0" form, paper.nu's default.
+  if (!lower.includes("-")) {
+    const candidate = idx[courseKey(subject, `${catalog}-0`)];
+    if (candidate) return [candidate];
+  }
+  // Fully fuzzy: paper.nu may carry suffixed variants ("105-8") that the
+  // caller's bare catalog needs to match. Linear scan as a last resort.
+  const matches: PaperTermCourse[] = [];
+  for (const key of Object.keys(idx)) {
+    const [keySubject, keyCatalog] = key.split("|", 2);
+    if (keySubject !== subject) continue;
+    if (!keyCatalog) continue;
+    const bareKey = keyCatalog.split("-", 1)[0];
+    const bareInput = lower.split("-", 1)[0];
+    if (bareKey === bareInput) {
+      const course = idx[key];
+      if (course) matches.push(course);
+    }
+  }
+  return matches;
+}
+
+// Force-refresh a term: drops the in-memory index promise, the meta cache
+// (so `info.terms[termId].updated` re-reads fresh), and the term-storage
 // blob, then re-calls getTermCourses. Used by paper-combos when a
 // section_id in paper.nu's data_schedule is missing from our cache —
 // paper.nu shipped new sections and our `info.terms.updated` window
 // hasn't ticked over yet. Cheap (one network round-trip), and the
 // refreshed cache benefits every other augmentation too.
 export async function refreshTermCourses(termId: string): Promise<PaperTermCourse[]> {
-  termPromises.delete(termId);
+  termIndexPromises.delete(termId);
   infoPromise = null;
   await chrome.storage.local.remove([META_KEY, TERM_KEY(termId)]);
   return getTermCourses(termId);

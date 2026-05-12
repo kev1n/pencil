@@ -128,6 +128,48 @@ export function detailStyles(): string {
       color: var(--bc-color-text-muted);
       font-style: italic;
     }
+    .bc-cs-detail-combined-warning {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: var(--bc-font-11);
+      color: var(--bc-color-seat-warn-row-text);
+      background: var(--bc-color-seat-warn-bg);
+      border: 1px dashed var(--bc-color-seat-warn-row-border);
+      border-radius: var(--bc-radius-sm);
+      padding: 6px 10px;
+      line-height: 1.4;
+    }
+    .bc-cs-detail-per-section {
+      display: grid;
+      gap: 2px;
+      font-size: var(--bc-font-12);
+      color: var(--bc-color-text);
+      background: var(--bc-color-bg-soft, transparent);
+      border: 1px solid var(--bc-color-border-divider);
+      border-radius: var(--bc-radius-sm);
+      padding: 8px 10px;
+    }
+    .bc-cs-detail-per-section-headline {
+      font-weight: var(--bc-fw-bold);
+    }
+    .bc-cs-detail-per-section-line {
+      color: var(--bc-color-text-muted);
+    }
+    .bc-cs-detail-per-section-source {
+      font-size: var(--bc-font-10);
+      font-style: italic;
+      color: var(--bc-color-text-muted);
+      padding-top: 2px;
+    }
+    .bc-cs-detail-combined-warning-icon {
+      flex: 0 0 auto;
+      line-height: 1;
+    }
+    .bc-cs-detail-combined-warning-text {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
     .bc-cs-detail-footer {
       display: flex;
       align-items: center;

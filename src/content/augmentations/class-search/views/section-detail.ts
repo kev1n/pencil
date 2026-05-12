@@ -14,6 +14,7 @@
 
 import { createActionButton } from "../../../framework";
 import { el } from "../../../framework/dom";
+import type { PerSectionSeats } from "../../seats-notes/combined-section";
 import type { SeatsNotesResult, SeatsNotesSuccess } from "../../seats-notes/types";
 
 // Re-exported under a friendlier alias so callers don't need to reach into
@@ -26,6 +27,11 @@ export type SectionDetailProps = {
   detail: SectionDetailData;
   fetchedAt: number;
   onRefresh(): void;
+  // Resolved per-section seats for combined sections. Omitted / null on
+  // initial paint (resolver hasn't returned yet) and for non-combined
+  // sections. When present, the disclaimer is replaced with the real
+  // per-section stats.
+  perSection?: PerSectionSeats | null;
 };
 
 export function renderSectionDetail(
@@ -51,6 +57,27 @@ export function renderSectionDetail(
   // the seat-stats area instead of in a bottom footer, so the refresh
   // affordance sits next to the info it refreshes.
   wrap.appendChild(buildStatsSection(doc, props.detail, props.fetchedAt, props.onRefresh));
+
+  if (props.detail.isCombinedSection) {
+    if (props.perSection) {
+      wrap.appendChild(buildPerSectionBlock(doc, props.detail, props.perSection));
+    } else {
+      const capacity = props.detail.classCapacity?.trim();
+      const message = capacity
+        ? `Many of these ${capacity} seats may be allocated for another section.`
+        : "Many of these seats may be allocated for another section.";
+      wrap.appendChild(
+        el(doc, "div", { class: "bc-cs-detail-combined-warning" }, [
+          el(doc, "span", {
+            class: "bc-cs-detail-combined-warning-icon",
+            text: "⚠️",
+            attrs: { "aria-hidden": "true" }
+          }),
+          el(doc, "span", { class: "bc-cs-detail-combined-warning-text", text: message })
+        ])
+      );
+    }
+  }
 
   appendDetailBlock(doc, wrap, "Class Attributes", props.detail.classAttributes);
   appendDetailBlock(doc, wrap, "Enrollment Requirements", props.detail.enrollmentRequirements);
@@ -94,6 +121,33 @@ export function renderSectionDetailError(
 }
 
 // ── Internals ──────────────────────────────────────────────────────────────
+
+function buildPerSectionBlock(
+  doc: Document,
+  detail: SeatsNotesSuccess,
+  perSection: PerSectionSeats
+): HTMLElement {
+  const block = el(doc, "div", { class: "bc-cs-detail-per-section" });
+  block.appendChild(
+    el(doc, "div", {
+      class: "bc-cs-detail-per-section-headline",
+      text: `${perSection.enrolled}/${perSection.capacity} enrolled in this section`
+    })
+  );
+  block.appendChild(
+    el(doc, "div", {
+      class: "bc-cs-detail-per-section-line",
+      text: `${perSection.available} open · combined ${detail.enrollmentTotal ?? "?"}/${detail.classCapacity ?? "?"}`
+    })
+  );
+  block.appendChild(
+    el(doc, "div", {
+      class: "bc-cs-detail-per-section-source",
+      text: "Per-section cap via paper.nu; enrolled via CAESAR."
+    })
+  );
+  return block;
+}
 
 function buildStatsGrid(doc: Document, detail: SeatsNotesSuccess): HTMLElement {
   const stats = el(doc, "div", { class: "bc-cs-detail-stats" });

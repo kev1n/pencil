@@ -34,3 +34,30 @@ export function extractCourseIdentifier(text: string): {
   const catalog = text.match(/\b(\d{3})-\d\b/)?.[1];
   return { subject, catalog };
 }
+
+// CAESAR encodes the active term in the page URL's STRM query param on the
+// shopping cart / enrollment screens. Returns null on pages without it (the
+// resolver then declines to fetch paper.nu data).
+export function readActiveStrm(doc: Document = document): string | null {
+  const fromLocation = doc.location?.search
+    ? new URLSearchParams(doc.location.search).get("STRM")
+    : null;
+  if (fromLocation && /^\d{4,5}$/.test(fromLocation)) return fromLocation;
+  const html = doc.documentElement?.outerHTML ?? "";
+  // Try several encodings CAESAR uses across cart / search / enrollment
+  // pages. PIA_KEYSTRUCT carries it on cart-style pages; a bare URL param
+  // shows up on iframe-mediated forms; an input[name="STRM"] shows up in
+  // search results pages.
+  const patterns: RegExp[] = [
+    /PIA_KEYSTRUCT\s*=\s*\{[^}]*STRM\s*:\s*["'](\d{4,5})["']/i,
+    /name=["']STRM["'][^>]*value=["'](\d{4,5})["']/i,
+    /value=["'](\d{4,5})["'][^>]*name=["']STRM["']/i,
+    /[?&]STRM=(\d{4,5})/i,
+    /\bSTRM\b\s*[:=]\s*["']?(\d{4,5})["']?/i
+  ];
+  for (const re of patterns) {
+    const m = re.exec(html);
+    if (m?.[1]) return m[1];
+  }
+  return null;
+}

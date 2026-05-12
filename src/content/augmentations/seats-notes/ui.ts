@@ -1,5 +1,6 @@
 import { createActionButton, ensureStyle, el } from "../../framework";
 
+import type { PerSectionSeats } from "./combined-section";
 import {
   NOTES_CELL_CLASS,
   NOTES_HEADER_CLASS,
@@ -132,16 +133,30 @@ export const SEATS_NOTES_STYLES = `
     .better-caesar-note-text {
       color: var(--bc-color-accent-pressed);
       overflow-wrap: anywhere;
-      overflow: hidden;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 4;
+      white-space: pre-line;
     }
     .better-caesar-warning {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
       color: var(--bc-color-seat-warn-row-text);
       border-top: 1px dashed var(--bc-color-seat-warn-row-border);
       padding-top: 4px;
       font-weight: var(--bc-fw-semibold);
+    }
+    .better-caesar-source-note {
+      font-size: var(--bc-font-10);
+      font-style: italic;
+      color: var(--bc-color-seat-muted-text);
+      padding-top: 2px;
+    }
+    .better-caesar-warning-icon {
+      flex: 0 0 auto;
+      line-height: 1;
+    }
+    .better-caesar-warning-text {
+      flex: 1 1 auto;
+      min-width: 0;
     }
     .better-caesar-muted {
       color: var(--bc-color-seat-muted-text);
@@ -209,7 +224,8 @@ export function paintLoaded(
   result: SeatsNotesResult,
   fetchedAt: number,
   classNumber: string,
-  onRefresh: () => void
+  onRefresh: () => void,
+  perSection: PerSectionSeats | null
 ): void {
   cells.seatsCell.dataset.classNumber = classNumber;
   cells.notesCell.dataset.classNumber = classNumber;
@@ -228,7 +244,7 @@ export function paintLoaded(
     return;
   }
 
-  cells.seatsCell.appendChild(buildSeatsCard(result));
+  cells.seatsCell.appendChild(buildSeatsCard(result, perSection));
   cells.notesCell.appendChild(buildNotesCard(result, classNumber));
 }
 
@@ -275,9 +291,18 @@ function buildMetaBar(fetchedAt: number, onRefresh: () => void): HTMLElement {
   ]);
 }
 
-function buildSeatsCard(response: SeatsNotesSuccess): HTMLElement {
+function buildSeatsCard(
+  response: SeatsNotesSuccess,
+  perSection: PerSectionSeats | null
+): HTMLElement {
   const card = document.createElement("div");
   card.className = "better-caesar-card";
+
+  // Combined section + resolver succeeded: show real per-section numbers
+  // (the whole reason we bothered fetching paper.nu data).
+  if (response.isCombinedSection && perSection) {
+    return buildCombinedSeatsCard(card, response, perSection);
+  }
 
   const primary = document.createElement("div");
   primary.className = "better-caesar-pill";
@@ -299,7 +324,89 @@ function buildSeatsCard(response: SeatsNotesSuccess): HTMLElement {
   );
   card.appendChild(details);
 
+  // Combined section, but we couldn't resolve per-section numbers (paper.nu
+  // unreachable, section not found, capacity field missing). Fall back to
+  // the generic disclaimer.
+  if (response.isCombinedSection) {
+    card.appendChild(buildCombinedSectionWarning(response.classCapacity));
+  }
+
   return card;
+}
+
+function buildCombinedSeatsCard(
+  card: HTMLElement,
+  response: SeatsNotesSuccess,
+  perSection: PerSectionSeats
+): HTMLElement {
+  const primary = document.createElement("div");
+  primary.className = "better-caesar-pill";
+  const primaryLine = `${perSection.enrolled}/${perSection.capacity} enrolled`;
+  primary.textContent = primaryLine;
+  primary.title = primaryLine;
+  applyPerSectionTone(primary, perSection);
+  card.appendChild(primary);
+
+  const details = document.createElement("div");
+  details.className = "better-caesar-lines";
+  appendLine(details, "Open seats", String(perSection.available));
+  if (response.classCapacity) {
+    appendLine(
+      details,
+      "Combined cap",
+      `${response.enrollmentTotal ?? "?"}/${response.classCapacity}`
+    );
+  }
+  if (perSection.waitlist !== null) {
+    const waitText =
+      response.waitListCapacity && perSection.waitlist !== null
+        ? `${perSection.waitlist}/${response.waitListCapacity}`
+        : String(perSection.waitlist);
+    appendLine(details, "Waitlist", waitText);
+  }
+  card.appendChild(details);
+
+  card.appendChild(
+    el(document, "div", {
+      class: "better-caesar-note better-caesar-source-note",
+      text: "Per-section cap via paper.nu; enrolled via CAESAR."
+    })
+  );
+
+  return card;
+}
+
+function buildCombinedSectionWarning(classCapacity: string | null): HTMLElement {
+  const capacity = classCapacity?.trim();
+  const message = capacity
+    ? `Many of these ${capacity} seats may be allocated for another section.`
+    : "Many of these seats may be allocated for another section.";
+  return el(document, "div", { class: "better-caesar-warning" }, [
+    el(document, "span", {
+      class: "better-caesar-warning-icon",
+      text: "⚠️",
+      attrs: { "aria-hidden": "true" }
+    }),
+    el(document, "span", { class: "better-caesar-warning-text", text: message })
+  ]);
+}
+
+function applyPerSectionTone(element: HTMLElement, perSection: PerSectionSeats): void {
+  const occupancy =
+    perSection.capacity > 0
+      ? Math.min(Math.max(perSection.enrolled / perSection.capacity, 0), 1.2)
+      : 0;
+  const tone =
+    perSection.available <= 0
+      ? {
+          background: "var(--bc-color-seat-full-bg)",
+          border: "var(--bc-color-seat-full-border)",
+          ink: "var(--bc-color-seat-full-ink)"
+        }
+      : occupancyToTone(occupancy);
+  element.style.background = tone.background;
+  element.style.borderColor = tone.border;
+  element.style.color = tone.ink;
 }
 
 function buildNotesCard(response: SeatsNotesSuccess, classNumber: string): HTMLElement {

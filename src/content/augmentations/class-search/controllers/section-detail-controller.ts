@@ -21,6 +21,7 @@ import {
   writeCachedEntry as writeSeatsNotesCache
 } from "../../seats-notes/storage";
 import { toSeatsNotesResult, toFailure as seatsNotesFailure } from "../../seats-notes/parser";
+import { resolvePerSectionSeats } from "../../seats-notes/combined-section";
 import { showToast } from "../../../../shared/toast";
 
 import {
@@ -355,16 +356,32 @@ function renderRow(
   fetchedAt: number,
   onRefresh: () => void
 ): void {
-  detailRow.innerHTML = "";
   // `caesar` is still threaded through for the cache write upstream — the
   // detail view itself no longer paints a header (the section row already
   // shows section label / time / room one line up).
   void caesar;
-  detailRow.appendChild(
-    renderSectionDetail(deps.doc, {
-      detail: result,
-      fetchedAt,
-      onRefresh
-    })
-  );
+  paint(null);
+
+  // Combined-section enhancement: kick off the per-section resolver in the
+  // background and re-paint when paper.nu data lands. No-op for non-combined
+  // sections or unresolvable lookups.
+  if (result.ok && result.isCombinedSection) {
+    void (async () => {
+      const termId = deps.getTermId();
+      const perSection = await resolvePerSectionSeats(result, termId);
+      if (perSection && detailRow.isConnected) paint(perSection);
+    })();
+  }
+
+  function paint(perSection: Parameters<typeof renderSectionDetail>[1]["perSection"]): void {
+    detailRow.innerHTML = "";
+    detailRow.appendChild(
+      renderSectionDetail(deps.doc, {
+        detail: result,
+        fetchedAt,
+        onRefresh,
+        perSection
+      })
+    );
+  }
 }

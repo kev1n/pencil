@@ -24,6 +24,8 @@ function makeSuccess(overrides: Partial<SeatsNotesSuccess> = {}): SeatsNotesSucc
     classAttributes: "Discovery Seminar",
     enrollmentRequirements: "Permission of instructor",
     classNotes: "Bring laptop",
+    isCombinedSection: false,
+    combinedSectionRows: [],
     ...overrides
   };
 }
@@ -109,7 +111,9 @@ describe("renderSectionDetail — success", () => {
       waitListTotal: null,
       classAttributes: null,
       enrollmentRequirements: null,
-      classNotes: null
+      classNotes: null,
+      isCombinedSection: false,
+      combinedSectionRows: []
     };
     const wrap = renderSectionDetail(doc, {
       detail,
@@ -148,6 +152,47 @@ describe("renderSectionDetail — success", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(btn?.disabled).toBe(true);
     expect(btn?.textContent).toBe("Refreshing…");
+  });
+
+  it("renders the combined-section disclaimer when isCombinedSection + no perSection", () => {
+    const doc = fresh();
+    const wrap = renderSectionDetail(doc, {
+      detail: makeSuccess({ isCombinedSection: true, classCapacity: "60" }),
+      fetchedAt: Date.now(),
+      onRefresh: vi.fn()
+    });
+    const warning = wrap.querySelector(".bc-cs-detail-combined-warning");
+    expect(warning?.textContent).toContain("Many of these 60 seats");
+    expect(wrap.querySelector(".bc-cs-detail-per-section")).toBeNull();
+  });
+
+  it("renders real per-section numbers when perSection is provided + drops the disclaimer", () => {
+    const doc = fresh();
+    const wrap = renderSectionDetail(doc, {
+      detail: makeSuccess({ isCombinedSection: true, classCapacity: "60", enrollmentTotal: "20" }),
+      fetchedAt: Date.now(),
+      onRefresh: vi.fn(),
+      perSection: {
+        capacity: 30,
+        enrolled: 20,
+        available: 10,
+        waitlist: 0,
+        status: "Closed",
+        label: "COMP_SCI 346-0-1"
+      }
+    });
+    const block = wrap.querySelector(".bc-cs-detail-per-section");
+    expect(block).not.toBeNull();
+    expect(block?.querySelector(".bc-cs-detail-per-section-headline")?.textContent).toBe(
+      "20/30 enrolled in this section"
+    );
+    expect(block?.querySelector(".bc-cs-detail-per-section-line")?.textContent).toContain(
+      "10 open"
+    );
+    expect(block?.querySelector(".bc-cs-detail-per-section-line")?.textContent).toContain(
+      "combined 20/60"
+    );
+    expect(wrap.querySelector(".bc-cs-detail-combined-warning")).toBeNull();
   });
 });
 
