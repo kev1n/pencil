@@ -249,13 +249,13 @@ export class PaperCombosAugmentation implements Augmentation {
     if (this.sortLoaded) return;
     this.sortLoaded = true;
     void loadSortMode().then((mode) => {
-      this.sortMode = mode;
+      this.applySortMode(mode);
       this.recomputeCombos();
       this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
     });
     if (!this.sortUnsubscribe) {
       this.sortUnsubscribe = subscribeSortChanges((mode) => {
-        this.sortMode = mode;
+        this.applySortMode(mode);
         this.recomputeCombos();
         this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
       });
@@ -586,14 +586,20 @@ export class PaperCombosAugmentation implements Augmentation {
     });
   }
 
-  private async setSortMode(
+  private applySortMode(mode: SortMode): boolean {
+    if (this.sortMode === mode) return false;
+    this.sortMode = mode;
+    this.cursor = 0;
+    return true;
+  }
+
+  private setSortMode(
     doc: Document,
     grid: HTMLElement,
     mode: SortMode
-  ): Promise<void> {
-    if (this.sortMode === mode) return;
-    this.sortMode = mode;
-    await saveSortMode(mode);
+  ): void {
+    if (!this.applySortMode(mode)) return;
+    void saveSortMode(mode);
     this.recomputeCombos();
     this.renderAll(doc, grid, isFeatureEnabled(PAPER_COMBOS_ACTIVE_ID));
   }
