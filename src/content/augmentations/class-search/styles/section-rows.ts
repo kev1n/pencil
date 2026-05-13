@@ -29,13 +29,13 @@ export function sectionRowsStyles(): string {
     .bc-cs-section-component { color: var(--bc-color-text-muted); font-size: var(--bc-font-12); }
     .bc-cs-section-time { color: var(--bc-color-text); font-size: var(--bc-font-12); line-height: 1.4; }
     .bc-cs-section-time-dates {
+      color: var(--bc-color-text-muted);
+      font-size: var(--bc-font-11);
+    }
+    .bc-cs-section-time-pattern {
       color: var(--bc-color-text);
       font-size: var(--bc-font-12);
       font-weight: var(--bc-fw-semibold);
-    }
-    .bc-cs-section-time-pattern {
-      color: var(--bc-color-text-muted);
-      font-size: var(--bc-font-11);
     }
     .bc-cs-section-instructor {
       color: var(--bc-color-text);
