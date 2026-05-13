@@ -105,7 +105,7 @@ function parseRows(
 // "section number" — component is implied. We store the bare section number;
 // the optimistic-add side stores "1-LEC" but lookupBySignature treats the
 // label case-insensitively and only the part before the first dash matches.
-function parseClassText(
+export function parseClassText(
   text: string
 ): { subject: string; catalog: string; sectionLabel: string; classNumber: string } | null {
   // Match "{SUBJECT} {DIGITS}-{DIGITS|LETTERS}-{SECTION} ({CLASSNUMBER})".
@@ -142,7 +142,7 @@ function readDescription(
 // (cheap, deterministic) then the JS literal. Background-fetched HTML may
 // not have a `doc.location` — `htmlSource` lets the reconciler pass the raw
 // HTML so we can still find the literal.
-function readTermId(doc: Document, htmlSource?: string): string | null {
+export function readTermId(doc: Document, htmlSource?: string): string | null {
   const fromLocation = doc.location?.search
     ? new URLSearchParams(doc.location.search).get("STRM")
     : null;

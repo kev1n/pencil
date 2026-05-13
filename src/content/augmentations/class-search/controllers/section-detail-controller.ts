@@ -116,10 +116,9 @@ export function createSectionDetailController(
   function fetchAndRender(
     detailRow: HTMLLIElement,
     caesar: CaesarSection,
-    subject: string,
     bareCatalog: string
   ): Promise<void> {
-    return runFetchAndRender(deps, detailRow, caesar, subject, bareCatalog);
+    return runFetchAndRender(deps, detailRow, caesar, bareCatalog);
   }
 
   function tryRenderFromCache(
@@ -138,13 +137,12 @@ export function createSectionDetailController(
     if (!caesar || !cachedSeats?.result) return false;
 
     const bareCatalog = bareCatalogNumber(row.course.catalog);
-    const subject = row.course.subject;
     const detailRow = doc.createElement("li");
     detailRow.className = "bc-cs-detail-row";
     li.parentElement?.insertBefore(detailRow, li.nextSibling);
     renderRow(deps, detailRow, caesar, cachedSeats.result, cachedSeats.fetchedAt, () => {
       if (!deps.consumePsCredit("refresh-detail")) return;
-      void fetchAndRender(detailRow, caesar, subject, bareCatalog);
+      void fetchAndRender(detailRow, caesar, bareCatalog);
     });
     button.dataset.expanded = "true";
     button.dataset.state = "expanded";
@@ -256,15 +254,14 @@ export function createSectionDetailController(
         }
 
         const bareCatalog = bareCatalogNumber(row.course.catalog);
-        const subject = row.course.subject;
         const cachedDisk = readSeatsNotesCache(caesar.classNumber);
         if (cachedDisk?.result) {
           renderRow(deps, detailRow, caesar, cachedDisk.result, cachedDisk.fetchedAt, () => {
             if (!deps.consumePsCredit("refresh-detail")) return;
-            void fetchAndRender(detailRow!, caesar, subject, bareCatalog);
+            void fetchAndRender(detailRow!, caesar, bareCatalog);
           });
         } else {
-          await fetchAndRender(detailRow, caesar, subject, bareCatalog);
+          await fetchAndRender(detailRow, caesar, bareCatalog);
         }
 
         button.dataset.expanded = "true";
@@ -288,27 +285,32 @@ export function createSectionDetailController(
   };
 }
 
+// 4xx classes live under TGS even when undergrads can take them; this
+// matches the heuristic in caesar-search.ts and ctec-links/subject-careers.
+export function isGradCatalog(bareCatalog: string): boolean {
+  const num = parseInt(bareCatalog, 10);
+  return Number.isFinite(num) && num >= 400;
+}
+
 // ── Internals ──────────────────────────────────────────────────────────────
 
 async function runFetchAndRender(
   deps: SectionDetailDeps,
   detailRow: HTMLLIElement,
   caesar: CaesarSection,
-  subject: string,
   bareCatalog: string
 ): Promise<void> {
   if (!detailRow.isConnected) return;
   renderLoading(deps, detailRow);
   try {
-    // Pass the course identifier so `buildCareerCandidates` can widen its
-    // search beyond UGRD+TGS using nu-careers — needed for classes that
-    // only live under Law, SPS, Kellogg-grad, etc.
+    // Hint TGS first for 4xx so lookupClass's career fallback list
+    // doesn't waste a request trying UGRD on grad-only classes.
+    const careerHint = isGradCatalog(bareCatalog) ? "TGS" : "UGRD";
     const lookupResponse = await lookupClass(
       {
         type: "lookup-class",
         classNumber: caesar.classNumber,
-        subjectHint: subject,
-        catalogHint: bareCatalog,
+        careerHint,
         termId: deps.getTermId()
       },
       {
@@ -323,7 +325,7 @@ async function runFetchAndRender(
     if (detailRow.isConnected) {
       renderRow(deps, detailRow, caesar, result, fetchedAt, () => {
         if (!deps.consumePsCredit("refresh-detail")) return;
-        void runFetchAndRender(deps, detailRow, caesar, subject, bareCatalog);
+        void runFetchAndRender(deps, detailRow, caesar, bareCatalog);
       });
     }
     const warning = formatPsCreditsWarning(fetchedAt);
@@ -337,7 +339,7 @@ async function runFetchAndRender(
     if (detailRow.isConnected) {
       renderRow(deps, detailRow, caesar, failure, Date.now(), () => {
         if (!deps.consumePsCredit("refresh-detail")) return;
-        void runFetchAndRender(deps, detailRow, caesar, subject, bareCatalog);
+        void runFetchAndRender(deps, detailRow, caesar, bareCatalog);
       });
     }
   }
@@ -356,21 +358,16 @@ function renderRow(
   fetchedAt: number,
   onRefresh: () => void
 ): void {
-  // `caesar` is still threaded through for the cache write upstream — the
-  // detail view itself no longer paints a header (the section row already
-  // shows section label / time / room one line up).
+  // `caesar` is threaded through for the cache write upstream.
   void caesar;
   paint(null);
 
-  // Combined-section enhancement: kick off the per-section resolver in the
-  // background and re-paint when paper.nu data lands. No-op for non-combined
-  // sections or unresolvable lookups.
+  // Combined-section per-section numbers need paper.nu's per-section cap;
+  // resolve in the background and re-paint when it lands.
   if (result.ok && result.isCombinedSection) {
-    void (async () => {
-      const termId = deps.getTermId();
-      const perSection = await resolvePerSectionSeats(result, termId);
+    void resolvePerSectionSeats(result, deps.getTermId()).then((perSection) => {
       if (perSection && detailRow.isConnected) paint(perSection);
-    })();
+    });
   }
 
   function paint(perSection: Parameters<typeof renderSectionDetail>[1]["perSection"]): void {

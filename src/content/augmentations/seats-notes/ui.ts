@@ -324,15 +324,15 @@ function buildSeatsCard(
   );
   card.appendChild(details);
 
-  // Combined section, but we couldn't resolve per-section numbers (paper.nu
-  // unreachable, section not found, capacity field missing). Fall back to
-  // the generic disclaimer.
   if (response.isCombinedSection) {
     card.appendChild(buildCombinedSectionWarning(response.classCapacity));
   }
 
   return card;
 }
+
+const PER_SECTION_SOURCE_NOTE =
+  "CAESAR pools enrollment across cross-listed sections — pencil.nu inferred the per-section split from paper.nu's catalog.";
 
 function buildCombinedSeatsCard(
   card: HTMLElement,
@@ -341,7 +341,7 @@ function buildCombinedSeatsCard(
 ): HTMLElement {
   const primary = document.createElement("div");
   primary.className = "better-caesar-pill";
-  const primaryLine = `${perSection.enrolled}/${perSection.capacity} enrolled`;
+  const primaryLine = `${perSection.enrolled}/${perSection.capacity} in this section`;
   primary.textContent = primaryLine;
   primary.title = primaryLine;
   applyPerSectionTone(primary, perSection);
@@ -353,7 +353,7 @@ function buildCombinedSeatsCard(
   if (response.classCapacity) {
     appendLine(
       details,
-      "Combined cap",
+      "Pooled total",
       `${response.enrollmentTotal ?? "?"}/${response.classCapacity}`
     );
   }
@@ -369,7 +369,7 @@ function buildCombinedSeatsCard(
   card.appendChild(
     el(document, "div", {
       class: "better-caesar-note better-caesar-source-note",
-      text: "Per-section cap via paper.nu; enrolled via CAESAR."
+      text: PER_SECTION_SOURCE_NOTE
     })
   );
 

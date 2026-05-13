@@ -26,6 +26,8 @@ export function logDebug(scope: string, ...args: unknown[]): void {
   console.debug(`[bc:${scope}]`, ...args);
 }
 
-// Test-only: kept for spec backward-compat. The cache was removed in favor of
-// re-reading localStorage on every call, so this is a no-op now.
-export function _resetDebugCache(): void {}
+// Spec back-compat. No longer needed since isDebug re-reads localStorage,
+// but specs call this between cases to be explicit about scope reset.
+export function _resetDebugCache(): void {
+  // intentional no-op
+}

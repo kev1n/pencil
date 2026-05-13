@@ -12,10 +12,7 @@ const SUBJECTS_KEY = `${STORAGE_PREFIX}subjects:v1`;
 const PLAN_KEY = `${STORAGE_PREFIX}plan:v1`;
 // v2: catalog now comes from per-term `n` (user-facing "111-3") instead of
 // `i` (CAESAR's internal padded id "002333").
-// v3: storage shape is now a `byCourseKey` Record<"SUBJ|catalog", PaperTermCourse>
-// so consumers get O(1) subject+catalog lookups without rebuilding an index
-// at every call site. `getTermCourses()` still returns an array (Object.values)
-// for backward compat with iterating callers.
+// v3: storage shape is byCourseKey Record so subject+catalog lookups are O(1).
 const CURRENT_TERM_CACHE_VERSION = 3;
 const TERM_KEY = (termId: string) =>
   `${STORAGE_PREFIX}term:v${CURRENT_TERM_CACHE_VERSION}:${termId}`;
@@ -168,8 +165,6 @@ type CachedTerm = {
   termId: string;
   updated: string;
   cachedAt: number;
-  // v3 storage shape: keyed by "SUBJECT|catalog" so subject+catalog lookups
-  // are O(1) for every consumer, with no per-call-site index rebuild.
   byCourseKey: Record<string, PaperTermCourse>;
 };
 
@@ -389,10 +384,7 @@ export async function findTermCoursesByCatalog(
 // Force-refresh a term: drops the in-memory index promise, the meta cache
 // (so `info.terms[termId].updated` re-reads fresh), and the term-storage
 // blob, then re-calls getTermCourses. Used by paper-combos when a
-// section_id in paper.nu's data_schedule is missing from our cache —
-// paper.nu shipped new sections and our `info.terms.updated` window
-// hasn't ticked over yet. Cheap (one network round-trip), and the
-// refreshed cache benefits every other augmentation too.
+// section_id in paper.nu's data_schedule is missing from our cache.
 export async function refreshTermCourses(termId: string): Promise<PaperTermCourse[]> {
   termIndexPromises.delete(termId);
   infoPromise = null;

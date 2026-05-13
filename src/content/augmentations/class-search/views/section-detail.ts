@@ -137,13 +137,14 @@ function buildPerSectionBlock(
   block.appendChild(
     el(doc, "div", {
       class: "bc-cs-detail-per-section-line",
-      text: `${perSection.available} open · combined ${detail.enrollmentTotal ?? "?"}/${detail.classCapacity ?? "?"}`
+      text: `${perSection.available} open · pooled ${detail.enrollmentTotal ?? "?"}/${detail.classCapacity ?? "?"}`
     })
   );
   block.appendChild(
     el(doc, "div", {
       class: "bc-cs-detail-per-section-source",
-      text: "Per-section cap via paper.nu; enrolled via CAESAR."
+      text:
+        "CAESAR pools enrollment across cross-listed sections — pencil.nu inferred the per-section split from paper.nu's catalog."
     })
   );
   return block;

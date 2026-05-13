@@ -23,41 +23,35 @@ export function isDisabledClassRow(row: Element): boolean {
   );
 }
 
-// Parses the CAESAR cart row label (e.g. "COMP_SCI 211-0 (12345)") into
-// the subject + bare catalog. Both are best-effort — when either is missing
-// the lookup falls back to UGRD-then-TGS inside `buildCareerCandidates`.
-export function extractCourseIdentifier(text: string): {
-  subject?: string;
-  catalog?: string;
-} {
-  const subject = text.match(/\b([A-Z][A-Z_]+[A-Z])\b/)?.[1];
+export function extractCareerHint(text: string): "UGRD" | "TGS" | undefined {
   const catalog = text.match(/\b(\d{3})-\d\b/)?.[1];
-  return { subject, catalog };
+  if (!catalog) return undefined;
+  const value = Number(catalog);
+  if (!Number.isFinite(value)) return undefined;
+  return value >= 400 ? "TGS" : "UGRD";
 }
 
-// CAESAR encodes the active term in the page URL's STRM query param on the
-// shopping cart / enrollment screens. Returns null on pages without it (the
-// resolver then declines to fetch paper.nu data).
+import { readTermId } from "../../cart-cache/parse-cart-page";
+
+// CAESAR seat/enrollment fields arrive as either strings ("30") or numbers
+// (paper.nu's typed-as-string-but-actually-number capacity). Tolerates both,
+// strips stray punctuation, returns null on garbage.
+export function parseCount(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number") return Number.isFinite(value) ? Math.trunc(value) : null;
+  const n = Number.parseFloat(value.replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+// `readTermId` does a full-document outerHTML scan as its fallback, which is
+// expensive on CAESAR's multi-MB cart pages. seats-notes calls this once per
+// combined-section row, so we memoize per Document for the lifetime of the
+// content-script.
+const strmCache = new WeakMap<Document, string | null>();
 export function readActiveStrm(doc: Document = document): string | null {
-  const fromLocation = doc.location?.search
-    ? new URLSearchParams(doc.location.search).get("STRM")
-    : null;
-  if (fromLocation && /^\d{4,5}$/.test(fromLocation)) return fromLocation;
-  const html = doc.documentElement?.outerHTML ?? "";
-  // Try several encodings CAESAR uses across cart / search / enrollment
-  // pages. PIA_KEYSTRUCT carries it on cart-style pages; a bare URL param
-  // shows up on iframe-mediated forms; an input[name="STRM"] shows up in
-  // search results pages.
-  const patterns: RegExp[] = [
-    /PIA_KEYSTRUCT\s*=\s*\{[^}]*STRM\s*:\s*["'](\d{4,5})["']/i,
-    /name=["']STRM["'][^>]*value=["'](\d{4,5})["']/i,
-    /value=["'](\d{4,5})["'][^>]*name=["']STRM["']/i,
-    /[?&]STRM=(\d{4,5})/i,
-    /\bSTRM\b\s*[:=]\s*["']?(\d{4,5})["']?/i
-  ];
-  for (const re of patterns) {
-    const m = re.exec(html);
-    if (m?.[1]) return m[1];
-  }
-  return null;
+  const cached = strmCache.get(doc);
+  if (cached !== undefined) return cached;
+  const value = readTermId(doc);
+  strmCache.set(doc, value);
+  return value;
 }

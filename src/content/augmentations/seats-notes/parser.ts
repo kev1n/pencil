@@ -55,26 +55,31 @@ export function toFailure(error: unknown): SeatsNotesFailure {
 }
 
 // Parses CAESAR's "Combined Section" grid (#SCTN_CMBND$scroll$0). Each row's
-// CLASS_NAME cell looks like:
-//   "COMP_SCI 346-0-1\n\nLEC (16045)"
-// Status comes from an HTML-area cell with an <img alt="Open|Closed"> tag.
-// Enrolled / waitlist totals are in their own DERIVED_CLS_CMB_* spans.
+// CLASS_NAME cell looks like "COMP_SCI 346-0-1\n\nLEC (16045)".
 function extractCombinedSectionRows(responseText: string): CombinedSectionRow[] {
   const rows: CombinedSectionRow[] = [];
   const classNamePattern = /id=['"]CLASS_NAME\$(\d+)['"][^>]*>\s*([^<]+?)\s*<\/span>/gi;
+  // Each per-row extractor scans a bounded window, not the whole response —
+  // keeps the parser O(N) over the grid even with many cross-listed sections.
+  const matches: RegExpExecArray[] = [];
   let match: RegExpExecArray | null;
-  while ((match = classNamePattern.exec(responseText)) !== null) {
-    const index = match[1]!;
-    const raw = decodeEntities(match[2] ?? "");
-    const parsed = parseClassNameCell(raw);
+  while ((match = classNamePattern.exec(responseText)) !== null) matches.push(match);
+
+  for (let i = 0; i < matches.length; i++) {
+    const m = matches[i]!;
+    const index = m[1]!;
+    const parsed = parseClassNameCell(decodeEntities(m[2] ?? ""));
     if (!parsed) continue;
+    const windowStart = m.index;
+    const windowEnd = matches[i + 1]?.index ?? responseText.length;
+    const window = responseText.slice(windowStart, windowEnd);
     rows.push({
       classNumber: parsed.classNumber,
       label: parsed.label,
       component: parsed.component,
-      status: extractStatusForIndex(responseText, index),
-      enrolled: extractTextById(responseText, `DERIVED_CLS_CMB_ENRL_TOT$${index}`),
-      waitlist: extractTextById(responseText, `DERIVED_CLS_CMB_WAIT_TOT$${index}`)
+      status: extractStatusAlt(window),
+      enrolled: extractTextById(window, `DERIVED_CLS_CMB_ENRL_TOT$${index}`),
+      waitlist: extractTextById(window, `DERIVED_CLS_CMB_WAIT_TOT$${index}`)
     });
   }
   return rows;
@@ -83,32 +88,21 @@ function extractCombinedSectionRows(responseText: string): CombinedSectionRow[] 
 function parseClassNameCell(
   raw: string
 ): { classNumber: string; label: string; component: string | null } | null {
-  // The cell contains "SUBJ NNN-N-N\n\nCOMPONENT (CLASSNBR)" — collapsed
-  // whitespace gives "SUBJ NNN-N-N COMPONENT (CLASSNBR)".
   const collapsed = raw.replace(/\s+/g, " ").trim();
   const classNumMatch = /\((\d+)\)\s*$/.exec(collapsed);
   if (!classNumMatch) return null;
   const head = collapsed.slice(0, classNumMatch.index).trim();
-  // Split into label + trailing component token.
   const tokens = head.split(/\s+/);
   if (tokens.length < 2) return null;
   const component = /^[A-Z]{2,4}$/.test(tokens[tokens.length - 1]!)
     ? tokens.pop()!
     : null;
-  const label = tokens.join(" ");
-  return { classNumber: classNumMatch[1]!, label, component };
+  return { classNumber: classNumMatch[1]!, label: tokens.join(" "), component };
 }
 
-function extractStatusForIndex(responseText: string, index: string): string | null {
-  // STATUS$N is a div containing <img alt="Open|Closed|..."> from a CAESAR
-  // image. We pull the alt text directly.
-  const escapedIndex = index.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const containerPattern = new RegExp(
-    `id=['"]win0divSTATUS\\$${escapedIndex}['"][\\s\\S]*?<img[^>]*alt=['"]([^'"]+)['"]`,
-    "i"
-  );
-  const altMatch = containerPattern.exec(responseText)?.[1];
-  return altMatch ? decodeEntities(altMatch) : null;
+function extractStatusAlt(window: string): string | null {
+  const m = /<img[^>]*alt=['"]([^'"]+)['"]/i.exec(window);
+  return m?.[1] ? decodeEntities(m[1]) : null;
 }
 
 function extractEnrollmentRequirements(responseText: string): string | null {

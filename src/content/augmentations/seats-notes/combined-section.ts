@@ -1,25 +1,23 @@
-// Resolver for combined-section per-section seat numbers. CAESAR's detail
-// page pools enrollment across cross-listed sections (e.g. COMP_SCI 346 +
-// COMP_ENG 346 share one "Combined Section Capacity: 60") so users can't
-// tell how many seats are allocated to the section they care about. We
-// reconstruct it from two sources:
+// CAESAR's detail page pools enrollment across cross-listed sections
+// (e.g. COMP_SCI 346 + COMP_ENG 346 share one "Combined Section Capacity:
+// 60") and never exposes the per-section breakdown — there's no field in
+// the response that says "this section gets 30 of those 60". pencil.nu
+// reconstructs it by stitching two sources:
 //
-//   - per-section ENROLLED comes from CAESAR's own "Combined Section" grid
-//     (already in the response we fetched; parsed into combinedSectionRows).
-//   - per-section CAPACITY comes from paper.nu's term catalog. paper.nu
-//     stores each cross-listed section as its own course entry with its
-//     own `capacity` field, so a hash lookup by subject+catalog returns
-//     this section's slice.
+//   - per-section ENROLLED comes from the SCTN_CMBND grid in the same
+//     CAESAR response (already parsed into combinedSectionRows).
+//   - per-section CAPACITY comes from paper.nu's term catalog, where
+//     each cross-listed section is its own course entry with its own cap.
 //
 // Returns null when either half is missing — callers fall back to the
 // generic disclaimer.
-
+import { parseClassText } from "../../cart-cache/parse-cart-page";
+import { normalizeSectionNumber } from "../class-search/caesar-search/parser";
 import { getTermCourseByKey } from "../class-search/paper-data";
-import { logDebug, logQuiet } from "../../../shared/log";
+import { logQuiet } from "../../../shared/log";
 
-import type { CombinedSectionRow, SeatsNotesSuccess } from "./types";
-
-const SCOPE = "seats-notes.combined-section";
+import { parseCount } from "./helpers";
+import type { SeatsNotesSuccess } from "./types";
 
 export type PerSectionSeats = {
   capacity: number;
@@ -27,8 +25,6 @@ export type PerSectionSeats = {
   available: number;
   waitlist: number | null;
   status: string | null;
-  // Identifies which combined-grid row we matched against (for display +
-  // debugging). e.g. "COMP_SCI 346-0-1".
   label: string;
 };
 
@@ -36,82 +32,32 @@ export async function resolvePerSectionSeats(
   result: SeatsNotesSuccess,
   termId: string | null
 ): Promise<PerSectionSeats | null> {
-  if (!result.isCombinedSection) {
-    logDebug(SCOPE, "skip: not a combined section");
-    return null;
-  }
-  if (!termId) {
-    logDebug(SCOPE, "skip: no termId (STRM not detected on page)");
-    return null;
-  }
+  if (!result.isCombinedSection || !termId) return null;
 
-  // Defensive: older cached entries may pre-date the combinedSectionRows
-  // field. Treat undefined as empty so we don't throw.
-  const rows = result.combinedSectionRows ?? [];
-  const row = findMatchingRow(rows, result.requestedClassNumber);
-  if (!row) {
-    logDebug(SCOPE, "skip: no SCTN_CMBND row matched requested classNumber", {
-      requested: result.requestedClassNumber,
-      rowsLen: rows.length,
-      rowClassNumbers: rows.map((r) => r.classNumber)
-    });
-    return null;
-  }
+  const row = result.combinedSectionRows.find(
+    (r) => r.classNumber === result.requestedClassNumber
+  );
+  if (!row) return null;
 
-  const parsedLabel = splitLabel(row.label);
-  if (!parsedLabel) {
-    logDebug(SCOPE, "skip: could not split label", { label: row.label });
-    return null;
-  }
+  // row.label is "SUBJ catalog-section" (component already split out);
+  // parseClassText wants "SUBJ catalog-section (classNbr)".
+  const parsed = parseClassText(`${row.label} (${row.classNumber})`);
+  if (!parsed) return null;
 
   try {
-    const course = await getTermCourseByKey(
-      termId,
-      parsedLabel.subject,
-      parsedLabel.catalog
-    );
-    if (!course) {
-      logDebug(SCOPE, "skip: paper.nu has no course at this key", {
-        termId,
-        key: `${parsedLabel.subject}|${parsedLabel.catalog}`
-      });
-      return null;
-    }
+    const course = await getTermCourseByKey(termId, parsed.subject, parsed.catalog);
+    if (!course) return null;
 
+    const wantSection = normalizeSectionNumber(parsed.sectionLabel);
     const section = course.sections.find(
       (s) =>
-        normalizeSectionNum(s.section) === parsedLabel.section &&
+        normalizeSectionNumber(s.section) === wantSection &&
         (row.component ? s.component === row.component : true)
     );
-    if (section?.capacity === undefined || section.capacity === null || section.capacity === "") {
-      logDebug(SCOPE, "skip: paper.nu course found but no section.capacity", {
-        wantedSection: parsedLabel.section,
-        wantedComponent: row.component,
-        availableSections: course.sections.map((s) => ({
-          section: s.section,
-          component: s.component,
-          capacity: s.capacity
-        }))
-      });
-      return null;
-    }
-
-    const capacity = parseCount(section.capacity);
+    const capacity = parseCount(section?.capacity);
     const enrolled = parseCount(row.enrolled);
-    if (capacity === null || enrolled === null) {
-      logDebug(SCOPE, "skip: capacity or enrolled didn't parse to number", {
-        rawCapacity: section.capacity,
-        rawEnrolled: row.enrolled
-      });
-      return null;
-    }
+    if (capacity === null || enrolled === null) return null;
 
-    logDebug(SCOPE, "resolved", {
-      label: row.label,
-      capacity,
-      enrolled,
-      available: Math.max(0, capacity - enrolled)
-    });
     return {
       capacity,
       enrolled,
@@ -121,45 +67,7 @@ export async function resolvePerSectionSeats(
       label: row.label
     };
   } catch (err) {
-    logQuiet(SCOPE, err);
+    logQuiet("seats-notes.combined-section", err);
     return null;
   }
-}
-
-function findMatchingRow(
-  rows: CombinedSectionRow[],
-  classNumber: string
-): CombinedSectionRow | null {
-  return rows.find((r) => r.classNumber === classNumber) ?? null;
-}
-
-// CAESAR's combined-grid label is "SUBJ CCC-C-S" (e.g. "COMP_SCI 346-0-1");
-// paper.nu's catalog field is "CCC-C" (e.g. "346-0"). Split into the three
-// pieces so we can key the lookup correctly.
-function splitLabel(
-  label: string
-): { subject: string; catalog: string; section: string } | null {
-  const tokens = label.trim().split(/\s+/);
-  if (tokens.length < 2) return null;
-  const subject = tokens[0]!;
-  const rest = tokens.slice(1).join("-");
-  // Catalog convention: "346-0-1" → catalog "346-0", section "1".
-  const lastDash = rest.lastIndexOf("-");
-  if (lastDash <= 0) return null;
-  const catalog = rest.slice(0, lastDash);
-  const section = normalizeSectionNum(rest.slice(lastDash + 1));
-  return { subject, catalog, section };
-}
-
-// paper.nu may store sections as "1" or "01" — strip leading zeros for
-// comparison.
-function normalizeSectionNum(s: string): string {
-  return s.replace(/^0+/, "") || "0";
-}
-
-function parseCount(value: string | number | null | undefined): number | null {
-  if (value === null || value === undefined) return null;
-  if (typeof value === "number") return Number.isFinite(value) ? Math.trunc(value) : null;
-  const n = Number.parseInt(value.replace(/[^\d-]/g, ""), 10);
-  return Number.isFinite(n) ? n : null;
 }

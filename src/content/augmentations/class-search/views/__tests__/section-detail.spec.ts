@@ -190,7 +190,7 @@ describe("renderSectionDetail — success", () => {
       "10 open"
     );
     expect(block?.querySelector(".bc-cs-detail-per-section-line")?.textContent).toContain(
-      "combined 20/60"
+      "pooled 20/60"
     );
     expect(wrap.querySelector(".bc-cs-detail-combined-warning")).toBeNull();
   });
