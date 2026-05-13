@@ -45,23 +45,41 @@ function catalogTokenRegex(catalogNumber: string): RegExp {
   return new RegExp(`(?:^|\\s)${normalized}(?:\\s|$)`);
 }
 
-// Matches the leading catalog identifier in a CTEC description, capturing
-// the optional single-digit sequence suffix that distinguishes sibling
-// sequence courses like GEN_ENG 205-1 / 205-2 / 205-3:
-//   "GEN_ENG 205-3-22 Engineering Analysis III" → "205-3"
-//   "COMP_SCI 211-22 Fundamentals"              → "211"
-//   "GEN_ENG 205-3 Engineering Analysis III"    → "205-3"  (course row)
-//   "COMP_SCI 211 Fundamentals"                 → "211"    (course row)
-// The single-digit sequence has a `(?!\d)` lookahead so that a 2+-digit
-// section ID (e.g. `-22`) doesn't get partially consumed as `-2`.
-const CATALOG_ID_PATTERN = /(?:^|[^0-9])(\d+(?:-\d(?!\d))?)/;
+// Parses the leading catalog identifier from a CTEC description into its
+// digit group and optional single-digit sequence suffix. Examples:
+//   "GEN_ENG 205-3 Engineering Analysis III"    → digits "205", seq "3"
+//   "GEN_ENG 205-3-22 Engineering Analysis III" → digits "205", seq "3"
+//   "COMP_SCI 325-0 Fundamentals"               → digits "325", seq "0"
+//   "COMP_SCI 325-0-22 Fundamentals"            → digits "325", seq "0"
+//   "COMP_SCI 211-22 Fundamentals"              → digits "211", seq undef
+//   "COMP_SCI 211 Fundamentals"                 → digits "211", seq undef
+// The sequence digit's `(?!\d)` lookahead keeps a 2+-digit section ID like
+// `-22` from being mis-captured as a single sequence `-2`.
+const CATALOG_ID_PATTERN = /(?:^|[^0-9])(\d+)(?:-(\d)(?!\d))?/;
 
 export function descriptionMatchesCatalog(
   description: string,
   catalogNumber: string
 ): boolean {
   const match = description.match(CATALOG_ID_PATTERN);
-  return !!match && match[1] === catalogNumber;
+  if (!match) return false;
+  const descDigits = match[1];
+  const descSeq = match[2];
+
+  const dashIdx = catalogNumber.indexOf("-");
+  if (dashIdx === -1) {
+    // Bare catalog like "325" / "211" — a non-sequence course. CAESAR
+    // descriptions may encode "no sequence" either by omitting it entirely
+    // ("211 Fundamentals", "211-22") or with a literal "-0" placeholder
+    // ("325-0", "325-0-22"); both must match the bare argument.
+    return descDigits === catalogNumber && (descSeq === undefined || descSeq === "0");
+  }
+  // Sequence-suffixed catalog like "205-3" / "220-1" — require exact match
+  // on both the digit group and the sequence digit.
+  return (
+    descDigits === catalogNumber.slice(0, dashIdx) &&
+    descSeq === catalogNumber.slice(dashIdx + 1)
+  );
 }
 
 // Any-overlap match across all comma-separated last names in either
