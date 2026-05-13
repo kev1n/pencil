@@ -83,27 +83,23 @@ export type CtecSubjectIndex = {
   sourceUrl: string;
   entries: CtecIndexedEntry[];
   courseState?: Record<string, CtecCourseDiscoveryState>;
-  // Per-section analytics-lens preference, keyed by the same
-  // `${catalogNumber}|${normalizedInstructor}` schema used by
-  // courseState. Set when the user explicitly picks a lens via the
-  // dry-run wizard or the modal strategy tabs — that overrides the
-  // global `getCtecStrategy()` for this specific (catalog, instructor)
-  // pair so reopening the modal goes straight to their pick instead
-  // of re-running the "Smith hasn't taught CS 213, pick an
-  // alternative" wizard every time. Value type is intentionally a
-  // string literal (kept independent from the ctec-links
-  // CtecAnalyticsStrategy import to avoid a back-dependency from the
-  // shared index package).
+  // Per-section analytics-lens preference, keyed by
+  // `${catalogNumber}|${normalizedInstructor}`. Overrides the global
+  // `getCtecStrategy()` for this pair so reopening the modal lands on
+  // the user's pick. Literal-typed to avoid a back-dependency on
+  // ctec-links/types.
   sectionLens?: Record<string, "combo" | "course" | "instructor">;
-  // Persisted wizard discovery rows. Lets the dry-run alternatives
-  // dialog skip the PeopleSoft scrape after a page reload — without
-  // this, refreshing the tab evicted the in-memory cache and the
-  // wizard re-walked the C-endpoint (catalog grid) and T-endpoint
-  // (instructor directory) every time the user opened the modal.
-  // Rows carry their fetch-time `actionId` which is response-local
-  // and goes stale, but the discovery cache is presentation-only
-  // (preview counts + dry-run row list) — the actual report fetch
-  // re-discovers fresh actionIds, so stale ones are harmless here.
+  // Set only when the user EXPLICITLY confirmed a lens via the dry-run
+  // wizard (Adjust selection → Load). Distinct from sectionLens, which
+  // also flips on tab clicks. The schedule chip honors sectionLens
+  // only when this flag is set — so tab-switching browses without
+  // changing the chip rating, but wizard confirms do change it (and
+  // persist across page reload).
+  sectionLensConfirmed?: Record<string, true>;
+  // Persisted wizard discovery rows so the dry-run dialog skips the
+  // PeopleSoft scrape after reload. Presentation-only — `actionId` is
+  // response-local and goes stale, but the actual report fetch re-
+  // discovers fresh ones.
   courseDiscovery?: Record<string, CtecRowSeed[]>;
   instructorDiscovery?: Record<string, CtecRowSeed[]>;
 };

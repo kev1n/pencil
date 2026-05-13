@@ -8,7 +8,11 @@ import {
   isCourseLensRedundant,
   isInstructorLensRedundant
 } from "../ctec-links/lens-redundancy";
-import { getSectionLens, setSectionLens } from "../ctec-links/section-lens";
+import {
+  getSectionLens,
+  setSectionLens,
+  setSectionLensConfirmed
+} from "../ctec-links/section-lens";
 import type { CtecAnalyticsStrategy } from "../ctec-links/types";
 import { getCtecStrategy } from "../../settings";
 import { PAPER_CTEC_CONFIG } from "./config";
@@ -172,33 +176,17 @@ export class ModalController {
     this.openModalSource = source;
     this.openModalKey = source.key;
 
-    // Fresh modal open re-arms the dry-run auto-open so a previously
-    // dismissed session doesn't carry over into a new viewing.
+    // Re-arm the dry-run auto-open on every fresh open.
     const existing = this.modalStates.get(source.key);
     if (existing) existing.dryRunDismissed = false;
 
-    // Section-level lens preference takes priority over the global
-    // setting. Once the user has explicitly picked Course/Prof for
-    // this (catalog, instructor) pair via the dry-run wizard or the
-    // strategy tabs, every subsequent open should drop straight into
-    // that lens — no wizard, no re-running the combo probe. The
-    // section preference also suppresses mirroring the chip's
-    // not-found verdict (which came from the combo lens) into
-    // analyticsResolved, so the auto-open guard in sync() doesn't
-    // misfire on the user's chosen lens.
     const sectionLens = getSectionLens(source.params);
     const lens = sectionLens ?? getCtecStrategy();
 
-    // If the schedule chip's coordinator has already resolved this key
-    // as not-found (cache-warm short-circuit, or a prior fetch that
-    // landed before the modal opened), mirror that into the modal's
-    // analyticsResolved map immediately. Without this the modal would
-    // re-kick a redundant fetch, wait for the same not-found verdict,
-    // and only then auto-open the dry-run — the user wants the
-    // dialog up *now*, while other stuff is still discovering in the
-    // background. Skip this when the user has an explicit section
-    // preference — that preference is what they want to see, not the
-    // combo-lens verdict that lives in the chip's resolved Map.
+    // Mirror the chip's not-found verdict into analyticsResolved so the
+    // dry-run dialog can auto-open without a redundant fetch. Skipped
+    // when a section preference exists — that verdict came from combo,
+    // not the user's preferred lens.
     const chipState = this.state.resolved.get(source.key);
     if (
       !sectionLens &&
@@ -208,14 +196,6 @@ export class ModalController {
       this.state.analyticsResolved.set(source.key, { state: "not-found" });
     }
 
-    // Auto-kick a fetch if there's no data yet and no fetch in flight.
-    // Without this the modal would open into the "No reports loaded yet"
-    // state and require the user to click Load — but they already
-    // expressed intent by opening the modal. The snapshot read uses the
-    // resolved lens (section preference > global) so a preference-pinned
-    // lens reads its own slice of the per-subject cache. Skip the kick
-    // when we already know not-found — no need to refetch the verdict
-    // we just mirrored.
     const knownNotFound =
       this.state.analyticsResolved.get(source.key)?.state === "not-found";
     const cached = knownNotFound
@@ -260,11 +240,6 @@ export class ModalController {
       return;
     }
 
-    // Section preference > global. The header's strategy selector
-    // reflects the resolved lens so it visually highlights whichever
-    // pick the user is currently looking at — combo for fresh
-    // sections, course/instructor for ones the user previously routed
-    // through the wizard.
     const strategy = getSectionLens(source.params) ?? getCtecStrategy();
     const snapshot = getCtecCourseAnalyticsSnapshot(
       source.params,
@@ -272,9 +247,27 @@ export class ModalController {
       PAPER_CTEC_CONFIG.aggregate.recentTerms,
       strategy
     );
+    // Cap broader-lens displays to the recent-terms window so course /
+    // instructor modes don't accumulate every cached entry that
+    // happens to pass the broader filter — the user picked a preset
+    // like "Last 3 sections" and expects exactly that many rows.
+    // Combo stays uncapped: it has its own "Load N more" affordance
+    // for growing the list.
+    const displayLimit =
+      strategy === "combo"
+        ? undefined
+        : PAPER_CTEC_CONFIG.aggregate.recentTerms;
+    const preliminaryState = this.modalStates.get(source.key);
     const data =
       snapshot && snapshot.entries.length > 0
-        ? buildModalDisplayData(snapshot, source.params, source.titleHint)
+        ? buildModalDisplayData(
+            snapshot,
+            source.params,
+            source.titleHint,
+            strategy,
+            displayLimit,
+            preliminaryState?.activePreset ?? null
+          )
         : null;
 
     const modalState = this.ensureModalState(source.key, data?.terms[0]?.id ?? null);
@@ -317,14 +310,16 @@ export class ModalController {
       analyticsState?.state === "error" ? analyticsState.message : null;
     const notFound = analyticsState?.state === "not-found";
     const canLoadMore = !loading && remainingTerms > 0 && !notFound;
-    // The course/instructor matchers treat combo entries as a valid subset,
-    // so cached combo data would otherwise paint the body the moment the
-    // user switches tabs — mislabeled as the new lens. Force a clean
-    // loading state when the new lens has no confirmed discovery yet AND a
-    // fetch is currently running for it.
+    // Whenever a fetch is in flight AND we've cleared the verdict cache
+    // for this key, show a clean loading panel instead of the stale
+    // body. Captures both first-time lens switches (no exploration
+    // marker yet) and explicit user reloads via dry-run confirm
+    // (analyticsResolved deleted) — without this, an Adjust-selection
+    // refresh on an already-explored lens just keeps painting the
+    // cached data and looks like nothing happened.
     const freshLensLoading =
       this.state.analyticsInFlight.has(source.key) &&
-      !hasStrategyBeenExplored(source.params, strategy);
+      !this.state.analyticsResolved.has(source.key);
 
     this.view.open(
       {
@@ -402,17 +397,11 @@ export class ModalController {
     });
   }
 
-  // Strategy switch path: writes the section's lens preference (which
-  // every read path now consults via resolveLens), clears the per-key
-  // verdict caches so the modal + chip re-derive against the new lens
-  // slice, and kicks a fetch only if the new lens has never been
-  // explored — combo's cached entries pass the course/instructor
-  // filter as a subset (so a naive "hasParsed?" check would skip the
-  // first-time fetch the user actually needs), but once we've run a
-  // discovery pass for the new lens its courseState marker exists and
-  // re-fetching on every flip is just churn. The modal's "Load more"
-  // button is the explicit path for pulling additional terms within
-  // an already-explored lens.
+  // Writes the section's lens preference and clears the per-key caches
+  // so the modal + chip re-derive against the new lens slice. Kicks a
+  // fetch only when the new lens has never been explored — combo's
+  // cached entries pass the broader filter as a subset, so a naive
+  // "hasParsed?" check would skip the first-time fetch.
   private switchStrategy(
     source: AnalyticsModalSource,
     strategy: CtecAnalyticsStrategy
@@ -420,20 +409,11 @@ export class ModalController {
     const currentLens = getSectionLens(source.params) ?? getCtecStrategy();
     if (currentLens === strategy) return;
     setSectionLens(source.params, strategy);
-    // The chip's resolved Map is keyed by (subject, catalog, prof) only —
-    // its cached widget data carries combo-lens identity. Drop the entry
-    // so the next syncTargets pass re-derives via getCachedAggregate,
-    // which now resolves through the section lens automatically.
+    const modalState = this.modalStates.get(source.key);
+    if (modalState) modalState.activePreset = null;
     this.state.resolved.delete(source.key);
     this.state.analyticsResolved.delete(source.key);
-    // analyticsInFlight is fine to leave alone — when the in-flight
-    // promise resolves it'll write into analyticsResolved, but by then
-    // we'll be on the new lens and a stale write keyed on the wrong
-    // strategy can be cleared by the next strategy flip or simply
-    // ignored (sync reads getCtecStrategy() fresh each tick).
     this.data.clearRefreshFlash(source.key);
-    // Drop prior-lens batch target — without this, kickBatch on the new
-    // lens would grow nextTarget past the dry-run preset's promised cap.
     this.data.clearTargetCount(source.key);
 
     const alreadyExplored = hasStrategyBeenExplored(source.params, strategy);
@@ -547,7 +527,7 @@ export class ModalController {
         const fresh = buildInitialDryRunState();
         s.dryRun =
           activeStrategy === "course" || activeStrategy === "instructor"
-            ? enterPickStage(fresh, activeStrategy)
+            ? enterPickStage(fresh, activeStrategy, s.activePreset)
             : fresh;
         this.kickDryRunDiscovery(source, source.key);
         sync();
@@ -574,17 +554,17 @@ export class ModalController {
         if (!s.dryRun) return;
         const stage = s.dryRun.stage;
         if (stage.kind !== "pick") return;
-        // PROTOTYPE: the preset is captured but not yet threaded into
-        // the underlying fetcher — the existing batched fetcher picks
-        // its own top N for the chosen strategy. Wiring preset-driven
-        // row selection through to the Bluera-fetch loop is the next
-        // iteration. Confirming records the section's lens preference
-        // so the next modal open (or chip-rating read) drops straight
-        // into this lens, skipping the combo not-found wizard pass.
+        // Persist the section's lens AND the preset choice. The
+        // display layer reads `activePreset` to filter the rows it
+        // shows beyond the lens-level filter — so "Only Smith" or
+        // "by-catalog: CS 213" actually changes what renders.
+        // (The fetcher still pulls top N by recency; preset-driven
+        // row targeting at the fetch layer is a follow-up.)
         const target = stage.source;
         s.dryRun = null;
         s.dryRunDismissed = true;
-        setSectionLens(source.params, target);
+        s.activePreset = stage.preset;
+        setSectionLensConfirmed(source.params, target);
         // Clear chip + modal verdict caches — they were keyed to the
         // prior (combo) lens. Without this the chip stays "not-found"
         // and the modal-body keeps the not-found callout even after
@@ -601,7 +581,12 @@ export class ModalController {
           !this.state.analyticsInFlight.has(source.key) &&
           !this.state.inFlight.has(source.key)
         ) {
-          this.data.kickBatch(source);
+          // forceRefreshLinks=true so the user gets visible feedback even
+          // when the lens is already explored — without it, kickBatch
+          // would return cached entries immediately and the modal would
+          // re-render the same view they were looking at, hiding the
+          // fact that Load fired at all.
+          this.data.kickBatch(source, true, true);
         }
         this.sync(document);
         this.callbacks.renderForKey(source.key, this.deriveChipWidgetData(source));
@@ -633,7 +618,8 @@ export class ModalController {
       heatmapExpanded: false,
       commentsVisibleCount: COMMENTS_PAGE_SIZE,
       dryRun: null,
-      dryRunDismissed: false
+      dryRunDismissed: false,
+      activePreset: null
     };
     this.modalStates.set(key, fresh);
     return fresh;

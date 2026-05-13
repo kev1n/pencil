@@ -56,3 +56,44 @@ export function setSectionLens(
   };
   writeSubjectIndex(params.subject, { ...index, sectionLens: next });
 }
+
+// Confirmed-via-wizard signal. The schedule chip honors `getSectionLens`
+// only for sections marked confirmed — tab clicks update the lens
+// preference for the modal but leave the chip rating alone (so users
+// can browse Course/Prof views without changing the at-a-glance
+// rating on the card). Setting this also updates the lens so callers
+// can persist both in one step.
+export function setSectionLensConfirmed(
+  params: CtecLinkParams,
+  lens: CtecAnalyticsStrategy
+): void {
+  const index = readSubjectIndex(params.subject);
+  if (!index) return;
+  const key = buildSectionKey(params.catalogNumber, params.instructor);
+  const nextLens: Record<string, CtecAnalyticsStrategy> = {
+    ...(index.sectionLens ?? {}),
+    [key]: lens
+  };
+  const nextConfirmed: Record<string, true> = {
+    ...(index.sectionLensConfirmed ?? {}),
+    [key]: true
+  };
+  if (
+    index.sectionLens?.[key] === lens &&
+    index.sectionLensConfirmed?.[key] === true
+  ) {
+    return;
+  }
+  writeSubjectIndex(params.subject, {
+    ...index,
+    sectionLens: nextLens,
+    sectionLensConfirmed: nextConfirmed
+  });
+}
+
+export function isSectionLensConfirmed(params: CtecLinkParams): boolean {
+  const index = readSubjectIndex(params.subject);
+  if (!index?.sectionLensConfirmed) return false;
+  const key = buildSectionKey(params.catalogNumber, params.instructor);
+  return index.sectionLensConfirmed[key] === true;
+}

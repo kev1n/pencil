@@ -639,9 +639,9 @@ function feedback(): string {
 }
 .bc-tooltip--rich {
   bottom: auto;
-  top: calc(100% + 14px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: calc(100% + 8px);
+  left: -8px;
+  transform: none;
   width: min(260px, calc(100vw - 32px));
   padding: 10px 12px;
   font-family: ui-sans-serif, system-ui, sans-serif;
@@ -658,21 +658,18 @@ function feedback(): string {
 .bc-tooltip--rich.bc-tooltip--right {
   left: auto;
   right: 0;
-  transform: none;
 }
 .bc-tooltip--rich::before {
   content: "";
   position: absolute;
   bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 14px;
   border: 6px solid transparent;
   border-bottom-color: var(--bc-color-bg);
 }
 .bc-tooltip--rich.bc-tooltip--right::before {
   left: auto;
   right: 14px;
-  transform: none;
 }
 .bc-tooltip-host:hover .bc-tooltip,
 .bc-tooltip-host:focus-within .bc-tooltip {

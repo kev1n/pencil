@@ -22,6 +22,16 @@ export function cleanText(value: string | null | undefined): string {
   return decodeEntities(value).replace(/\s+/g, " ").trim();
 }
 
+// "ECON 281-0-30 ECONOMETRICS" → "ECON 281". Lenient version used by the
+// CTEC display path (dry-run preview rows, modal disclaimer term list);
+// `extractSubjectAndCatalog` is the strict variant for parsing user-
+// provided strings where the sequence suffix matters.
+export function extractCatalogLabel(description: string): string {
+  const match = description.trim().match(/^([A-Z][A-Z_]*)\s+(\d+)/);
+  if (!match) return description.split("-")[0]?.trim() ?? description;
+  return `${match[1]} ${match[2]}`;
+}
+
 export function buildSubjectResultsUrl(subjectCode: string, careerCode: string): string {
   const url = new URL(
     "/psc/csnu/EMPLOYEE/SA/c/NWCT.NW_CT_PUB_RSLT_FL.GBL",

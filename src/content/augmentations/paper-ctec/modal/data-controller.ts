@@ -61,7 +61,11 @@ export interface ModalDataController {
   clearTargetCount(key: string): void;
   setRefreshFlash(key: string, flash: ModalRefreshFlash): void;
   clearRefreshFlash(key: string): void;
-  kickBatch(context: AnalyticsModalSource, increment?: boolean): void;
+  kickBatch(
+    context: AnalyticsModalSource,
+    increment?: boolean,
+    forceRefreshLinks?: boolean
+  ): void;
   kickRefresh(context: AnalyticsModalSource): void;
   // Frees auto-dismiss timers — used by ModalController.invalidate to
   // ensure no pending callback fires after the modal is torn down.
@@ -121,7 +125,11 @@ export function createModalDataController(
   // fetchLimit grows by recentTerms — pulling exactly the next batch of
   // unparsed entries. `increment=false` is used to resume an interrupted
   // batch (e.g. after a login retry) without bumping the target.
-  function kickBatch(context: AnalyticsModalSource, increment = true): void {
+  function kickBatch(
+    context: AnalyticsModalSource,
+    increment = true,
+    forceRefreshLinks = false
+  ): void {
     if (state.analyticsInFlight.has(context.key)) return;
 
     const credit = ctecCreditPool.tryConsume("modal-load-more");
@@ -170,7 +178,8 @@ export function createModalDataController(
         (message) => {
           callbacks.setProgress(context.key, `Loading term history… ${message}`);
         },
-        nextTarget
+        nextTarget,
+        forceRefreshLinks
       );
       // null = user canceled the auth-recovery popup. Surface as null so
       // the .then below leaves analyticsResolved untouched (modal falls

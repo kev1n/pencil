@@ -157,6 +157,9 @@ export function modalChartStyles(): string {
       cursor: help;
       vertical-align: middle;
     }
+    .bc-paper-ctec-modal-info-icon {
+      margin-left: 8px;
+    }
     .bc-paper-ctec-modal-kpi-info:hover,
     .bc-paper-ctec-modal-kpi-info:focus-visible,
     .bc-tooltip-host:hover .bc-paper-ctec-modal-info-icon,

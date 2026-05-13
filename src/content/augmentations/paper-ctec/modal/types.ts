@@ -122,6 +122,13 @@ export type AnalyticsModalState = {
   // the user explicitly re-opens via the "Reopen preview" button on
   // the not-found body, when they switch strategy, or on modal close.
   dryRunDismissed: boolean;
+  // Active preset persisted from the most recent dry-run confirm. Used
+  // by the display layer to filter rows beyond the lens-level filter
+  // — picking "Only Smith" or "by-catalog: CS 213" actually changes
+  // what shows up in the body, not just what we promise to load.
+  // Reset to null on lens switch (the prior lens's preset doesn't
+  // apply to the new lens's rows).
+  activePreset: DryRunPreset | null;
 };
 
 export type AnalyticsModalCallbacks = {

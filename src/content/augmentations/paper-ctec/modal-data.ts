@@ -3,11 +3,17 @@ import {
   type CtecCourseAnalytics,
   type CtecCourseAnalyticsEntry
 } from "../ctec-links/reports";
+import { extractCatalogLabel, normalizeSearch } from "../../ctec-index/helpers";
 import type { CtecReportChart } from "../../ctec-index/types";
-import type { CtecLinkParams } from "../ctec-links/types";
+import { instructorMatches } from "../ctec-links/helpers";
+import type {
+  CtecAnalyticsStrategy,
+  CtecLinkParams
+} from "../ctec-links/types";
 import { collectComments } from "./modal-comments";
 import { readModalCache, writeModalCache } from "./modal-cache";
 import { aggregateTopics } from "./modal-topics";
+import type { DryRunPreset } from "./modal/types";
 
 export type ModalMetricKind =
   | "instruction"
@@ -158,8 +164,57 @@ export type ModalTopicEntry = {
 // a background refresh adds evaluations. Backed by a chrome.storage.local
 // LRU in modal-cache.ts so repeat opens across page reloads stay fast.
 
-function modalCacheKey(params: CtecLinkParams, titleHint: string): string {
-  return `${params.subject}|${params.catalogNumber}|${params.instructor}|${titleHint}`;
+function modalCacheKey(
+  params: CtecLinkParams,
+  titleHint: string,
+  strategy: CtecAnalyticsStrategy,
+  displayLimit: number | undefined,
+  preset: DryRunPreset | null
+): string {
+  return `${params.subject}|${params.catalogNumber}|${params.instructor}|${titleHint}|${strategy}|${displayLimit ?? "all"}|${presetCacheKey(preset)}`;
+}
+
+function presetCacheKey(preset: DryRunPreset | null): string {
+  if (!preset) return "none";
+  if (preset.kind === "by-instructor") {
+    return `by-instructor:${normalizeSearch(preset.instructor)}`;
+  }
+  if (preset.kind === "by-catalog") {
+    return `by-catalog:${preset.catalog}`;
+  }
+  return preset.kind;
+}
+
+// Narrows the lens-filtered rows by the wizard's preset selection.
+// `recent` is a no-op pass-through (just rely on displayLimit). The
+// other presets impose a stricter row predicate so the user's pick
+// actually drives what shows up.
+function applyPresetToEntries(
+  entries: CtecCourseAnalyticsEntry[],
+  preset: DryRunPreset | null
+): CtecCourseAnalyticsEntry[] {
+  if (!preset || preset.kind === "recent") return entries;
+  if (preset.kind === "by-instructor") {
+    return entries.filter((entry) =>
+      instructorMatches(entry.instructor, preset.instructor)
+    );
+  }
+  if (preset.kind === "by-catalog") {
+    return entries.filter(
+      (entry) => extractCatalogLabel(entry.description) === preset.catalog
+    );
+  }
+  // diverse-instructors — keep one entry per professor, most recent first
+  // (entries are already sorted newest-first by the caller).
+  const seen = new Set<string>();
+  const out: CtecCourseAnalyticsEntry[] = [];
+  for (const entry of entries) {
+    const key = normalizeSearch(entry.instructor);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out;
 }
 
 function snapshotSignature(snapshot: CtecCourseAnalytics): string {
@@ -177,13 +232,23 @@ function snapshotSignature(snapshot: CtecCourseAnalytics): string {
 export function buildModalDisplayData(
   snapshot: CtecCourseAnalytics,
   params: CtecLinkParams,
-  titleHint: string
+  titleHint: string,
+  strategy: CtecAnalyticsStrategy = "combo",
+  displayLimit?: number,
+  preset: DryRunPreset | null = null
 ): ModalDisplayData | null {
-  const key = modalCacheKey(params, titleHint);
+  const key = modalCacheKey(params, titleHint, strategy, displayLimit, preset);
   const signature = snapshotSignature(snapshot);
   const hit = readModalCache(key, signature);
   if (hit) return hit.result;
-  const result = buildModalDisplayDataUncached(snapshot, params, titleHint);
+  const result = buildModalDisplayDataUncached(
+    snapshot,
+    params,
+    titleHint,
+    strategy,
+    displayLimit,
+    preset
+  );
   writeModalCache(key, signature, result);
   return result;
 }
@@ -191,17 +256,42 @@ export function buildModalDisplayData(
 function buildModalDisplayDataUncached(
   snapshot: CtecCourseAnalytics,
   params: CtecLinkParams,
-  titleHint: string
+  titleHint: string,
+  strategy: CtecAnalyticsStrategy,
+  displayLimit: number | undefined,
+  preset: DryRunPreset | null
 ): ModalDisplayData | null {
   const instructor = params.instructor;
   const allEntries = snapshot.entries.filter(
     (entry) => entry.status === "ready"
   );
-  const scopedEntries = allEntries.filter(
-    (entry) => normalize(entry.instructor) === normalize(instructor)
-  );
 
-  const entries = scopedEntries.length > 0 ? scopedEntries : allEntries;
+  // Combo strategy tightens the snapshot's instructor filter to an
+  // exact normalized match — guards against co-instructor bleed-
+  // through the wildcard lens-side filter admits. Broader lenses
+  // (course / instructor) intentionally include multiple profs /
+  // multiple courses; scoping back to one identity would silently
+  // turn them into combo.
+  let baseEntries: CtecCourseAnalyticsEntry[];
+  if (strategy === "combo") {
+    const scoped = allEntries.filter(
+      (entry) => normalize(entry.instructor) === normalize(instructor)
+    );
+    baseEntries = scoped.length > 0 ? scoped : allEntries;
+  } else {
+    baseEntries = allEntries;
+  }
+  // Apply the wizard's preset filter on top of the lens slice. The
+  // fetcher itself still pulls top-N by recency (preset-driven
+  // discovery is a follow-up), but at least the display narrows to
+  // what the user actually picked so "Only Smith" and similar feel
+  // like they did something. `recent` and `diverse-instructors` are
+  // count-cap presets that compose naturally with displayLimit.
+  baseEntries = applyPresetToEntries(baseEntries, preset);
+  const entries =
+    displayLimit && displayLimit > 0
+      ? baseEntries.slice(0, displayLimit)
+      : baseEntries;
   if (entries.length === 0) return null;
 
   const terms = entries.map((entry, index) => buildModalTerm(entry, index));

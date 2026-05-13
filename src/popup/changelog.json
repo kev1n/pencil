@@ -11,6 +11,29 @@
   },
   "entries": [
     {
+      "version": "0.8.0",
+      "date": "2026-05-13",
+      "headline": "See CTECs by course or by prof",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "See CTECs from a broader angle: every prof who's taught the course, or every course your prof has taught. Pick one and we remember it for that section."
+        },
+        {
+          "kind": "feat",
+          "text": "Cross-listed sections (like COMP_SCI 346 / COMP_ENG 346) now show real per-section seat counts instead of the pooled total."
+        },
+        {
+          "kind": "feat",
+          "text": "Hide already-taken courses from Paper.nu search with a new switch above the results."
+        },
+        {
+          "kind": "fix",
+          "text": "Eligibility checks on Paper.nu catch more prereqs now — they read CAESAR's official requirement text on top of the structured list."
+        }
+      ]
+    },
+    {
       "version": "0.7.1",
       "date": "2026-05-12",
       "headline": "Filter Sharper Search by Foundational Discipline",

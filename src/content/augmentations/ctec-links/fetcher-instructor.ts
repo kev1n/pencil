@@ -36,7 +36,11 @@ import {
   markCtecAccessDenied
 } from "../../ctec-index/access";
 import { probeCtecAccess } from "../../ctec-index/access-probe";
-import { readSubjectIndex, writeSubjectIndex } from "../../ctec-index/storage";
+import {
+  createEmptySubjectIndex,
+  readSubjectIndex,
+  writeSubjectIndex
+} from "../../ctec-index/storage";
 import type {
   CtecIndexedEntry,
   CtecRowSeed
@@ -199,14 +203,7 @@ async function fetchCtecLinksByInstructorCore(
     ...fetchResult.rows
   ]);
   writeSubjectIndex(subject, {
-    ...(cachedIndex ?? {
-      subjectCode: subject,
-      subjectLabel: subject,
-      builtAt: Date.now(),
-      sourceUrl: window.location.href,
-      entries: []
-    }),
-    subjectCode: subject,
+    ...(cachedIndex ?? createEmptySubjectIndex(subject)),
     entries: merged,
     courseState: {
       ...(cachedIndex?.courseState ?? {}),
@@ -491,13 +488,7 @@ function writePersistedInstructorDiscovery(
   rows: CtecRowSeed[]
 ): void {
   const existing = readSubjectIndex(subject);
-  const base = existing ?? {
-    subjectCode: subject,
-    subjectLabel: subject,
-    builtAt: Date.now(),
-    sourceUrl: window.location.href,
-    entries: []
-  };
+  const base = existing ?? createEmptySubjectIndex(subject);
   const next: Record<string, CtecRowSeed[]> = {
     ...(base.instructorDiscovery ?? {}),
     [normalizeSearch(instructor)]: rows

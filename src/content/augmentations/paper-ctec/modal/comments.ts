@@ -1,5 +1,6 @@
 import { html, render, type TemplateResult } from "lit-html";
 
+import { extractCatalogLabel } from "../../../ctec-index/helpers";
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import type { ModalCommentTone, ModalDisplayData } from "../modal-data";
 import { preventAndStop, stopPropagation } from "../ui-shared";
@@ -540,10 +541,7 @@ function commentAxisLabel(
   strategy: CtecAnalyticsStrategy
 ): string {
   if (strategy === "course") return comment.instructor.trim();
-  if (strategy === "instructor") {
-    const match = comment.description.trim().match(/^([A-Z][A-Z_]*)\s+(\d+)/);
-    return match ? `${match[1]} ${match[2]}` : "";
-  }
+  if (strategy === "instructor") return extractCatalogLabel(comment.description);
   return "";
 }
 

@@ -4,6 +4,7 @@ import {
   collectCourseRows,
   dedupeEntries,
   extractBlueraUrl,
+  extractCatalogLabel,
   normalizeSearch
 } from "../../ctec-index/helpers";
 import {
@@ -22,7 +23,11 @@ import {
 } from "../../ctec-index/access";
 import { probeCtecAccess } from "../../ctec-index/access-probe";
 import { logDebug } from "../../../shared/log";
-import { readSubjectIndex, writeSubjectIndex } from "../../ctec-index/storage";
+import {
+  createEmptySubjectIndex,
+  readSubjectIndex,
+  writeSubjectIndex
+} from "../../ctec-index/storage";
 import type {
   CtecCourseDiscoveryState,
   CtecIndexedEntry,
@@ -179,15 +184,11 @@ async function fetchCtecLinksCore(
   const realCached = cachedCourseEntries.filter(
     (e) => e.actionId !== NOT_FOUND_ACTION_ID
   );
-  // Sentinel-only short-circuit. A sentinel records "we discovered for
-  // (catalog, INSTRUCTOR_X) and found nothing" — it does NOT mean
-  // "no data exists for this catalog in general." Course-mode queries
-  // run with instructor="" (wildcard), and `entryMatchesCourse`'s
-  // empty-request semantics would happily match a combo sentinel for
-  // (213, prof X) — falsely returning not-found for the broader query.
-  // Require the sentinel's recorded instructor to match the requested
-  // instructor LITERALLY (post-normalize), not via the wildcard rule,
-  // so each lens only short-circuits on its own confirmed misses.
+  // Match sentinels literally (post-normalize) on instructor, not via
+  // the wildcard rule entryMatchesCourse uses. Otherwise a combo
+  // sentinel for (213, profX) would short-circuit a course-mode query
+  // running with instructor="" — a false not-found for the broader
+  // query.
   const normalizedRequested = normalizeSearch(instructor);
   const sentinelExactMatch = cachedCourseEntries.some(
     (e) =>
@@ -288,14 +289,7 @@ async function fetchCtecLinksCore(
     }
   };
   writeSubjectIndex(subject, {
-    ...(cachedIndex ?? {
-      subjectCode: subject,
-      subjectLabel: subject,
-      builtAt: Date.now(),
-      sourceUrl: window.location.href,
-      entries: []
-    }),
-    subjectCode: subject,
+    ...(cachedIndex ?? createEmptySubjectIndex(subject)),
     entries: merged,
     courseState: nextCourseState
   });
@@ -393,13 +387,7 @@ function writePersistedCourseDiscovery(
   rows: CtecRowSeed[]
 ): void {
   const existing = readSubjectIndex(subject);
-  const base: CtecSubjectIndex = existing ?? {
-    subjectCode: subject,
-    subjectLabel: subject,
-    builtAt: Date.now(),
-    sourceUrl: window.location.href,
-    entries: []
-  };
+  const base: CtecSubjectIndex = existing ?? createEmptySubjectIndex(subject);
   const next: Record<string, CtecRowSeed[]> = {
     ...(base.courseDiscovery ?? {}),
     [catalogNumber]: rows
@@ -624,16 +612,10 @@ export function dedupeRowsByLogicalKey<T extends CtecRowSeed>(rows: T[]): T[] {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const row of rows) {
-    const catalogPrefix = row.description
-      .trim()
-      .match(/^([A-Z][A-Z_]*)\s+(\d+)/);
-    const catalogLabel = catalogPrefix
-      ? `${catalogPrefix[1]} ${catalogPrefix[2]}`
-      : row.description;
     const key = [
       normalizeSearch(row.term),
       normalizeSearch(row.instructor),
-      catalogLabel
+      extractCatalogLabel(row.description)
     ].join("|");
     if (seen.has(key)) continue;
     seen.add(key);
@@ -660,14 +642,7 @@ function writeSentinel(
   const existing = existingIndex?.entries ?? [];
   const merged = dedupeEntries([...existing, sentinel]);
   writeSubjectIndex(subject, {
-    ...(existingIndex ?? {
-      subjectCode: subject,
-      subjectLabel: subject,
-      builtAt: Date.now(),
-      sourceUrl: window.location.href,
-      entries: []
-    }),
-    subjectCode: subject,
+    ...(existingIndex ?? createEmptySubjectIndex(subject)),
     entries: merged
   });
 }

@@ -1,5 +1,6 @@
 import { html, type TemplateResult } from "lit-html";
 
+import { extractCatalogLabel } from "../../../ctec-index/helpers";
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import type { ModalDisplayData } from "../modal-data";
 import { preventAndStop, stopPropagation } from "../ui-shared";
@@ -210,7 +211,7 @@ function renderActions(
             ? "Checking Northwestern…"
             : "↻ Check for new CTECs"}</span
           > <span class="bc-paper-ctec-modal-info-icon" aria-hidden="true">i</span
-          ><span class="bc-tooltip bc-tooltip--rich">${REFRESH_TOOLTIP}</span></button>`
+          ><span class="bc-tooltip bc-tooltip--rich bc-tooltip--right">${REFRESH_TOOLTIP}</span></button>`
       : ""}
     ${reportUrl
       ? html`<a
@@ -255,7 +256,7 @@ function renderDisclaimer(input: AnalyticsModalInput): TemplateResult {
   } else if (input.strategy === "instructor") {
     const courseCount = new Set(
       terms
-        .map((t) => extractCourseLabel(t.description))
+        .map((t) => extractCatalogLabel(t.description))
         .filter((v) => v.length > 0)
     ).size;
     const acrossClause =
@@ -275,12 +276,6 @@ function renderDisclaimer(input: AnalyticsModalInput): TemplateResult {
     role="note"
     aria-label="Data scope"
   >${body}</div>`;
-}
-
-function extractCourseLabel(description: string): string {
-  const match = description.trim().match(/^([A-Z][A-Z_]*)\s+(\d+)/);
-  if (!match) return "";
-  return `${match[1]} ${match[2]}`;
 }
 
 function renderRefreshFlash(

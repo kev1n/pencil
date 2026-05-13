@@ -37,28 +37,30 @@ function hasComboRow(
 // the tab + dry-run card stay visible whenever the broader lens
 // hasn't been probed yet, regardless of what entries happen to be
 // cached locally.
-export function isCourseLensRedundant(params: CtecLinkParams): boolean {
-  if (!hasStrategyBeenExplored(params, "course")) return false;
+function isLensRedundant(
+  params: CtecLinkParams,
+  strategy: "course" | "instructor"
+): boolean {
+  if (!hasStrategyBeenExplored(params, strategy)) return false;
   const entries = realEntries(params);
   if (!hasComboRow(entries, params)) return false;
-  const matchingCourse = entries.filter((entry) =>
-    entryMatchesByCourse(entry, params.catalogNumber)
-  );
-  if (matchingCourse.length === 0) return false;
-  return matchingCourse.every((entry) =>
-    instructorMatches(entry.instructor, params.instructor)
-  );
+  const matchesBroad = (entry: CtecIndexedEntry) =>
+    strategy === "course"
+      ? entryMatchesByCourse(entry, params.catalogNumber)
+      : entryMatchesByInstructor(entry, params.instructor);
+  const collapsesToCombo = (entry: CtecIndexedEntry) =>
+    strategy === "course"
+      ? instructorMatches(entry.instructor, params.instructor)
+      : descriptionMatchesCatalog(entry.description, params.catalogNumber);
+  const matching = entries.filter(matchesBroad);
+  if (matching.length === 0) return false;
+  return matching.every(collapsesToCombo);
+}
+
+export function isCourseLensRedundant(params: CtecLinkParams): boolean {
+  return isLensRedundant(params, "course");
 }
 
 export function isInstructorLensRedundant(params: CtecLinkParams): boolean {
-  if (!hasStrategyBeenExplored(params, "instructor")) return false;
-  const entries = realEntries(params);
-  if (!hasComboRow(entries, params)) return false;
-  const matchingInstructor = entries.filter((entry) =>
-    entryMatchesByInstructor(entry, params.instructor)
-  );
-  if (matchingInstructor.length === 0) return false;
-  return matchingInstructor.every((entry) =>
-    descriptionMatchesCatalog(entry.description, params.catalogNumber)
-  );
+  return isLensRedundant(params, "instructor");
 }

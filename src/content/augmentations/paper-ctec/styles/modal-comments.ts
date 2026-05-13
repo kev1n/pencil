@@ -314,26 +314,30 @@ export function modalCommentStyles(): string {
     .bc-paper-ctec-modal-rail,
     .bc-paper-ctec-modal-comments-main,
     .bc-paper-ctec-modal-overview,
-    .bc-paper-ctec-modal-terms {
+    .bc-paper-ctec-modal-terms,
+    .bc-paper-ctec-dry-run-presets {
       scrollbar-color: var(--bc-color-border-strong) var(--bc-color-bg);
     }
     .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar,
     .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar,
     .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar,
-    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar {
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar,
+    .dark .bc-paper-ctec-dry-run-presets::-webkit-scrollbar {
       width: 10px;
       height: 10px;
     }
     .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-track,
     .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-track,
     .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-track,
-    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-track {
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-track,
+    .dark .bc-paper-ctec-dry-run-presets::-webkit-scrollbar-track {
       background: var(--bc-color-bg);
     }
     .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-thumb,
     .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-thumb,
     .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-thumb,
-    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb {
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb,
+    .dark .bc-paper-ctec-dry-run-presets::-webkit-scrollbar-thumb {
       background: var(--bc-color-border-strong);
       border-radius: var(--bc-radius-lg);
       border: 2px solid var(--bc-color-bg);
@@ -341,7 +345,8 @@ export function modalCommentStyles(): string {
     .dark .bc-paper-ctec-modal-rail::-webkit-scrollbar-thumb:hover,
     .dark .bc-paper-ctec-modal-comments-main::-webkit-scrollbar-thumb:hover,
     .dark .bc-paper-ctec-modal-overview::-webkit-scrollbar-thumb:hover,
-    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb:hover {
+    .dark .bc-paper-ctec-modal-terms::-webkit-scrollbar-thumb:hover,
+    .dark .bc-paper-ctec-dry-run-presets::-webkit-scrollbar-thumb:hover {
       background: var(--bc-color-text-subtle);
     }
   `;

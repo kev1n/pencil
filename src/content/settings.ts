@@ -182,15 +182,13 @@ export function getCtecStrategy(): CtecAnalyticsStrategy {
 // raced us). Default lens is "combo" — same-(course, instructor) — which
 // preserves pre-feature behavior for anyone who never opens the selector.
 export function setCtecStrategy(strategy: CtecAnalyticsStrategy): void {
-  const changed = strategy !== ctecStrategy;
+  if (strategy === ctecStrategy) return;
   ctecStrategy = strategy;
   void chrome.storage.local.set({ [CTEC_STRATEGY_STORAGE_KEY]: strategy });
-  // Fire listeners directly for same-tab writes. The onChanged handler also
-  // fires (async), but by then in-memory `ctecStrategy` already equals
-  // `next` and its own `changed` guard suppresses the dispatch — leaving
-  // chip / class-search coordinators with stale resolved-Map entries from
-  // the prior lens. Cross-tab writes still come through onChanged.
-  if (!changed) return;
+  // Fire listeners directly for same-tab writes. The onChanged handler
+  // would otherwise see ctecStrategy already equal to next and suppress
+  // its own dispatch — leaving chip / class-search coordinators with
+  // stale resolved-Map entries from the prior lens.
   for (const listener of ctecStrategyListeners) {
     try {
       listener(strategy);

@@ -25,7 +25,7 @@ import { CaesarAuthRequiredError } from "../class-search/caesar-search/types";
 import { NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesStrategy, isAuthResponse, termToSortKey } from "./helpers";
 import { CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
-import { getSectionLens } from "./section-lens";
+import { getSectionLens, isSectionLensConfirmed } from "./section-lens";
 import type { CtecAnalyticsStrategy, CtecLinkParams } from "./types";
 
 // Per-section preference > global setting > combo (the historical
@@ -272,6 +272,12 @@ export function getCachedChipAggregate(
   titleHint: string | undefined,
   recentTerms: number
 ): CtecReportAggregate | null {
+  // Combo wins on the chip whenever it has data, regardless of which
+  // lens the user is currently browsing in the modal. The chip rating
+  // is the most-precise at-a-glance answer; modal lens choices stay
+  // contained to the modal. Only when combo has nothing does the chip
+  // fall back — to a wizard-confirmed lens first (the user explicitly
+  // committed), then to the generic section lens / global.
   const comboAggregate = getCachedReportAggregate(
     params,
     titleHint,
@@ -279,10 +285,17 @@ export function getCachedChipAggregate(
     "combo"
   );
   if (comboAggregate) return comboAggregate;
+  if (isSectionLensConfirmed(params)) {
+    const lens = getSectionLens(params);
+    if (lens) {
+      return getCachedReportAggregate(params, titleHint, recentTerms, lens);
+    }
+  }
   return getCachedReportAggregate(params, titleHint, recentTerms);
 }
 
-// Same combo-preference rule for the chip hover preview's snapshot read.
+// Same combo-first > wizard-confirmed > generic cascade for the chip
+// hover preview's snapshot read.
 export function getChipCourseAnalyticsSnapshot(
   params: CtecLinkParams,
   titleHint?: string,
@@ -295,6 +308,17 @@ export function getChipCourseAnalyticsSnapshot(
     "combo"
   );
   if (comboSnapshot && comboSnapshot.entries.length > 0) return comboSnapshot;
+  if (isSectionLensConfirmed(params)) {
+    const lens = getSectionLens(params);
+    if (lens) {
+      return getCtecCourseAnalyticsSnapshot(
+        params,
+        titleHint,
+        recentAggregateLimit,
+        lens
+      );
+    }
+  }
   return getCtecCourseAnalyticsSnapshot(
     params,
     titleHint,

@@ -17,6 +17,7 @@
 
 import { html, type TemplateResult } from "lit-html";
 
+import { extractCatalogLabel, normalizeSearch } from "../../../ctec-index/helpers";
 import { instructorMatches } from "../../ctec-links/helpers";
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import type { CtecRowSeed } from "../../../ctec-index/types";
@@ -626,7 +627,7 @@ export function applyPreset(
     const seen = new Set<string>();
     const out: DryRunCandidate[] = [];
     for (const row of rows) {
-      const key = normalizeInstructorKey(row.instructor);
+      const key = normalizeSearch(row.instructor);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(row);
@@ -638,9 +639,9 @@ export function applyPreset(
     return rows.filter((r) => r.catalogLabel === preset.catalog).slice(0, capacity);
   }
   if (preset.kind === "by-instructor") {
-    const target = normalizeInstructorKey(preset.instructor);
+    const target = normalizeSearch(preset.instructor);
     return rows
-      .filter((r) => normalizeInstructorKey(r.instructor) === target)
+      .filter((r) => normalizeSearch(r.instructor) === target)
       .slice(0, capacity);
   }
   return [];
@@ -652,8 +653,8 @@ export function presetsEqual(a: DryRunPreset, b: DryRunPreset): boolean {
     return a.catalog === b.catalog;
   }
   if (a.kind === "by-instructor" && b.kind === "by-instructor") {
-    return normalizeInstructorKey(a.instructor) ===
-      normalizeInstructorKey(b.instructor);
+    return normalizeSearch(a.instructor) ===
+      normalizeSearch(b.instructor);
   }
   return true;
 }
@@ -709,16 +710,12 @@ function groupByInstructor(
 ): Map<string, DryRunCandidate[]> {
   const out = new Map<string, DryRunCandidate[]>();
   for (const row of rows) {
-    const key = normalizeInstructorKey(row.instructor);
+    const key = normalizeSearch(row.instructor);
     const existing = out.get(key);
     if (existing) existing.push(row);
     else out.set(key, [row]);
   }
   return out;
-}
-
-function normalizeInstructorKey(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 // "ECON 281-0-30 STATS FOR ECON" → "STATS FOR ECON". Falls back to ""
@@ -791,12 +788,6 @@ export function rowsToCandidates(
   return out;
 }
 
-function extractCatalogLabel(description: string): string {
-  const match = description.trim().match(/^([A-Z][A-Z_]*)\s+(\d+)/);
-  if (!match) return description.split("-")[0]?.trim() ?? description;
-  return `${match[1]} ${match[2]}`;
-}
-
 export function applyCoursePool(
   state: DryRunState,
   status: DryRunPoolStatus
@@ -840,31 +831,28 @@ function normalizePresetForPool(
 }
 
 // Advance the wizard from `choose` into `pick` for the chosen pathway.
-// When the pool is already ready, picks the default preset that
-// `computePresets` lists first. When the pool is still loading (or in
-// any other non-ready state), advance anyway with a `recent` preset —
-// the pick view renders a loading/empty body so the user lands on the
-// right screen even when discovery is still in flight. Routes that
-// open the pick stage eagerly (strategy-tab clicks) rely on this.
+// When `initialPreset` is supplied (re-opening via Adjust selection),
+// land on that preset so the user sees their last pick checked. The
+// `normalizePresetForPool` step downstream snaps it to the computed
+// default if the pool later resolves with a row set that doesn't
+// include the picked preset. When no initial preset is given, fall
+// back to the computed default (or `recent` for non-ready pools).
 export function enterPickStage(
   state: DryRunState,
-  source: CtecAnalyticsStrategy
+  source: CtecAnalyticsStrategy,
+  initialPreset?: DryRunPreset | null
 ): DryRunState {
   if (state.stage.kind === "pick" && state.stage.source === source) {
     return state;
   }
   const pool = source === "course" ? state.coursePool : state.instructorPool;
-  if (pool.kind === "ready") {
-    const presets = computePresets(pool.rows, source);
-    const defaultPreset = presets[0] ?? { kind: "recent" };
-    return {
-      ...state,
-      stage: { kind: "pick", source, preset: defaultPreset }
-    };
-  }
+  const fallbackPreset: DryRunPreset =
+    pool.kind === "ready"
+      ? computePresets(pool.rows, source)[0] ?? { kind: "recent" }
+      : { kind: "recent" };
   return {
     ...state,
-    stage: { kind: "pick", source, preset: { kind: "recent" } }
+    stage: { kind: "pick", source, preset: initialPreset ?? fallbackPreset }
   };
 }
 

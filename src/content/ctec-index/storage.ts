@@ -46,3 +46,17 @@ export function writeSubjectIndex(subjectCode: string, index: CtecSubjectIndex):
   memoryStore.subjects[subjectCode] = index;
   void chrome.storage.local.set({ [STORAGE_KEY]: memoryStore });
 }
+
+// Centralizes the shape so new optional fields don't drift across the
+// dozen-ish writeSubjectIndex callsites that previously inlined this
+// literal. Used both as the fallback for "no prior index" and as the
+// base for a spread that overrides specific fields.
+export function createEmptySubjectIndex(subjectCode: string): CtecSubjectIndex {
+  return {
+    subjectCode,
+    subjectLabel: subjectCode,
+    builtAt: Date.now(),
+    sourceUrl: typeof window !== "undefined" ? window.location.href : "",
+    entries: []
+  };
+}
