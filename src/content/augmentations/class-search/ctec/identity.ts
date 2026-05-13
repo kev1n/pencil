@@ -9,7 +9,7 @@
 // surfaces produce.
 
 import type { CtecLinkParams } from "../../ctec-links/types";
-import { bareCatalogNumber } from "../catalog-format";
+import { formatCatalogForDisplay } from "../catalog-format";
 import { formatInstructors } from "../filter";
 import type { PaperSection, PaperTermCourse } from "../paper-data";
 
@@ -28,7 +28,9 @@ export function buildCtecSectionIdentity(
 
   const params: CtecLinkParams = {
     subject: course.subject,
-    catalogNumber: bareCatalogNumber(course.catalog),
+    // Preserve the sequence suffix (e.g. "205-3") so CTEC can disambiguate
+    // sibling sequence courses; strip only paper.nu's "-0" default suffix.
+    catalogNumber: formatCatalogForDisplay(course.catalog),
     instructor
   };
   const titleHint = course.title ?? "";

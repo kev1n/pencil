@@ -38,21 +38,29 @@ export function extractLastNameTokens(instructor: string): string[] {
 
 // Sentinel-only fallback. Real entries match via descriptionMatchesCatalog;
 // sentinels carry "<subject> <catalog>" in description with no section ID.
+// catalogNumber may include a sequence suffix ("205-3"); searchText is
+// normalized (non-alphanumerics → space), so collapse the hyphen to match.
 function catalogTokenRegex(catalogNumber: string): RegExp {
-  return new RegExp(`(?:^|\\s)${catalogNumber}(?:\\s|$)`);
+  const normalized = catalogNumber.replace(/-/g, " ");
+  return new RegExp(`(?:^|\\s)${normalized}(?:\\s|$)`);
 }
 
-// Matches the first <catalog>-<part>(-<sub>)? section identifier in a
-// CTEC description (e.g. "PSYCH 110-0-25" → "110"). Catalog must equal
-// the leading digit group of an actual section ID; substrings appearing
-// elsewhere in the title/year/section number don't qualify.
-const SECTION_ID_PATTERN = /(?:^|[^0-9])(\d+)-\d+(?:-\d+)?/;
+// Matches the leading catalog identifier in a CTEC description, capturing
+// the optional single-digit sequence suffix that distinguishes sibling
+// sequence courses like GEN_ENG 205-1 / 205-2 / 205-3:
+//   "GEN_ENG 205-3-22 Engineering Analysis III" → "205-3"
+//   "COMP_SCI 211-22 Fundamentals"              → "211"
+//   "GEN_ENG 205-3 Engineering Analysis III"    → "205-3"  (course row)
+//   "COMP_SCI 211 Fundamentals"                 → "211"    (course row)
+// The single-digit sequence has a `(?!\d)` lookahead so that a 2+-digit
+// section ID (e.g. `-22`) doesn't get partially consumed as `-2`.
+const CATALOG_ID_PATTERN = /(?:^|[^0-9])(\d+(?:-\d(?!\d))?)/;
 
 export function descriptionMatchesCatalog(
   description: string,
   catalogNumber: string
 ): boolean {
-  const match = description.match(SECTION_ID_PATTERN);
+  const match = description.match(CATALOG_ID_PATTERN);
   return !!match && match[1] === catalogNumber;
 }
 
@@ -92,11 +100,18 @@ export function entryMatchesCourse(
 export function extractSubjectAndCatalog(
   linkText: string
 ): { subject: string; catalogNumber: string } | null {
-  // Match "COMP_SCI 439-0 (12345)" or "ECON 201-6 (22345)"
-  const match = linkText.trim().match(/^([A-Z][A-Z_ ]*?)\s+(\d{3})/i);
+  // Captures the 3-digit catalog with an optional single-digit sequence
+  // suffix (e.g. "205-3" for GEN_ENG 205-3). The `(?!\d)` lookahead keeps
+  // a section ID like "-22" out of the capture. Paper.nu's `-0` default
+  // suffix is stripped so downstream callers compare against the bare
+  // form ("439" rather than "439-0").
+  // Matches: "COMP_SCI 439-0 (12345)" → "439"
+  //          "GEN_ENG 205-3 (12345)"  → "205-3"
+  //          "COMP_SCI 211-22"        → "211"   (sequence not consumed)
+  const match = linkText.trim().match(/^([A-Z][A-Z_ ]*?)\s+(\d{3}(?:-\d(?!\d))?)/i);
   if (!match) return null;
   const subject = (match[1] ?? "").trim().toUpperCase().replace(/\s+/g, "_");
-  const catalogNumber = (match[2] ?? "").trim();
+  const catalogNumber = (match[2] ?? "").trim().replace(/-0$/, "");
   if (!subject || !catalogNumber) return null;
   return { subject, catalogNumber };
 }
