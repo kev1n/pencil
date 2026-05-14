@@ -29,7 +29,7 @@ const CSS = `
   flex-wrap: nowrap;
   align-items: center;
   column-gap: 0.5rem;
-  padding: 0.3rem 0.5rem;
+  padding: 0.18rem 0.5rem;
   border-radius: var(--bc-radius-md);
   background: var(--bc-color-bg);
   border: 1px solid var(--bc-color-border);
@@ -55,8 +55,8 @@ const CSS = `
   display: none;
   align-items: center;
   justify-content: center;
-  height: 1.75rem;
-  width: 1.75rem;
+  height: 1.55rem;
+  width: 1.55rem;
   padding: 0;
   border: 1px solid var(--bc-color-border);
   background: var(--bc-color-bg-muted);
@@ -181,7 +181,7 @@ const CSS = `
  * bar surface in either mode), so the controls feel inset. */
 #${TOP_BAR_ID} .bc-paper-combos-input,
 #${TOP_BAR_ID} .bc-paper-combos-sort-select {
-  height: 1.75rem;
+  height: 1.55rem;
   padding: 0 0.45rem;
   border: 1px solid var(--bc-color-border);
   border-radius: var(--bc-radius-sm);
@@ -221,9 +221,9 @@ const CSS = `
 .${FEATURE_TOGGLE_CLASS} {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  height: 1.85rem;
-  padding: 0 0.7rem 0 0.4rem;
+  gap: 0.4rem;
+  height: 1.65rem;
+  padding: 0 0.6rem 0 0.35rem;
   border: 1.5px solid var(--bc-color-accent);
   border-radius: var(--bc-radius-pill);
   background: var(--bc-color-accent-surface-soft);
@@ -587,8 +587,8 @@ const CSS = `
   border: none;
   background: transparent;
   border-radius: var(--bc-radius-circle);
-  width: 1.6rem;
-  height: 1.6rem;
+  width: 1.4rem;
+  height: 1.4rem;
   font-size: 0.95rem;
   font-weight: var(--bc-fw-semibold);
   line-height: 1;
@@ -623,7 +623,7 @@ const CSS = `
 #${TOP_BAR_ID} .bc-paper-combos-rating {
   display: inline-flex;
   align-items: center;
-  height: 1.75rem;
+  height: 1.55rem;
   padding: 0 0.5rem;
   background: var(--bc-color-bg-muted);
   border: 1px solid var(--bc-color-border);
@@ -644,7 +644,7 @@ const CSS = `
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  height: 1.75rem;
+  height: 1.55rem;
   padding: 0 0.5rem 0 0.55rem;
   background: var(--bc-color-bg-muted);
   border: 1px solid var(--bc-color-border);
@@ -712,6 +712,48 @@ const CSS = `
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+}
+
+/* Sort select wraps a span overlay so the closed-state display can use
+ * the short label (parenthetical stripped) while the open dropdown
+ * still shows the full label on each option. Without this the long
+ * "Lazy mode (least hours/week)" label sized the native select to its
+ * width and pushed the credits/min/max cluster off the right edge.
+ *
+ * Native option text is hidden by setting color:transparent on the
+ * select; the option color rule (declared earlier above) keeps the
+ * dropdown options readable because options render in the OS-managed
+ * popup layer and use their own color, not the select's.
+ *
+ * width:11rem holds the layout steady when the user cycles between
+ * sort modes — the short labels vary in length (9–21 chars), and a
+ * fixed width avoids the bar reflowing every time. */
+#${TOP_BAR_ID} .bc-paper-combos-sort-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: stretch;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-sort-wrap .bc-paper-combos-sort-select {
+  width: 11rem;
+  color: transparent;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-sort-display {
+  position: absolute;
+  left: 0.45rem;
+  right: 1.5rem;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--bc-color-text);
+  font-size: 0.8rem;
+  line-height: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 #${TOP_BAR_ID} .bc-paper-combos-sort > span:first-child,

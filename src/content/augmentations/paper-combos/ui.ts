@@ -565,6 +565,14 @@ export function removeHoursChip(doc: Document): void {
 // duplicating the markup inline in renderTopBar. Both copies carry the
 // same data-bc-combos-action attrs, so the delegated click/input
 // handlers fire correctly regardless of which copy the user touched.
+// Strip trailing parenthetical clauses ("Lazy mode (least hours/week)"
+// → "Lazy mode"). The closed-state display uses the short form so a
+// long sort name doesn't push the credits / sort cluster off the right
+// edge of the bar; the open dropdown still shows the full label.
+function stripParenthetical(label: string): string {
+  return label.replace(/\s*\([^)]*\)\s*$/, "").trim();
+}
+
 function buildSortControl(doc: Document, state: TopBarState): HTMLElement {
   const sortSelect = doc.createElement("select");
   sortSelect.className = "bc-paper-combos-sort-select";
@@ -577,9 +585,27 @@ function buildSortControl(doc: Document, state: TopBarState): HTMLElement {
     if (value === state.sortMode) option.selected = true;
     sortSelect.appendChild(option);
   }
+  const currentLabel = state.sortLabels[state.sortMode] ?? "";
+  // Overlay sits on top of the select; the select itself gets
+  // color:transparent in CSS so its native closed-state text stays
+  // hidden. pointer-events:none on the overlay lets clicks pass
+  // through to the select so opening the dropdown still works.
+  const display = el(
+    doc,
+    "span",
+    {
+      class: "bc-paper-combos-sort-display",
+      attrs: { "aria-hidden": "true" }
+    },
+    [stripParenthetical(currentLabel)]
+  );
+  const wrap = el(doc, "div", { class: "bc-paper-combos-sort-wrap" }, [
+    sortSelect,
+    display
+  ]);
   return el(doc, "label", { class: "bc-paper-combos-sort" }, [
     el(doc, "span", {}, ["Sort"]),
-    sortSelect
+    wrap
   ]);
 }
 
