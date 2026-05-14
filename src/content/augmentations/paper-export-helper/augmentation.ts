@@ -1,7 +1,9 @@
-import { logDebug } from "../../../shared/log";
 import type { Augmentation } from "../../framework";
 import { BUTTON_BOUND_ATTR, FEATURE_ID } from "./constants";
 import { findExportDownloadButton } from "./detection";
+import { openExportHelperModal, type ModalHandle } from "./modal";
+import { removeExportHelperStyles } from "./styles";
+import { DEFAULT_CALENDAR_APP } from "./types";
 
 function isPaperHost(): boolean {
   const host = window.location.hostname;
@@ -16,9 +18,10 @@ export class PaperExportHelperAugmentation implements Augmentation {
   // Tracked so cleanup() can remove the listener even if the underlying
   // button has been re-keyed by React in the meantime.
   private boundButton: BoundTarget | null = null;
-  // Set true by the (future) modal's "Download" CTA so the next native
-  // click on the button is allowed to flow through. Cleared back to false
-  // after the click resolves.
+  private modal: ModalHandle | null = null;
+  // Set true by the modal's "Download" CTA so the next native click on
+  // the button is allowed to flow through. Cleared back to false after
+  // the click resolves.
   private allowNativeClickThrough = false;
 
   run(doc: Document = document): void {
@@ -37,13 +40,15 @@ export class PaperExportHelperAugmentation implements Augmentation {
     this.bindButton(button);
   }
 
-  cleanup(_doc: Document = document): void {
+  cleanup(doc: Document = document): void {
     if (this.boundButton) {
       this.boundButton.removeEventListener("click", this.handleClick, true);
       this.boundButton.removeAttribute(BUTTON_BOUND_ATTR);
       this.boundButton = null;
     }
     this.allowNativeClickThrough = false;
+    this.closeModal();
+    removeExportHelperStyles(doc);
   }
 
   private bindButton(button: BoundTarget): void {
@@ -61,7 +66,22 @@ export class PaperExportHelperAugmentation implements Augmentation {
     }
     event.preventDefault();
     event.stopImmediatePropagation();
-    logDebug("paper-export-helper.intercept", "intercepted paper.nu export click");
-    // The walkthrough modal lands in the next commit.
+    this.openModal();
   };
+
+  private openModal(): void {
+    if (this.modal) return;
+    this.modal = openExportHelperModal(document, DEFAULT_CALENDAR_APP, {
+      onDownload: () => {
+        // Native passthrough lands in the next commit.
+        this.closeModal();
+      },
+      onClose: () => this.closeModal()
+    });
+  }
+
+  private closeModal(): void {
+    this.modal?.destroy();
+    this.modal = null;
+  }
 }
