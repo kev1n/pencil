@@ -304,9 +304,17 @@ function findPaperHeaderHost(doc: Document): HTMLElement | null {
 
 function describeChipValue(estimate: OutOfClassEstimate): string {
   if (estimate.rated === 0) return "— hrs/wk";
-  // Headline is purely the sum of known sections — no imputation. The
-  // tooltip carries the imputed total + formula for the curious.
-  return `${Math.round(estimate.knownSum)} hrs/wk`;
+  // Headline is the estimated total — what the user can actually expect
+  // to spend on the full schedule. Fully-rated combos report the
+  // unmodified sum (estimate.hours === estimate.knownSum). Partial-data
+  // combos report the imputed total prefixed with "≈" so the user knows
+  // some sections lean on the per-section mean. The tooltip breaks it
+  // down so the source of every term is visible.
+  if (estimate.hours === null) return "— hrs/wk";
+  const rounded = Math.round(estimate.hours);
+  return estimate.rated === estimate.total
+    ? `${rounded} hrs/wk`
+    : `≈ ${rounded} hrs/wk`;
 }
 
 // Plain-text equivalent of the popup, set as aria-label so screen readers
@@ -367,20 +375,32 @@ function buildHoursTooltipElement(
       ])
     );
   } else {
+    // Headline: estimated total — the at-a-glance "what to expect" number.
+    // For fully-rated combos this equals the known sum; for partial-data
+    // combos it's the imputed total (≈). The per-section list and the
+    // formula below this header explain exactly how the number was
+    // assembled, so the headline being an estimate doesn't mislead.
+    const total = estimate.hours ?? estimate.knownSum;
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-header" }, [
         el(doc, "span", { class: "bc-paper-combos-hours-tip-title" }, [
-          "Known time"
+          fullyRated ? "Total time" : "Estimated total"
         ]),
         el(doc, "span", { class: "bc-paper-combos-hours-tip-headline" }, [
-          `${formatHoursTooltip(estimate.knownSum)} hrs/wk`
+          `${fullyRated ? "" : "≈ "}${formatHoursTooltip(total)} hrs/wk`
         ])
       ])
     );
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-sub" }, [
-        `From ${estimate.rated} of ${estimate.total} section${estimate.total === 1 ? "" : "s"} · CTEC self-reported`
+        fullyRated
+          ? `All ${estimate.total} section${estimate.total === 1 ? "" : "s"} reporting · CTEC self-reported`
+          : `${estimate.rated} of ${estimate.total} section${estimate.total === 1 ? "" : "s"} reporting · CTEC self-reported`
       ])
+    );
+
+    children.push(
+      el(doc, "div", { class: "bc-paper-combos-hours-tip-divider" })
     );
 
     // Per-section table — one row per rated section. Keeps the
@@ -407,14 +427,15 @@ function buildHoursTooltipElement(
       children.push(
         el(doc, "div", { class: "bc-paper-combos-hours-tip-formula" }, [
           el(doc, "div", { class: "bc-paper-combos-hours-tip-formula-row" }, [
-            el(doc, "span", {}, ["Estimated total"]),
+            el(doc, "span", {}, ["Known"]),
             el(doc, "span", { class: "bc-paper-combos-hours-tip-formula-value" }, [
-              `≈ ${formatHoursTooltip(estimate.hours)} hrs/wk`
+              `${formatHoursTooltip(estimate.knownSum)} hrs/wk`
             ])
           ]),
           el(doc, "div", { class: "bc-paper-combos-hours-tip-formula-note" }, [
             `${formatHoursTooltip(estimate.knownSum)} known + ` +
-              `(${formatHoursTooltip(estimate.knownMean)} mean × ${unrated} unrated)`
+              `(${formatHoursTooltip(estimate.knownMean)} mean × ${unrated} unrated) ≈ ` +
+              `${formatHoursTooltip(estimate.hours)}`
           ])
         ])
       );
