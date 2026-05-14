@@ -262,6 +262,26 @@ function formatRating(score: number): string {
   return score.toFixed(2);
 }
 
+// Small structured hover popup that explains the star reading — the
+// chip alone doesn't tell the user what scale it's on or how the
+// score is assembled. Mirrors the hours chip's tooltip shape (header
+// title + body copy in a bordered card) so the two surfaces read as
+// the same design family.
+function buildRatingTooltipElement(doc: Document): HTMLElement {
+  const card = el(doc, "div", { class: "bc-paper-combos-rating-tip-card" }, [
+    el(doc, "span", { class: "bc-paper-combos-rating-tip-title" }, [
+      "Combo rating"
+    ]),
+    el(doc, "div", { class: "bc-paper-combos-rating-tip-body" }, [
+      "Mean CTEC instructor rating across this combo's sections, on " +
+        "a 0–6 scale. Sections without cached CTEC data fall back to " +
+        "the neutral midpoint of 3 so missing data doesn't sink an " +
+        "otherwise strong combo."
+    ])
+  ]);
+  return el(doc, "div", { class: "bc-paper-combos-rating-tip" }, [card]);
+}
+
 // Round a CTEC-derived hours value for display. CTEC data is a self-
 // reported survey estimate, so decimals beyond one place imply a
 // precision the source doesn't have. The tooltip uses one decimal
@@ -722,12 +742,26 @@ export function renderTopBar(
   // combo has a cached CTEC mean. With zero coverage there's nothing
   // honest to show, and a placeholder "no CTEC" pill is just clutter.
   const rating = state.ratedCount > 0
-    ? el(doc, "span", {
-        class: "bc-paper-combos-rating",
-        dataset: { rated: String(state.ratedCount) }
-      }, [
-        `★ ${formatRating(state.score)}`
-      ])
+    ? el(
+        doc,
+        "span",
+        {
+          class: "bc-paper-combos-rating",
+          dataset: { rated: String(state.ratedCount) },
+          attrs: {
+            "aria-label":
+              "Combo rating: mean CTEC instructor rating on a 0 to 6 scale. " +
+              "Sections without cached CTEC data fall back to the neutral " +
+              "midpoint of 3."
+          }
+        },
+        [
+          el(doc, "span", { class: "bc-paper-combos-rating-value" }, [
+            `★ ${formatRating(state.score)}`
+          ]),
+          buildRatingTooltipElement(doc)
+        ]
+      )
     : null;
 
   // Two-tier collapse: credits hides at 1450px, sort hides at 1150px,

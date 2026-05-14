@@ -629,6 +629,7 @@ const CSS = `
 }
 
 #${TOP_BAR_ID} .bc-paper-combos-rating {
+  position: relative;
   display: inline-flex;
   align-items: center;
   height: 1.4rem;
@@ -646,10 +647,71 @@ const CSS = `
    * Keeping the whole readout on one line lets align-items:center do
    * its job. */
   white-space: nowrap;
+  cursor: default;
 }
 
 #${TOP_BAR_ID} .bc-paper-combos-rating[data-rated="0"] {
   opacity: 0.55;
+}
+
+/* Explanatory hover popup — keeps users from having to guess what
+ * "★ 4.20" means. Same hover-driven, pure-CSS pattern as the hours
+ * chip's tooltip (instant show via :hover, stays open while text is
+ * selected via :has(::selection)) so both surfaces feel the same. */
+.bc-paper-combos-rating-tip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  padding-top: 8px;
+  cursor: default;
+}
+
+#${TOP_BAR_ID} .bc-paper-combos-rating:hover .bc-paper-combos-rating-tip,
+#${TOP_BAR_ID} .bc-paper-combos-rating:focus-within .bc-paper-combos-rating-tip,
+#${TOP_BAR_ID} .bc-paper-combos-rating:has(.bc-paper-combos-rating-tip-card ::selection)
+  .bc-paper-combos-rating-tip {
+  display: block;
+}
+
+.bc-paper-combos-rating-tip-card {
+  min-width: 14rem;
+  max-width: 20rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--bc-color-bg-app);
+  border: 2px solid var(--bc-color-text);
+  border-radius: var(--bc-radius-md);
+  box-shadow: var(--bc-shadow-tooltip);
+  color: var(--bc-color-text);
+  font-size: 0.78rem;
+  font-weight: var(--bc-fw-regular);
+  line-height: 1.4;
+  white-space: normal;
+  text-align: left;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.bc-paper-combos-rating-tip-card ::selection {
+  background: var(--bc-color-accent-surface-soft);
+  color: var(--bc-color-text);
+}
+
+.bc-paper-combos-rating-tip-title {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: var(--bc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--bc-ls-wide);
+  color: var(--bc-color-text-subtle);
+  margin-bottom: 0.3rem;
+  font-variant-numeric: normal;
+}
+
+.bc-paper-combos-rating-tip-body {
+  color: var(--bc-color-text);
+  font-variant-numeric: normal;
 }
 
 /* Combined Credits range: a single pill with [min] – [max] inputs.
