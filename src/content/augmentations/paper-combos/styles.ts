@@ -669,7 +669,15 @@ const CSS = `
 }
 
 #${TOP_BAR_ID} .bc-paper-combos-rating:hover .bc-paper-combos-rating-tip,
-#${TOP_BAR_ID} .bc-paper-combos-rating:focus-within .bc-paper-combos-rating-tip,
+#${TOP_BAR_ID} .bc-paper-combos-rating:focus-within .bc-paper-combos-rating-tip {
+  display: block;
+}
+
+/* Split into its own rule: regular selector lists aren't forgiving,
+ * so if the browser refuses ::selection inside :has() the entire
+ * comma list above would be dropped — including the basic :hover
+ * trigger. Keep them apart so hover always works even if the
+ * keep-open-while-selecting rule turns out to be unsupported. */
 #${TOP_BAR_ID} .bc-paper-combos-rating:has(.bc-paper-combos-rating-tip-card ::selection)
   .bc-paper-combos-rating-tip {
   display: block;
