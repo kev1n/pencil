@@ -284,56 +284,56 @@ const CSS = `
   font-size: 0.78rem;
 }
 
-/* Toggle stack: holds the always-visible out-of-class hours chip above
- * the toggle pill. Column flex with the chip on top and toggle on the
- * bottom; align-items:flex-start keeps the chip left-aligned with the
- * toggle's leading edge instead of centering and looking lopsided.
- * row-gap is intentionally tight (2px) so the two items read as a
- * single unit. The bar's own align-items:center vertically centers
- * this taller stack against the rest of the row. */
-#${TOP_BAR_ID} .bc-paper-combos-toggle-stack {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  row-gap: 2px;
-  min-width: 0;
-}
-
-/* Hours chip: small pill above the toggle. Reads as "informational
- * readout" — neutral muted background, no accent color (the toggle below
- * already owns the accent slot). Tabular numerals so the value doesn't
- * jitter as the user cycles combos. data-coverage carries the data
- * completeness state:
- *   full     — every section in the combo has cached CTEC hours
- *   partial  — some sections imputed; chip dimmed to half-hint at the gap
- *   none     — no cached data anywhere; value reads "— hrs/wk" and
- *              the chip dims further so it doesn't draw the eye
- * The chip stays visible in every state — the user said "at all times"
- * — so they always know where the readout lives, even before CTEC has
- * been fetched for the term. */
-#${TOP_BAR_ID} .bc-paper-combos-hours {
+/* Out-of-class hours chip: lives in paper.nu's top sticky header, NOT
+ * the combos bar. Mounts as the first child of the header so it anchors
+ * to the left edge while paper.nu's existing About / Map / Notes /
+ * Share / Settings cluster and user pill stay on the right.
+ *
+ * margin-right:auto is the trick that holds the left anchor across all
+ * three of paper.nu's header layouts:
+ *
+ *   lg (≥1024px): header is flex-row with justify-end. Without the auto
+ *     margin, the chip would pile up at the right with everything else.
+ *     The auto margin absorbs the free space to the chip's right,
+ *     pushing the rest of the items to the right edge while the chip
+ *     stays at the left.
+ *   md (768-1023px): header is flex-row with justify-center. The auto
+ *     margin again absorbs free space and pushes the right cluster to
+ *     the right edge. Chip stays anchored left.
+ *   <md: header is flex-col. margin-right:auto is a no-op in vertical
+ *     flex, so the chip just sits as the first stacked item above the
+ *     buttons. Fine — still "at the top, prominent."
+ *
+ * Visual: neutral muted pill, no accent (informational, not a control).
+ * Tabular numerals keep the value steady as combos cycle. data-coverage
+ * dims the chip in the partial / none states so the eye isn't drawn to
+ * a number that's part-imputed or absent. */
+.bc-paper-combos-hours {
+  position: relative;
   display: inline-flex;
   align-items: baseline;
-  gap: 0.35rem;
+  gap: 0.4rem;
   max-width: 100%;
-  padding: 0.1rem 0.45rem;
-  background: var(--bc-color-bg-muted);
-  border: 1px solid var(--bc-color-border-divider);
+  margin-right: auto;
+  padding: 0.2rem 0.65rem;
+  background: var(--bc-color-bg-inset);
+  border: 1px solid var(--bc-color-border-strong);
   border-radius: var(--bc-radius-pill);
-  font-size: 0.7rem;
-  line-height: 1.15;
+  font-family: inherit;
+  font-size: 0.72rem;
+  line-height: 1.2;
   color: var(--bc-color-text-muted);
   white-space: nowrap;
-  cursor: help;
+  cursor: default;
   transition: opacity var(--bc-tx-fast) var(--bc-easing),
               border-color var(--bc-tx-fast) var(--bc-easing);
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-hours:hover {
+.bc-paper-combos-hours:hover {
   border-color: var(--bc-color-border-strong);
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-hours-label {
+.bc-paper-combos-hours-label {
   font-size: 0.62rem;
   font-weight: var(--bc-fw-semibold);
   text-transform: uppercase;
@@ -341,28 +341,151 @@ const CSS = `
   color: var(--bc-color-text-subtle);
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-hours-value {
+.bc-paper-combos-hours-value {
   font-weight: var(--bc-fw-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--bc-color-text);
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-hours[data-coverage="partial"] {
-  opacity: 0.78;
+.bc-paper-combos-hours[data-coverage="partial"] {
+  opacity: 0.85;
 }
 
-#${TOP_BAR_ID} .bc-paper-combos-hours[data-coverage="none"] {
-  opacity: 0.55;
+.bc-paper-combos-hours[data-coverage="none"] {
+  opacity: 0.6;
 }
 
-/* Very narrow viewports drop the "Out of class" label to keep the chip
- * compact alongside the label-less toggle (see the existing 700px rule
- * below). Mirrors the toggle-label collapse so both stacks shrink to
- * just the essential signal at the same breakpoint. */
 @media (max-width: 700px) {
-  #${TOP_BAR_ID} .bc-paper-combos-hours-label {
+  .bc-paper-combos-hours-label {
     display: none;
   }
+}
+
+/* Custom hover popup — instant show/hide via pure CSS, no browser
+ * native-tooltip delay. Two-layer structure:
+ *   .bc-paper-combos-hours-tip   — invisible positioning wrapper. Sits
+ *     directly below the chip (top:100%) with no actual gap, so moving
+ *     the cursor from the chip down INTO the card never crosses an
+ *     unhovered zone. padding-top inside this wrapper creates the
+ *     visual breathing room while keeping the hover surface continuous.
+ *   .bc-paper-combos-hours-tip-card — the visible box (background,
+ *     border, shadow). Lives inside the wrapper so the wrapper's
+ *     transparent padding-top hover zone connects the chip and card.
+ * Tokens: --bc-color-bg + --bc-color-border-strong + --bc-shadow-tooltip
+ * match the popover used by the kebab menu (#${TOP_BAR_ID} .bc-paper-
+ * combos-popover above), so the surface reads as one design family. */
+.bc-paper-combos-hours-tip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 50;
+  padding-top: 8px;
+  cursor: default;
+}
+
+.bc-paper-combos-hours:hover .bc-paper-combos-hours-tip,
+.bc-paper-combos-hours:focus-within .bc-paper-combos-hours-tip {
+  display: block;
+}
+
+.bc-paper-combos-hours-tip-card {
+  min-width: 16rem;
+  max-width: 22rem;
+  padding: 0.75rem 0.85rem;
+  /* Solid surface — paper.nu's page is pure white, so the default
+   * Pencil cream --bc-color-bg reads as a tint rather than a distinct
+   * popup. --bc-color-bg-inset is the next step up in saturation and
+   * gives the card a clear edge against the page in both light/dark. */
+  background: var(--bc-color-bg-inset);
+  border: 2px solid var(--bc-color-text);
+  border-radius: var(--bc-radius-md);
+  box-shadow: var(--bc-shadow-tooltip);
+  color: var(--bc-color-text);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.bc-paper-combos-hours-tip-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.2rem;
+}
+
+.bc-paper-combos-hours-tip-title {
+  font-size: 0.66rem;
+  font-weight: var(--bc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--bc-ls-wide);
+  color: var(--bc-color-text-subtle);
+}
+
+.bc-paper-combos-hours-tip-headline {
+  font-size: 0.95rem;
+  font-weight: var(--bc-fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--bc-color-accent);
+}
+
+.bc-paper-combos-hours-tip-sub {
+  color: var(--bc-color-text-muted);
+  font-size: 0.72rem;
+  margin-bottom: 0.55rem;
+}
+
+.bc-paper-combos-hours-tip-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.bc-paper-combos-hours-tip-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+}
+
+.bc-paper-combos-hours-tip-row-label {
+  color: var(--bc-color-text);
+  font-weight: var(--bc-fw-medium);
+}
+
+.bc-paper-combos-hours-tip-row-value {
+  color: var(--bc-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.bc-paper-combos-hours-tip-divider {
+  height: 1px;
+  background: var(--bc-color-border-divider);
+  margin: 0.6rem 0;
+}
+
+.bc-paper-combos-hours-tip-formula-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: var(--bc-fw-medium);
+}
+
+.bc-paper-combos-hours-tip-formula-value {
+  color: var(--bc-color-accent);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--bc-fw-semibold);
+}
+
+.bc-paper-combos-hours-tip-formula-note {
+  color: var(--bc-color-text-subtle);
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  margin-top: 0.15rem;
 }
 
 /* Cycle cluster: wrap prev/counter/next in a single bordered pill so

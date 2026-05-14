@@ -28,7 +28,9 @@ import { injectCombosStyles } from "./styles";
 import type { ComboPool, Combination, ComboSection, CourseGroup } from "./types";
 import {
   applyComboVisibility,
+  ensureHoursChip,
   ensureTopBar,
+  removeHoursChip,
   renderTopBar,
   renderZones,
   setRootAttribute,
@@ -166,6 +168,7 @@ export class PaperCombosAugmentation implements Augmentation {
   cleanup(doc: Document = document): void {
     setRootAttribute(doc, false);
     unhideRealCards(doc);
+    removeHoursChip(doc);
     const bar = doc.getElementById(TOP_BAR_ID);
     if (bar) bar.remove();
     const style = doc.getElementById(STYLE_ID);
@@ -271,6 +274,7 @@ export class PaperCombosAugmentation implements Augmentation {
     if (!this.featureMounted) return;
     setRootAttribute(doc, false);
     unhideRealCards(doc);
+    removeHoursChip(doc);
     this.detachPinClickHandler();
     this.detachZoneHandlers();
     this.featureMounted = false;
@@ -540,9 +544,28 @@ export class PaperCombosAugmentation implements Augmentation {
         void this.setFeatureEnabled(next);
       }
     });
-    // Action toolbar hasn't rendered yet — try again next mutation.
-    if (!bar) return;
     const currentCombo = enabled ? this.combos[this.cursor] ?? null : null;
+
+    // Mount/update the always-visible hours chip in paper.nu's sticky
+    // header. Decoupled from the combos bar — the chip and the bar live
+    // in different host elements, so paper.nu re-rendering one doesn't
+    // wipe the other. Called every renderAll (not gated by the sig
+    // dedupe below) so the chip survives React reconciler wipes the
+    // same way zones do. Hidden when the feature is off or no combo
+    // exists — meaningless to show "—" in that case.
+    if (enabled && currentCombo) {
+      ensureHoursChip(doc, {
+        visible: true,
+        estimate: estimateOutOfClassHours(currentCombo)
+      });
+    } else {
+      removeHoursChip(doc);
+    }
+
+    // Action toolbar hasn't rendered yet — try again next mutation. The
+    // hours chip above doesn't depend on the bar host so it stays
+    // serviced even when the bar can't mount yet.
+    if (!bar) return;
 
     // Card-visibility side effects only run when the feature is on.
     // setAttribute doesn't fire our childList-only MutationObserver, so
@@ -575,10 +598,6 @@ export class PaperCombosAugmentation implements Augmentation {
     if (sig === this.lastRenderSig) return;
     this.lastRenderSig = sig;
 
-    const hours = currentCombo
-      ? estimateOutOfClassHours(currentCombo)
-      : { hours: null as number | null, rated: 0, total: 0 };
-
     renderTopBar(doc, bar, {
       enabled,
       total: this.combos.length,
@@ -590,9 +609,6 @@ export class PaperCombosAugmentation implements Augmentation {
       minCredits: this.minCredits,
       sortMode: this.sortMode,
       sortLabels: SORT_MODE_LABELS,
-      hours: hours.hours,
-      hoursRated: hours.rated,
-      hoursTotal: hours.total,
       status: enabled
         ? statusFromLoadState(this.lastLoadResult, this.lastEnumerate)
         : undefined,
