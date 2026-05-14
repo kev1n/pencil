@@ -7,6 +7,7 @@ import { CALENDAR_APPS, type CalendarApp } from "./types";
 export type ModalCallbacks = {
   onDownload(): void;
   onClose(): void;
+  onTabChange?(app: CalendarApp): void;
 };
 
 export type ModalHandle = {
@@ -35,7 +36,8 @@ export function openExportHelperModal(
 
   let activeTab: CalendarApp = initialTab;
 
-  const setActiveTab = (app: CalendarApp): void => {
+  const setActiveTab = (app: CalendarApp, persist: boolean = true): void => {
+    const changed = activeTab !== app;
     activeTab = app;
     for (const [id, btn] of tabButtons.entries()) {
       btn.classList.toggle("is-active", id === app);
@@ -43,6 +45,7 @@ export function openExportHelperModal(
     }
     renderTabContent(bodyEl, app);
     renderActions(actionsEl, app, callbacks);
+    if (changed && persist) callbacks.onTabChange?.(app);
   };
 
   const tabsRow = el(doc, "div", {
@@ -99,10 +102,12 @@ export function openExportHelperModal(
 
   doc.body.appendChild(backdrop);
 
-  setActiveTab(activeTab);
+  // Initial render — don't fire onTabChange for the bootstrap value
+  // (it's the value the caller already knows about).
+  setActiveTab(activeTab, false);
 
   return {
-    setActiveTab,
+    setActiveTab: (app) => setActiveTab(app, true),
     destroy: () => {
       backdrop.remove();
     }

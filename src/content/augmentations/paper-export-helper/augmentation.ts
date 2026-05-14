@@ -2,8 +2,9 @@ import type { Augmentation } from "../../framework";
 import { BUTTON_BOUND_ATTR, FEATURE_ID } from "./constants";
 import { findExportDownloadButton } from "./detection";
 import { openExportHelperModal, type ModalHandle } from "./modal";
+import { loadLastTab, saveLastTab } from "./storage";
 import { removeExportHelperStyles } from "./styles";
-import { DEFAULT_CALENDAR_APP } from "./types";
+import { DEFAULT_CALENDAR_APP, type CalendarApp } from "./types";
 
 function isPaperHost(): boolean {
   const host = window.location.hostname;
@@ -23,6 +24,16 @@ export class PaperExportHelperAugmentation implements Augmentation {
   // the button is allowed to flow through. Cleared back to false after
   // the click resolves.
   private allowNativeClickThrough = false;
+  // Pre-warmed on construction so the click handler can read it
+  // synchronously without an await. Falls back to DEFAULT until the
+  // storage read resolves — which happens long before any user click.
+  private cachedLastTab: CalendarApp = DEFAULT_CALENDAR_APP;
+
+  constructor() {
+    void loadLastTab().then((app) => {
+      this.cachedLastTab = app;
+    });
+  }
 
   run(doc: Document = document): void {
     if (!isPaperHost()) return;
@@ -71,9 +82,13 @@ export class PaperExportHelperAugmentation implements Augmentation {
 
   private openModal(): void {
     if (this.modal) return;
-    this.modal = openExportHelperModal(document, DEFAULT_CALENDAR_APP, {
+    this.modal = openExportHelperModal(document, this.cachedLastTab, {
       onDownload: () => this.triggerNativeDownload(),
-      onClose: () => this.closeModal()
+      onClose: () => this.closeModal(),
+      onTabChange: (app) => {
+        this.cachedLastTab = app;
+        saveLastTab(app);
+      }
     });
   }
 
