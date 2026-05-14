@@ -400,10 +400,29 @@ const CSS = `
   display: block;
 }
 
+/* Keep the popup open while the user is highlighting text inside it.
+ * Without this rule, dragging across a row boundary briefly leaves the
+ * chip's :hover surface (paper.nu's header is dense and the cursor can
+ * cross an unhovered seam mid-drag) and the popup snaps closed,
+ * killing the selection. :has(::selection) holds the popup open for
+ * the lifetime of the selection — clicking outside clears the
+ * selection and the popup closes naturally. */
+.bc-paper-combos-hours:has(.bc-paper-combos-hours-tip-card ::selection)
+  .bc-paper-combos-hours-tip {
+  display: block;
+}
+
 .bc-paper-combos-hours-tip-card {
   min-width: 16rem;
   max-width: 22rem;
   padding: 0.75rem 0.85rem;
+  /* paper.nu's header carries user-select:none on its button cluster
+   * and the property inherits into the chip's subtree, so the popup's
+   * text would refuse to select. Force selection back on for the
+   * card's contents — the chip surface itself stays default since
+   * there's nothing useful to copy there. */
+  user-select: text;
+  -webkit-user-select: text;
   /* Solid, strongly-contrasting surface. We pick --bc-color-bg-app
    * (NOT bg, bg-muted, or bg-inset) because the bg-* / bg-muted / bg-
    * inset tokens are all "almost the page background" in at least one
@@ -421,6 +440,11 @@ const CSS = `
   font-size: 0.78rem;
   line-height: 1.35;
   white-space: normal;
+}
+
+.bc-paper-combos-hours-tip-card ::selection {
+  background: var(--bc-color-accent-surface-soft);
+  color: var(--bc-color-text);
 }
 
 .bc-paper-combos-hours-tip-header {
