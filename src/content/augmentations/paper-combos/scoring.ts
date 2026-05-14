@@ -89,6 +89,13 @@ export type KnownHoursEntry = {
   hours: number;
 };
 
+export type UnknownHoursEntry = {
+  // Section label for sections without cached CTEC hours. The popup
+  // lists these alongside the assigned mean so the user can see which
+  // classes are being imputed and at what rate.
+  label: string;
+};
+
 export type OutOfClassEstimate = {
   // Imputed total estimated out-of-class hours per week for the combo.
   // null when zero sections in the combo have cached CTEC hours data —
@@ -111,6 +118,10 @@ export type OutOfClassEstimate = {
   // out so the chip's tooltip can spell out the formula without redoing
   // the math.
   knownMean: number | null;
+  // Sections that don't have cached CTEC hours data. Ordered the same
+  // as combo.sections. Empty when rated === total. The popup renders
+  // these next to the assigned mean so the imputation is transparent.
+  unknownValues: UnknownHoursEntry[];
 };
 
 export function estimateOutOfClassHours(
@@ -125,21 +136,23 @@ export function estimateOutOfClassHours(
       total: 0,
       knownSum: 0,
       knownValues: [],
-      knownMean: null
+      knownMean: null,
+      unknownValues: []
     };
   }
   let sum = 0;
   let rated = 0;
   const knownValues: KnownHoursEntry[] = [];
+  const unknownValues: UnknownHoursEntry[] = [];
   for (const section of deduped) {
+    const label = `${section.subject} ${section.number}`;
     const h = getSectionHours(section);
     if (h !== null) {
       sum += h;
       rated += 1;
-      knownValues.push({
-        label: `${section.subject} ${section.number}`,
-        hours: h
-      });
+      knownValues.push({ label, hours: h });
+    } else {
+      unknownValues.push({ label });
     }
   }
   if (rated === 0) {
@@ -149,7 +162,8 @@ export function estimateOutOfClassHours(
       total,
       knownSum: 0,
       knownValues: [],
-      knownMean: null
+      knownMean: null,
+      unknownValues
     };
   }
   const mean = sum / rated;
@@ -159,7 +173,8 @@ export function estimateOutOfClassHours(
     total,
     knownSum: sum,
     knownValues,
-    knownMean: mean
+    knownMean: mean,
+    unknownValues
   };
 }
 

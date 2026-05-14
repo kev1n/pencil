@@ -500,6 +500,44 @@ const CSS = `
   font-variant-numeric: tabular-nums;
 }
 
+/* Estimated rows: same layout as the known rows so the user can
+ * compare them side-by-side, but the label gets the subtle text tone
+ * to flag "this isn't a CTEC number, it's the imputed mean". */
+.bc-paper-combos-hours-tip-row--estimated .bc-paper-combos-hours-tip-row-label {
+  color: var(--bc-color-text-muted);
+  font-style: italic;
+  font-weight: var(--bc-fw-regular);
+}
+
+.bc-paper-combos-hours-tip-row--estimated .bc-paper-combos-hours-tip-row-value {
+  color: var(--bc-color-text-subtle);
+}
+
+/* Subhead between the known list and the estimated list. Reads as a
+ * mini section title so the user knows the next rows aren't more
+ * CTEC data — they're imputed at the mean of the rows above. */
+.bc-paper-combos-hours-tip-subhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.25rem;
+}
+
+.bc-paper-combos-hours-tip-subhead-title {
+  font-size: 0.66rem;
+  font-weight: var(--bc-fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--bc-ls-wide);
+  color: var(--bc-color-text-subtle);
+}
+
+.bc-paper-combos-hours-tip-subhead-note {
+  font-size: 0.7rem;
+  color: var(--bc-color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .bc-paper-combos-hours-tip-divider {
   height: 1px;
   background: var(--bc-color-border-divider);

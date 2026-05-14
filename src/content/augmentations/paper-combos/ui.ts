@@ -336,10 +336,14 @@ function buildAriaLabel(estimate: OutOfClassEstimate): string {
     lines.push(`${entry.label}: ${formatHoursTooltip(entry.hours)} hours`);
   }
   if (estimate.rated < estimate.total && estimate.hours !== null && estimate.knownMean !== null) {
+    const meanText = formatHoursTooltip(estimate.knownMean);
+    for (const entry of estimate.unknownValues) {
+      lines.push(`${entry.label}: estimated ${meanText} hours`);
+    }
     const unrated = estimate.total - estimate.rated;
     lines.push(
       `Estimated total including ${unrated} unrated sections at the mean ` +
-        `of ${formatHoursTooltip(estimate.knownMean)} hours: ` +
+        `of ${meanText} hours: ` +
         `approximately ${formatHoursTooltip(estimate.hours)} hours per week.`
     );
   }
@@ -421,6 +425,46 @@ function buildHoursTooltipElement(
 
     if (!fullyRated && estimate.hours !== null && estimate.knownMean !== null) {
       const unrated = estimate.total - estimate.rated;
+      const meanText = formatHoursTooltip(estimate.knownMean);
+      children.push(
+        el(doc, "div", { class: "bc-paper-combos-hours-tip-divider" })
+      );
+      // Estimated-sections list: same row format as the known list so
+      // the user can scan them side-by-side. Value column gets the same
+      // ≈-prefixed mean for every row, since that's the rate we're
+      // assigning. The header line spells out the assigned mean too so
+      // a glance is enough.
+      children.push(
+        el(doc, "div", { class: "bc-paper-combos-hours-tip-subhead" }, [
+          el(doc, "span", { class: "bc-paper-combos-hours-tip-subhead-title" }, [
+            "Estimated"
+          ]),
+          el(doc, "span", { class: "bc-paper-combos-hours-tip-subhead-note" }, [
+            `≈ ${meanText} hrs each · mean of reporting`
+          ])
+        ])
+      );
+      const unknownRows: HTMLElement[] = estimate.unknownValues.map((entry) =>
+        el(
+          doc,
+          "div",
+          {
+            class:
+              "bc-paper-combos-hours-tip-row bc-paper-combos-hours-tip-row--estimated"
+          },
+          [
+            el(doc, "span", { class: "bc-paper-combos-hours-tip-row-label" }, [
+              entry.label
+            ]),
+            el(doc, "span", { class: "bc-paper-combos-hours-tip-row-value" }, [
+              `≈ ${meanText} hrs`
+            ])
+          ]
+        )
+      );
+      children.push(
+        el(doc, "div", { class: "bc-paper-combos-hours-tip-list" }, unknownRows)
+      );
       children.push(
         el(doc, "div", { class: "bc-paper-combos-hours-tip-divider" })
       );
@@ -434,7 +478,7 @@ function buildHoursTooltipElement(
           ]),
           el(doc, "div", { class: "bc-paper-combos-hours-tip-formula-note" }, [
             `${formatHoursTooltip(estimate.knownSum)} known + ` +
-              `(${formatHoursTooltip(estimate.knownMean)} mean × ${unrated} unrated) ≈ ` +
+              `(${meanText} mean × ${unrated} unrated) ≈ ` +
               `${formatHoursTooltip(estimate.hours)}`
           ])
         ])
