@@ -575,7 +575,14 @@ const CSS = `
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.3rem;
+  /* Explicit height + border-box pins the pill to the same height as
+   * the rest of the on-state controls. Without this the inner buttons'
+   * intrinsic 1.4rem + 0.2rem vertical padding measured 1.8rem and
+   * grew the bar taller in the combinations-on state than in
+   * combinations-off (where the 1.65rem toggle is the tallest item). */
+  height: 1.55rem;
+  box-sizing: border-box;
+  padding: 0 0.3rem;
   border: 1px solid var(--bc-color-border-strong);
   background: var(--bc-color-bg);
   border-radius: var(--bc-radius-pill);
@@ -587,8 +594,8 @@ const CSS = `
   border: none;
   background: transparent;
   border-radius: var(--bc-radius-circle);
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.25rem;
+  height: 1.25rem;
   font-size: 0.95rem;
   font-weight: var(--bc-fw-semibold);
   line-height: 1;
@@ -614,7 +621,8 @@ const CSS = `
   font-weight: var(--bc-fw-bold);
   min-width: 4.5rem;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.9rem;
+  line-height: 1;
   color: var(--bc-color-accent);
   padding: 0 0.35rem;
   letter-spacing: 0.01em;
