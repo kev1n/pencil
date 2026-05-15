@@ -1,12 +1,16 @@
 import type { Augmentation } from "../../framework";
-import { BUTTON_BOUND_ATTR, FEATURE_ID } from "./constants";
+import { BUTTON_BOUND_ATTR, FEATURE_ID, HIGHLIGHT_ATTR } from "./constants";
 import {
+  findExportButton,
   findExportToCalendarButton,
   waitForDownloadButton
 } from "./detection";
 import { openExportHelperModal, type ModalHandle } from "./modal";
 import { loadLastTab, saveLastTab } from "./storage";
-import { removeExportHelperStyles } from "./styles";
+import {
+  injectExportHelperStyles,
+  removeExportHelperStyles
+} from "./styles";
 import { DEFAULT_CALENDAR_APP, type CalendarApp } from "./types";
 
 function isPaperHost(): boolean {
@@ -39,11 +43,27 @@ export class PaperExportHelperAugmentation implements Augmentation {
   run(doc: Document = document): void {
     if (!isPaperHost()) return;
 
-    // The button only exists in the DOM while paper.nu's EXPORT
-    // dropdown is open. The AugmentationRunner's mutation-driven
-    // re-ticks pick it up as soon as it mounts, and the
-    // BUTTON_BOUND_ATTR marker keeps the bind idempotent across the
-    // re-mounts React does when the dropdown closes and reopens.
+    // Style injection lives here (not in openModal) so the EXPORT
+    // button highlight paints even when the user hasn't interacted
+    // with the modal yet. ensureStyle is idempotent.
+    injectExportHelperStyles(doc);
+
+    // Highlight the top-level EXPORT button. The marker carries the
+    // styling via `[data-bc-export-highlight="1"]`; idempotent across
+    // mutation re-ticks. React occasionally swaps the button node
+    // identity (when paper.nu re-renders the toolbar) but the marker
+    // attribute survives the swap as long as the new node carries it
+    // forward; if not, the next tick re-marks the new node.
+    const exportBtn = findExportButton(doc);
+    if (exportBtn && !exportBtn.hasAttribute(HIGHLIGHT_ATTR)) {
+      exportBtn.setAttribute(HIGHLIGHT_ATTR, "1");
+    }
+
+    // The "Export to calendar" button only exists in the DOM while
+    // paper.nu's EXPORT dropdown is open. The AugmentationRunner's
+    // mutation-driven re-ticks pick it up as soon as it mounts, and
+    // the BUTTON_BOUND_ATTR marker keeps the bind idempotent across
+    // the re-mounts React does when the dropdown closes and reopens.
     const button = findExportToCalendarButton(doc);
     if (!button) return;
     if (button === this.boundButton) return;
@@ -62,6 +82,14 @@ export class PaperExportHelperAugmentation implements Augmentation {
       this.boundButton.removeEventListener("click", this.handleClick, true);
       this.boundButton.removeAttribute(BUTTON_BOUND_ATTR);
       this.boundButton = null;
+    }
+    // Strip the highlight marker from every node that has it — the
+    // attribute may live on stale React nodes too if the toolbar was
+    // re-rendered between marks, and host-page parity matters.
+    for (const el of Array.from(
+      doc.querySelectorAll<HTMLElement>(`[${HIGHLIGHT_ATTR}]`)
+    )) {
+      el.removeAttribute(HIGHLIGHT_ATTR);
     }
     this.allowNativeClickThrough = false;
     this.closeModal();

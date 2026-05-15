@@ -12,8 +12,25 @@
 // the "Export to calendar" button is what semantically maps to our
 // walkthrough.
 
+const EXPORT_LABEL_RE = /^\s*export\s*$/i;
 const EXPORT_TO_CALENDAR_RE = /^\s*export\s+to\s+calendar\s*$/i;
 const DOWNLOAD_BUTTON_RE = /^\s*download\s*$/i;
+
+// The top-level EXPORT button on paper.nu's schedule view — the one
+// that opens the dropdown menu containing "Export to calendar". We
+// don't intercept this (the dropdown may carry other export options),
+// but the highlight feature stamps a marker on it so the user knows
+// the entry point exists.
+export function findExportButton(doc: Document): HTMLButtonElement | null {
+  for (const btn of Array.from(
+    doc.querySelectorAll<HTMLButtonElement>("button")
+  )) {
+    const labelEl = btn.querySelector("p");
+    if (!labelEl) continue;
+    if (EXPORT_LABEL_RE.test(labelEl.textContent ?? "")) return btn;
+  }
+  return null;
+}
 
 export function findExportToCalendarButton(
   doc: Document

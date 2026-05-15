@@ -1,12 +1,37 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   findDownloadButton,
+  findExportButton,
   findExportToCalendarButton,
   waitForDownloadButton
 } from "./detection";
 
 afterEach(() => {
   document.body.innerHTML = "";
+});
+
+describe("findExportButton", () => {
+  it("matches paper.nu's top-level button with <p>EXPORT</p>", () => {
+    document.body.innerHTML = `
+      <button>
+        <svg><path d="..." /></svg>
+        <p>EXPORT</p>
+      </button>
+    `;
+    const btn = findExportButton(document);
+    expect(btn).not.toBeNull();
+    expect(btn?.querySelector("p")?.textContent).toBe("EXPORT");
+  });
+
+  it("does not match the 'Export to calendar' dropdown item", () => {
+    document.body.innerHTML = `<button><p>Export to calendar</p></button>`;
+    expect(findExportButton(document)).toBeNull();
+  });
+
+  it("is case- and whitespace-insensitive", () => {
+    document.body.innerHTML = `<button><p>  export  </p></button>`;
+    expect(findExportButton(document)).not.toBeNull();
+  });
 });
 
 describe("findExportToCalendarButton", () => {

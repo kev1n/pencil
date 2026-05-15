@@ -11,6 +11,17 @@
   },
   "entries": [
     {
+      "version": "0.9.3",
+      "date": "2026-05-15",
+      "headline": "Find the calendar export easily",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "The EXPORT button on Paper.nu now glows purple so you can find it at a glance — pairs with the calendar-export walkthrough."
+        }
+      ]
+    },
+    {
       "version": "0.9.2",
       "date": "2026-05-14",
       "headline": "Easier schedule-to-calendar exports",

@@ -1,11 +1,46 @@
 import { ensureStyle } from "../../framework/dom";
-import { STYLE_ID } from "./constants";
+import { HIGHLIGHT_ATTR, STYLE_ID } from "./constants";
 
 // Layout-only styles for the walkthrough modal — backdrop and card
 // chrome come from `injectModalStyles()` in `framework/modal.ts`, tab
 // pill chrome comes from `.bc-tabs--pill` in the design system. This
 // file fills the gaps: wider card, scrollable step list, footer row.
+//
+// Also defines the purple-gradient highlight applied to paper.nu's
+// top-level EXPORT button via the [data-bc-export-highlight] marker.
+// Purple is derived from `--bc-color-paper` (the Northwestern brand
+// purple, defined identically in every theme) via color-mix() so the
+// effect stays purple regardless of which theme the user is on.
 const CSS = `
+[${HIGHLIGHT_ATTR}="1"] {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--bc-color-paper) 22%, transparent) 0%,
+    color-mix(in srgb, var(--bc-color-paper) 6%, transparent) 100%
+  ) !important;
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--bc-color-paper) 38%, transparent),
+    0 4px 12px color-mix(in srgb, var(--bc-color-paper) 28%, transparent) !important;
+  color: var(--bc-color-paper-deep) !important;
+  border-radius: 8px !important;
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease,
+    transform 200ms ease;
+}
+[${HIGHLIGHT_ATTR}="1"]:hover {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--bc-color-paper) 32%, transparent) 0%,
+    color-mix(in srgb, var(--bc-color-paper) 12%, transparent) 100%
+  ) !important;
+  box-shadow:
+    0 0 0 1.5px color-mix(in srgb, var(--bc-color-paper) 50%, transparent),
+    0 6px 16px color-mix(in srgb, var(--bc-color-paper) 38%, transparent) !important;
+  transform: translateY(-1px);
+}
+[${HIGHLIGHT_ATTR}="1"]:active {
+  transform: translateY(0);
+}
+
 .bc-export-helper-card {
   width: min(520px, 100%);
   padding: 22px 22px 18px;
