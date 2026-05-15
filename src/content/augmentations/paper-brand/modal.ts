@@ -58,7 +58,7 @@ export function openAboutModal(
 
   const lede = el(doc, "p", {
     class: "bc-paper-brand-about-lede",
-    text: "A handcrafted layer of Paper.nu and CAESAR upgrades for Northwestern students."
+    text: "A small layer of upgrades that sit on top of Paper.nu and CAESAR to make lives easier for Northwestern students :)"
   });
 
   // Names link out to LinkedIn but keep the credit line's handwriting
