@@ -56,7 +56,9 @@ export function renderIdle(
           preventAndStop(event);
           onLoad();
         }}
-      >${iconTemplate("spark")}Load CTEC</button>
+      >${iconTemplate("spark")}<span
+          class=${`${WIDGET_CLASS}-chip-button-label`}
+        >Load CTEC</span></button>
     </div>`,
     widget
   );

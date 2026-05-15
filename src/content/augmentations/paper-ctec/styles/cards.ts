@@ -32,7 +32,14 @@ export function cardStyles(): string {
       display: flex;
       flex-direction: column;
       gap: 2px;
-      overflow: hidden !important;
+      /* Clip horizontally so long titles/instructor pills stay inside the
+         card, but allow vertical overflow so the Load CTEC button at the
+         bottom of the widget isn't cut off on 50-min timeslots (the chip
+         button extends a few pixels below the card into the gap before the
+         next slot). overflow-x:clip + overflow-y:visible is the one
+         combination CSS allows without forcing the visible axis to auto. */
+      overflow-x: clip !important;
+      overflow-y: visible !important;
       min-height: 0;
     }
     .bc-paper-ctec-dense-card > .${WIDGET_CLASS} {
@@ -167,6 +174,15 @@ export function cardStyles(): string {
       transition: transform var(--bc-tx-base) var(--bc-easing),
                   background var(--bc-tx-base) var(--bc-easing),
                   box-shadow var(--bc-tx-base) var(--bc-easing);
+    }
+    /* Wrapped label so the text can truncate with an ellipsis when two
+       classes share a timeslot and each card collapses to ~half width —
+       without the wrapper, white-space:nowrap on the chip lets "Load CTEC"
+       spill past the card's right edge. */
+    .${WIDGET_CLASS}-chip-button-label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     button.${WIDGET_CLASS}-chip-button.is-muted {
       background: var(--bc-color-accent-surface-soft);
