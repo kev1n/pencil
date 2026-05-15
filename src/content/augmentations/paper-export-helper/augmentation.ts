@@ -108,17 +108,21 @@ export class PaperExportHelperAugmentation implements Augmentation {
   //      download (paper.nu builds and saves the file from its in-memory
   //      schedule data).
   //   4. Send Escape to close paper.nu's modal so the user is left with
-  //      just the downloaded file and our walkthrough.
-  //   5. Close our modal last.
+  //      just the downloaded file and our walkthrough still open above.
   //
-  // If anything fails, we still tear down our modal so the user isn't
-  // stuck — they can re-open the EXPORT dropdown and try again.
+  // We deliberately do NOT close our walkthrough modal on success — the
+  // user still needs the steps and the "Open <calendar>" deep-link
+  // button visible to finish the import flow. They close it themselves
+  // when they're done.
   private async triggerNativeDownload(): Promise<void> {
+    const modal = this.modal;
+    if (!modal) return;
     const button = this.boundButton;
     if (!button) {
-      this.closeModal();
+      modal.setDownloadState("error");
       return;
     }
+    modal.setDownloadState("loading");
     this.allowNativeClickThrough = true;
     try {
       button.click();
@@ -126,16 +130,18 @@ export class PaperExportHelperAugmentation implements Augmentation {
       this.allowNativeClickThrough = false;
     }
     const downloadBtn = await waitForDownloadButton(document, 1500);
-    if (downloadBtn) {
-      downloadBtn.click();
-      // Most React modal libraries dismiss on Escape. If paper.nu's
-      // doesn't, the modal stays open but the .ics already downloaded
-      // — non-blocking failure mode.
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
-      );
+    if (!downloadBtn) {
+      modal.setDownloadState("error");
+      return;
     }
-    this.closeModal();
+    downloadBtn.click();
+    // Most React modal libraries dismiss on Escape. If paper.nu's
+    // doesn't, the modal stays open but the .ics already downloaded
+    // — non-blocking failure mode.
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+    );
+    modal.setDownloadState("success");
   }
 
   private closeModal(): void {

@@ -104,6 +104,33 @@ const CSS = `
   align-items: center;
   gap: 8px;
 }
+/* Inline slot for the per-tab "Open <calendar>" link. Renders nothing
+   when the active tab has no deep link (Apple). display:contents keeps
+   the anchor it eventually wraps acting as a direct flex child of the
+   row, so its margins and ordering match the other action buttons. */
+.bc-export-helper-deeplink-slot {
+  display: contents;
+}
+/* Download button state machine. Idle = primary soft fill (from the
+   design system). Success = swap to the green success token so the
+   user sees the confirmation without leaving the row. Loading dims
+   the label. */
+.bc-export-helper-download[data-state="success"] {
+  background: var(--bc-color-success);
+  border-color: var(--bc-color-success);
+  color: var(--bc-color-success-text);
+}
+.bc-export-helper-download[data-state="success"]:hover:not(:disabled) {
+  background: var(--bc-color-success-deep);
+  border-color: var(--bc-color-success-deep);
+}
+.bc-export-helper-download[data-state="loading"] {
+  opacity: 0.75;
+}
+.bc-export-helper-download[data-state="error"] {
+  background: var(--bc-color-accent-soft);
+  border-color: var(--bc-color-accent-soft);
+}
 `;
 
 export function injectExportHelperStyles(doc: Document): void {

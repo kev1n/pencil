@@ -4,6 +4,8 @@ import { MODAL_ID } from "./constants";
 import { injectExportHelperStyles } from "./styles";
 import { CALENDAR_APPS, type CalendarApp } from "./types";
 
+export type DownloadState = "idle" | "loading" | "success" | "error";
+
 export type ModalCallbacks = {
   onDownload(): void;
   onClose(): void;
@@ -12,7 +14,15 @@ export type ModalCallbacks = {
 
 export type ModalHandle = {
   setActiveTab(app: CalendarApp): void;
+  setDownloadState(state: DownloadState): void;
   destroy(): void;
+};
+
+const DOWNLOAD_LABELS: Record<DownloadState, string> = {
+  idle: "Download .ics",
+  loading: "Downloading…",
+  success: "Downloaded ✓",
+  error: "Try again"
 };
 
 // Mount the walkthrough modal into `doc`. Returns a handle the caller
@@ -32,9 +42,54 @@ export function openExportHelperModal(
 
   const tabButtons = new Map<CalendarApp, HTMLButtonElement>();
   const bodyEl = el(doc, "div", { class: "bc-export-helper-body" });
+
+  // Build the actions row once and keep references to the dynamic
+  // pieces. Re-rendering the row on every tab change would reset the
+  // Download button's state (e.g. "Downloaded ✓") — we want that to
+  // persist as the user explores tabs.
+  const downloadBtn = el(doc, "button", {
+    class: "bc-btn bc-btn--primary bc-btn--soft bc-btn--fill bc-export-helper-download",
+    attrs: { type: "button" },
+    text: DOWNLOAD_LABELS.idle,
+    dataset: { state: "idle" },
+    on: { click: () => callbacks.onDownload() }
+  });
+  const deepLinkSlot = el(doc, "span", {
+    class: "bc-export-helper-deeplink-slot"
+  });
+  const cancelBtn = el(doc, "button", {
+    class: "bc-btn bc-btn--ghost",
+    attrs: { type: "button" },
+    text: "Close",
+    on: { click: () => callbacks.onClose() }
+  });
   const actionsEl = el(doc, "div", { class: "bc-export-helper-actions" });
+  actionsEl.append(downloadBtn, deepLinkSlot, cancelBtn);
 
   let activeTab: CalendarApp = initialTab;
+
+  const renderDeepLink = (app: CalendarApp): void => {
+    const content = APP_CONTENT[app];
+    deepLinkSlot.replaceChildren();
+    if (!content.deepLink) return;
+    deepLinkSlot.appendChild(
+      el(doc, "a", {
+        class: "bc-btn bc-btn--secondary-accent",
+        attrs: {
+          href: content.deepLink.href,
+          target: "_blank",
+          rel: "noopener noreferrer"
+        },
+        text: content.deepLink.label
+      })
+    );
+  };
+
+  const setDownloadState = (state: DownloadState): void => {
+    downloadBtn.dataset.state = state;
+    downloadBtn.disabled = state === "loading";
+    downloadBtn.textContent = DOWNLOAD_LABELS[state];
+  };
 
   const setActiveTab = (app: CalendarApp, persist: boolean = true): void => {
     const changed = activeTab !== app;
@@ -44,7 +99,7 @@ export function openExportHelperModal(
       btn.setAttribute("aria-selected", String(id === app));
     }
     renderTabContent(bodyEl, app);
-    renderActions(actionsEl, app, callbacks);
+    renderDeepLink(app);
     if (changed && persist) callbacks.onTabChange?.(app);
   };
 
@@ -108,6 +163,7 @@ export function openExportHelperModal(
 
   return {
     setActiveTab: (app) => setActiveTab(app, true),
+    setDownloadState,
     destroy: () => {
       backdrop.remove();
     }
@@ -155,46 +211,4 @@ function renderTabContent(host: HTMLElement, app: CalendarApp): void {
     help.appendChild(doc.createTextNode("."));
     host.appendChild(help);
   }
-}
-
-function renderActions(
-  host: HTMLElement,
-  app: CalendarApp,
-  callbacks: ModalCallbacks
-): void {
-  const doc = host.ownerDocument;
-  const content = APP_CONTENT[app];
-  host.replaceChildren();
-
-  host.appendChild(
-    el(doc, "button", {
-      class: "bc-btn bc-btn--primary bc-btn--soft bc-btn--fill",
-      attrs: { type: "button" },
-      text: "Download .ics",
-      on: { click: () => callbacks.onDownload() }
-    })
-  );
-
-  if (content.deepLink) {
-    host.appendChild(
-      el(doc, "a", {
-        class: "bc-btn bc-btn--secondary-accent",
-        attrs: {
-          href: content.deepLink.href,
-          target: "_blank",
-          rel: "noopener noreferrer"
-        },
-        text: content.deepLink.label
-      })
-    );
-  }
-
-  host.appendChild(
-    el(doc, "button", {
-      class: "bc-btn bc-btn--ghost",
-      attrs: { type: "button" },
-      text: "Cancel",
-      on: { click: () => callbacks.onClose() }
-    })
-  );
 }
