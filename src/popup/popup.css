@@ -243,11 +243,90 @@ body::after {
   margin-top: 8px;
 }
 
+.master-toggle {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  background: var(--bc-color-accent-surface-soft);
+  border: 1.5px solid var(--bc-color-text);
+  border-radius: var(--bc-radius-lg);
+  box-shadow: 2px 2px 0 var(--bc-color-text);
+  transition: opacity var(--bc-tx-base) var(--bc-easing);
+}
+
+.master-toggle:empty {
+  display: none;
+}
+
+.master-toggle-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.master-toggle-label {
+  font-family: var(--bc-font-display);
+  font-size: var(--bc-font-20);
+  font-weight: var(--bc-fw-regular);
+  color: var(--bc-color-text);
+  line-height: 1;
+}
+
+.master-toggle-description {
+  font-size: var(--bc-font-11);
+  line-height: 1.4;
+  color: var(--bc-color-text-muted);
+}
+
+.master-toggle-switch {
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  flex-shrink: 0;
+}
+
+.master-toggle-switch::after {
+  width: 20px;
+  height: 20px;
+}
+
+.master-toggle-switch.on::after {
+  left: 25px;
+}
+
+.master-toggle.is-off {
+  opacity: 0.85;
+}
+
 .feature-sections {
   margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+/* Dim every section and ungated row when master/group is off. The toggles
+   themselves stay full-opacity + clickable so the user can flip things
+   back on. */
+body.bc-master-off .feature-section,
+body.bc-master-off .ctec-school-row,
+body.bc-master-off .actions {
+  opacity: 0.55;
+}
+
+body.bc-master-off .feature-section .feature-row,
+body.bc-master-off .ctec-school-row .ctec-school-select,
+body.bc-master-off .actions .action-btn {
+  pointer-events: none;
+}
+
+.feature-section.is-off .feature-list {
+  opacity: 0.55;
+  pointer-events: none;
 }
 
 .feature-section {
@@ -263,11 +342,24 @@ body::after {
 
 .feature-section-header {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
   padding-bottom: 6px;
   border-bottom: 2px dashed var(--bc-color-border-strong);
   margin-bottom: 4px;
+}
+
+.feature-section-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.feature-section-header .toggle {
+  margin-top: 2px;
 }
 
 .feature-section-title {

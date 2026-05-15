@@ -1,4 +1,10 @@
-import { FEATURES_STORAGE_KEY, getDefaultFeatureEnabled } from "../../content/settings";
+import {
+  FEATURES_STORAGE_KEY,
+  GROUP_CAESAR_ID,
+  GROUP_MASTER_ID,
+  GROUP_PAPER_ID,
+  getDefaultFeatureEnabled
+} from "../../content/settings";
 
 // Per-feature row in a "toggles" section.
 export type FeatureItem = {
@@ -24,12 +30,17 @@ export type FeatureSection =
       kind?: "toggles";
       title: string;
       blurb: string;
+      // When set, renders a section-level toggle in the header that gates
+      // every feature in the section via the matching `group:*` flag in
+      // settings.ts.
+      groupId?: string;
       features: FeatureItem[];
     }
   | {
       kind: "radio";
       title: string;
       blurb: string;
+      groupId?: string;
       options: RadioOption[];
       defaultOptionId: string;
     };
@@ -38,6 +49,7 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
   {
     title: "CAESAR",
     blurb: "Add richer enrollment, evaluation, and navigation tools directly inside CAESAR.",
+    groupId: GROUP_CAESAR_ID,
     features: [
       {
         id: "seats-notes",
@@ -64,6 +76,7 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
   {
     title: "Paper.nu",
     blurb: "Enhance the Paper schedule and section panel with Northwestern CTEC data.",
+    groupId: GROUP_PAPER_ID,
     features: [
       {
         id: "paper-ctec",
@@ -171,15 +184,23 @@ export function updateSettings(
 
 export async function initFeatureToggles(): Promise<void> {
   const settings = await loadSettings();
+
+  const masterRoot = document.getElementById("master-toggle");
+  if (masterRoot) renderMasterToggle(masterRoot, settings);
+
   const sectionsRoot = document.getElementById("feature-sections");
   if (!sectionsRoot) return;
 
   for (const section of FEATURE_SECTIONS) {
     const sectionEl = document.createElement("section");
     sectionEl.className = "feature-section";
+    if (section.groupId) sectionEl.dataset.groupId = section.groupId;
 
     const header = document.createElement("div");
     header.className = "feature-section-header";
+
+    const headerText = document.createElement("div");
+    headerText.className = "feature-section-header-text";
 
     const title = document.createElement("h2");
     title.className = "feature-section-title";
@@ -189,7 +210,13 @@ export async function initFeatureToggles(): Promise<void> {
     blurb.className = "feature-section-blurb";
     blurb.textContent = section.blurb;
 
-    header.append(title, blurb);
+    headerText.append(title, blurb);
+    header.append(headerText);
+
+    if (section.groupId) {
+      header.append(makeGroupToggle(section.groupId, section.title, settings));
+    }
+
     sectionEl.append(header);
 
     if (section.kind === "radio") {
@@ -198,8 +225,84 @@ export async function initFeatureToggles(): Promise<void> {
       sectionEl.append(renderToggleList(section.features, settings));
     }
 
+    if (section.groupId) {
+      const groupOn = settings[section.groupId] ?? getDefaultFeatureEnabled(section.groupId);
+      sectionEl.classList.toggle("is-off", !groupOn);
+    }
+
     sectionsRoot.append(sectionEl);
   }
+}
+
+function renderMasterToggle(
+  root: HTMLElement,
+  settings: Record<string, boolean>
+): void {
+  const enabled = settings[GROUP_MASTER_ID] ?? getDefaultFeatureEnabled(GROUP_MASTER_ID);
+
+  const copy = document.createElement("div");
+  copy.className = "master-toggle-copy";
+
+  const label = document.createElement("span");
+  label.className = "master-toggle-label";
+  label.textContent = "All features";
+
+  const description = document.createElement("span");
+  description.className = "master-toggle-description";
+  description.textContent =
+    "Master switch. Turn off to disable every CAESAR and Paper.nu feature without losing your individual choices.";
+
+  copy.append(label, description);
+
+  const toggle = makeGroupToggle(GROUP_MASTER_ID, "all features", settings);
+  toggle.classList.add("master-toggle-switch");
+
+  root.classList.toggle("is-off", !enabled);
+  document.body.classList.toggle("bc-master-off", !enabled);
+  root.append(copy, toggle);
+}
+
+function makeGroupToggle(
+  id: string,
+  ariaLabel: string,
+  settings: Record<string, boolean>
+): HTMLButtonElement {
+  const enabled = settings[id] ?? getDefaultFeatureEnabled(id);
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.classList.add("toggle", enabled ? "on" : "off");
+  toggle.setAttribute("aria-pressed", String(enabled));
+  toggle.setAttribute("aria-label", `Toggle ${ariaLabel}`);
+  toggle.dataset.groupToggle = id;
+
+  toggle.addEventListener("click", () => {
+    const next = toggle.getAttribute("aria-pressed") !== "true";
+    toggle.setAttribute("aria-pressed", String(next));
+    toggle.classList.toggle("on", next);
+    toggle.classList.toggle("off", !next);
+    applyGroupVisualState(id, next);
+    void updateSettings((current) => {
+      current[id] = next;
+    });
+  });
+
+  return toggle;
+}
+
+// Dim the gated rows when their group is off so users don't think their
+// per-feature clicks are silently no-ops. Pure visual — storage stays
+// untouched, so flipping the group back on restores every previous choice.
+function applyGroupVisualState(groupId: string, enabled: boolean): void {
+  if (groupId === GROUP_MASTER_ID) {
+    const root = document.getElementById("master-toggle");
+    root?.classList.toggle("is-off", !enabled);
+    document.body.classList.toggle("bc-master-off", !enabled);
+    return;
+  }
+  const section = document.querySelector<HTMLElement>(
+    `.feature-section[data-group-id="${groupId}"]`
+  );
+  section?.classList.toggle("is-off", !enabled);
 }
 
 export function renderToggleList(

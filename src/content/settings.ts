@@ -24,7 +24,40 @@ export const DEFAULT_RECENT_AGGREGATION_TERMS = 3;
 export const MIN_RECENT_AGGREGATION_TERMS = 1;
 export const MAX_RECENT_AGGREGATION_TERMS = 50;
 
+// Group gates let the popup turn off every CAESAR feature, every Paper.nu
+// feature, or everything at once with a single switch without overwriting
+// each per-feature setting. `isFeatureEnabled(id)` returns false whenever
+// the master gate or the feature's group gate is off, so the runner's
+// cleanup-on-disable path fires uniformly regardless of which switch
+// changed. Group/master IDs themselves bypass the cascade so they don't
+// recurse on themselves.
+export const GROUP_MASTER_ID = "group:master";
+export const GROUP_CAESAR_ID = "group:caesar";
+export const GROUP_PAPER_ID = "group:paper";
+
+export const FEATURE_GROUPS: Record<string, "caesar" | "paper"> = {
+  "seats-notes": "caesar",
+  "ctec-links": "caesar",
+  "enrollment-navigation": "caesar",
+  "class-search": "caesar",
+  "paper-ctec": "paper",
+  "paper-ctec-single-summary-card": "paper",
+  "paper-ctec-compact-cards": "paper",
+  "paper-ctec-compact-card-stars": "paper",
+  "paper-ctec-rating-percent": "paper",
+  "paper-card-border-on-hover": "paper",
+  "paper-combos": "paper",
+  "paper-combos-active": "paper",
+  "paper-hide-taken": "paper",
+  "paper-export-helper": "paper",
+  "prereq-filter": "paper",
+  "prereq-filter-unknown-as-eligible": "paper"
+};
+
 const DEFAULT_FEATURE_STATES: Record<string, boolean> = {
+  [GROUP_MASTER_ID]: true,
+  [GROUP_CAESAR_ID]: true,
+  [GROUP_PAPER_ID]: true,
   "paper-ctec-compact-card-stars": false,
   "paper-ctec-single-summary-card": true,
   "paper-ctec-rating-percent": false,
@@ -140,6 +173,20 @@ function sanitizeRecentAggregationTerms(value: unknown): number {
 }
 
 export function isFeatureEnabled(id: string): boolean {
+  // Feature IDs cascade through master and group gates; the gate IDs
+  // themselves are read directly to avoid recursing on themselves.
+  if (id !== GROUP_MASTER_ID && id !== GROUP_CAESAR_ID && id !== GROUP_PAPER_ID) {
+    if (!(settings[GROUP_MASTER_ID] ?? DEFAULT_FEATURE_STATES[GROUP_MASTER_ID] ?? true)) {
+      return false;
+    }
+    const group = FEATURE_GROUPS[id];
+    if (group) {
+      const gateId = group === "caesar" ? GROUP_CAESAR_ID : GROUP_PAPER_ID;
+      if (!(settings[gateId] ?? DEFAULT_FEATURE_STATES[gateId] ?? true)) {
+        return false;
+      }
+    }
+  }
   return settings[id] ?? DEFAULT_FEATURE_STATES[id] ?? true;
 }
 
