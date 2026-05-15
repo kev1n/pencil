@@ -1,7 +1,7 @@
 // Generic modal chrome — backdrop, card, close button, icon/spinner slot,
 // title/body/note/trust copy, primary/secondary actions. Lifted out of
-// paper-ctec so any feature (paper-ctec auth, access-gate, future prompts)
-// can render a centered dialog with the same look-and-feel.
+// paper-ctec so any feature (paper-ctec auth, future prompts) can render
+// a centered dialog with the same look-and-feel.
 //
 // CSS tokens are pulled from the design system (`--bc-color-overlay-auth`,
 // `--bc-shadow-auth-card`, accent fills, mauve text, radii, type scale).

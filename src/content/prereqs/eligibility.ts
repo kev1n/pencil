@@ -174,8 +174,7 @@ function evaluateNode(
         notes: [`needs ${node.source} consent`]
       };
     case "standing":
-      // No standing inference in v1; revisit when access-gate exposes
-      // grad-year so we can derive class standing without asking the user.
+      // No standing inference in v1.
       return { state: "unknown", missing: [node], notes: [] };
     case "topic":
     case "raw":

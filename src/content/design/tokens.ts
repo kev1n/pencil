@@ -38,23 +38,8 @@ export function tokensCss(fontUrl?: FontUrlResolver): string {
     themeBlock(":root,\n[data-bc-theme=\"default\"]", DEFAULT_LIGHT_THEME),
     themeBlock("[data-bc-theme=\"default\"][data-bc-mode=\"dark\"]", DEFAULT_DARK_THEME),
     themeBlock("[data-bc-theme=\"pencil\"]", PENCIL_LIGHT_THEME),
-    themeBlock("[data-bc-theme=\"pencil\"][data-bc-mode=\"dark\"]", PENCIL_DARK_THEME),
-    gateTokens()
+    themeBlock("[data-bc-theme=\"pencil\"][data-bc-mode=\"dark\"]", PENCIL_DARK_THEME)
   ].join("\n");
-}
-
-// Pre-theme tokens consumed by code that runs before bootstrapTheme():
-// the access-gate banner + toast (which mount inside Shadow DOM, but CSS
-// custom properties inherit through the shadow boundary) and the early
-// term-page mask injected by content/index.ts. Standalone of any theme
-// because theme bootstrap is asynchronous and these surfaces paint on
-// the very first frame.
-//
-// Exported so content/index.ts can inject this block synchronously in a
-// dedicated <style id="bc-gate-tokens"> at the top of <head>, ahead of
-// any other style insertion.
-export function gateTokensCss(): string {
-  return gateTokens();
 }
 
 // -----------------------------------------------------------------------------
@@ -1071,40 +1056,3 @@ const PENCIL_DARK_THEME: Theme = {
   }
 };
 
-// -----------------------------------------------------------------------------
-// Access-gate tokens (--bc-gate-*) — render BEFORE bootstrapTheme(). Injected
-// synchronously by content/index.ts in <style id="bc-gate-tokens"> so the
-// vars are available immediately and inherit through Shadow DOM boundaries.
-// Values are intentionally locked to a stable theme-free neutral palette.
-// -----------------------------------------------------------------------------
-function gateTokens(): string {
-  return `
-:root {
-  /* Toast surface */
-  --bc-gate-bg: #ffffff;
-  --bc-gate-fg: #111827;
-  --bc-gate-border: #e5e7eb;
-  --bc-gate-shadow: rgba(0, 0, 0, 0.18);
-  --bc-gate-muted: #4b5563;
-  --bc-gate-muted-icon: #9ca3af;
-  --bc-gate-input-border: #d1d5db;
-
-  /* Brand accent (NU purple — kept identical to the original toast
-     palette so this stays visually unchanged across the migration). */
-  --bc-gate-accent: #66023c;
-  --bc-gate-accent-hover: #4a012b;
-  --bc-gate-accent-on: #ffffff;
-
-  /* Status colors */
-  --bc-gate-error: #b91c1c;
-
-  /* Banner — amber alert palette */
-  --bc-gate-warning-bg: #fef3c7;
-  --bc-gate-warning-fg: #78350f;
-  --bc-gate-warning-border: #f59e0b;
-  --bc-gate-warning-shadow: rgba(0, 0, 0, 0.08);
-  --bc-gate-warning-link-hover: #451a03;
-  --bc-gate-warning-muted: #92400e;
-}
-`;
-}

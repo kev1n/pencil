@@ -1,13 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// `cache.ts` transitively pulls in access-gate/server-client.ts, which
-// references the build-time-substituted `__BC_BUCKET_SCHEDULE_URL__`. The
-// test runner has no esbuild define step, so seed it by hand before any
-// import touches the module.
-(globalThis as unknown as { __BC_BUCKET_SCHEDULE_URL__: string }).__BC_BUCKET_SCHEDULE_URL__ =
-  "https://example.test/bucket-schedule.json";
-
-// `cache.ts` transitively imports access-gate / paper-ctec / cart-cache
+// `cache.ts` transitively imports paper-ctec / cart-cache / prereqs
 // modules that fire `chrome.storage.local.get` at module load. Stub
 // `chrome` before the dynamic import so jsdom doesn't crash.
 (globalThis as unknown as { chrome: unknown }).chrome = {

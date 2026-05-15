@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { gateTokensCss, tokensCss } from "./tokens";
+import { tokensCss } from "./tokens";
 
 // Pin every CSS token (selector + varName -> value) the production design
 // system emits. Wave 10b refactored tokens.ts from 4 inline theme functions
@@ -42,15 +42,14 @@ describe("tokensCss", () => {
   const css = tokensCss((f) => `TEST/${f}`);
   const rules = parseTokensCss(css);
 
-  it("emits the base + four theme blocks + the gate block", () => {
+  it("emits the base + four theme blocks", () => {
     const selectors = rules.map((r) => r.selector);
     expect(selectors).toEqual([
       ":root", // base()
       ':root, [data-bc-theme="default"]',
       '[data-bc-theme="default"][data-bc-mode="dark"]',
       '[data-bc-theme="pencil"]',
-      '[data-bc-theme="pencil"][data-bc-mode="dark"]',
-      ":root" // gateTokens()
+      '[data-bc-theme="pencil"][data-bc-mode="dark"]'
     ]);
   });
 
@@ -240,22 +239,3 @@ describe("tokensCss", () => {
   });
 });
 
-describe("gateTokensCss", () => {
-  it("emits the --bc-gate-* family in a standalone :root block (preserves Wave -1 sub-family)", () => {
-    const css = gateTokensCss();
-    expect(css).toContain("--bc-gate-bg: #ffffff");
-    expect(css).toContain("--bc-gate-fg: #111827");
-    expect(css).toContain("--bc-gate-accent: #66023c");
-    expect(css).toContain("--bc-gate-warning-bg: #fef3c7");
-    // Stays standalone of any theme block
-    expect(css).not.toContain('[data-bc-theme=');
-    expect(css).not.toContain("--bc-color-accent-fill");
-  });
-
-  it("is identical to the embedded gate block in tokensCss output", () => {
-    const standalone = gateTokensCss();
-    const full = tokensCss((f) => f);
-    // The standalone gate-tokens block appears verbatim at the end of tokensCss.
-    expect(full.endsWith(standalone)).toBe(true);
-  });
-});

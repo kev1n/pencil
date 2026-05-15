@@ -182,9 +182,9 @@ function renderModal(doc: Document, target: LoginTarget): Promise<boolean> {
   });
 }
 
-// Anchor the modal above the access-gate banner / paper.nu's own React
-// portals; bc-modal already z-indexes very high but doesn't pin pointer
-// events on the strong tag that wraps the body emphasis.
+// Anchor the modal above paper.nu's own React portals; bc-modal already
+// z-indexes very high but doesn't pin pointer events on the strong tag
+// that wraps the body emphasis.
 const EXTRA_CSS = `
   #${MODAL_ID} .bc-modal-body strong {
     color: var(--bc-color-accent-soft);

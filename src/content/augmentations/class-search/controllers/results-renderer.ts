@@ -93,7 +93,8 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
     const card = renderCourseCard(deps.doc, {
       row,
       planEntry,
-      sectionRows: builtSections.map((b) => b.li)
+      sectionRows: builtSections.map((b) => b.li),
+      collapseSections: true
     });
 
     // Eagerly paint live data on render. Try the in-memory cache first

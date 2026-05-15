@@ -29,6 +29,8 @@ export type CourseCardProps = {
   /** Pre-built section row elements (one per section). The view appends them
    *  in order — section-row.ts is the canonical builder. */
   sectionRows: HTMLLIElement[];
+  /** Collapse multi-section result cards behind a native disclosure. */
+  collapseSections?: boolean;
 };
 
 export function renderCourseCard(
@@ -48,11 +50,14 @@ export function renderCourseCard(
     );
   }
 
-  const sectionList = el(doc, "ul", { class: "bc-cs-section-list" });
-  for (const sectionLi of props.sectionRows) {
-    sectionList.appendChild(sectionLi);
+  const sectionList = buildSectionList(doc, props.sectionRows);
+  if (props.collapseSections && props.sectionRows.length > 1) {
+    card.appendChild(
+      buildSectionsDisclosure(doc, props.sectionRows.length, sectionList)
+    );
+  } else {
+    card.appendChild(sectionList);
   }
-  card.appendChild(sectionList);
 
   return card;
 }
@@ -122,4 +127,31 @@ function buildHead(doc: Document, props: CourseCardProps): HTMLElement {
 
   const meta = el(doc, "div", { class: "bc-cs-course-meta" }, [fdRow, units]);
   return el(doc, "div", { class: "bc-cs-course-head" }, [id, title, meta]);
+}
+
+function buildSectionList(
+  doc: Document,
+  sectionRows: HTMLLIElement[]
+): HTMLUListElement {
+  const sectionList = el(doc, "ul", { class: "bc-cs-section-list" });
+  for (const sectionLi of sectionRows) {
+    sectionList.appendChild(sectionLi);
+  }
+  return sectionList;
+}
+
+function buildSectionsDisclosure(
+  doc: Document,
+  sectionCount: number,
+  sectionList: HTMLUListElement
+): HTMLElement {
+  const summary = el(doc, "summary", {
+    class: "bc-cs-sections-summary",
+    text: `${sectionCount} sections`
+  });
+
+  return el(doc, "details", { class: "bc-cs-sections-disclosure" }, [
+    summary,
+    sectionList
+  ]);
 }

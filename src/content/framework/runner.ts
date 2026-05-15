@@ -1,4 +1,3 @@
-import { isAccessAllowed, onGateStatusChange } from "../access-gate";
 import { FEATURES_STORAGE_KEY, isFeatureEnabled } from "../settings";
 import type { Augmentation } from "./template";
 
@@ -32,7 +31,6 @@ export class AugmentationRunner {
     this.runAll();
     this.observeMutations();
     this.observeSettings();
-    this.observeAccessGate();
   }
 
   // Manual re-tick. Use when a data source the augmentations depend on
@@ -45,7 +43,6 @@ export class AugmentationRunner {
   }
 
   private runAll(): void {
-    if (!isAccessAllowed()) return;
     for (const augmentation of this.augmentations) {
       const enabled = isFeatureEnabled(augmentation.id);
       this.lastEnabled.set(augmentation.id, enabled);
@@ -67,26 +64,8 @@ export class AugmentationRunner {
       if (!nowEnabled) continue;
       // Either freshly enabled or still enabled — re-run so a sub-flag flip
       // (e.g. dense-cards / rating-display) gets reflected immediately.
-      if (!isAccessAllowed()) continue;
       augmentation.run(document);
     }
-  }
-
-  private observeAccessGate(): void {
-    let lastAllowed = isAccessAllowed();
-    onGateStatusChange(() => {
-      const nowAllowed = isAccessAllowed();
-      // Gate flipped from allowed → denied (kill switch fired, bucket
-      // re-locked, etc). Tear down every augmentation's DOM footprint
-      // immediately — runAll() would just no-op now.
-      if (lastAllowed && !nowAllowed) {
-        for (const augmentation of this.augmentations) {
-          augmentation.cleanup?.(document);
-        }
-      }
-      lastAllowed = nowAllowed;
-      this.runAll();
-    });
   }
 
   private observeMutations(): void {

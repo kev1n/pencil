@@ -5,19 +5,8 @@ import { clearParsedPrereqs } from "../../content/prereqs";
 import { CTEC_ACCESS_STORAGE_KEY } from "../../content/ctec-index/access-shared";
 import { CTEC_INDEX_STORAGE_KEY } from "../../content/ctec-index/storage";
 import {
-  NAME_FETCH_FAILED_AT_KEY,
-  fetchAndCacheUserName
-} from "../../content/access-gate/name-fetch";
-import {
-  ACCESS_GATE_NAME_KEY
-} from "../../content/access-gate/storage";
-import {
   PAPER_CTEC_MODAL_CACHE_KEY
 } from "../../content/augmentations/paper-ctec/modal-cache";
-import {
-  SCHEDULE_CACHE_STORAGE_KEY,
-  getRemoteSchedule
-} from "../../content/access-gate/server-client";
 
 const FEEDBACK_RESTORE_DELAY_MS = 1500;
 
@@ -94,43 +83,6 @@ export function initCacheButtons(): void {
     buttonText: "Clear prereqs cache",
     cleanup: async () => {
       await clearParsedPrereqs();
-    }
-  });
-}
-
-export function initReconfirmGradYearButton(): void {
-  const btn = document.getElementById("reconfirm-grad-year");
-  if (!(btn instanceof HTMLButtonElement)) return;
-  bindActionButton(btn, {
-    label: "Reconfirm grad year",
-    loadingLabel: "Checking…",
-    successFlashMs: 3000,
-    onClick: async () => {
-      await chrome.storage.local.remove([ACCESS_GATE_NAME_KEY, NAME_FETCH_FAILED_AT_KEY]);
-      const stored = await fetchAndCacheUserName();
-      if (stored) {
-        const yr = stored.gradYear;
-        return {
-          kind: "success",
-          label: yr !== null ? `Detected ${yr}` : "Detected (no grad year)"
-        };
-      }
-      return { kind: "error", label: "Failed — sign in to CAESAR", retryable: true };
-    }
-  });
-}
-
-export function initRefreshScheduleButton(): void {
-  const btn = document.getElementById("refresh-schedule");
-  if (!(btn instanceof HTMLButtonElement)) return;
-  bindActionButton(btn, {
-    label: "Refresh bucket schedule",
-    loadingLabel: "Polling…",
-    successFlashMs: 2000,
-    onClick: async () => {
-      await chrome.storage.local.remove(SCHEDULE_CACHE_STORAGE_KEY);
-      await getRemoteSchedule();
-      return { kind: "success", label: "Refreshed" };
     }
   });
 }

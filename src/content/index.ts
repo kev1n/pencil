@@ -1,6 +1,3 @@
-import { startAccessGate } from "./access-gate";
-import { mountServerBanner } from "./access-gate/banner";
-import { mountAccessGateModal } from "./access-gate/modal";
 import { augmentationRegistry } from "./augmentations/registry";
 import { initModalCache } from "./augmentations/paper-ctec/modal-cache";
 import { initCartCache, runOpportunisticReconcile } from "./cart-cache";
@@ -10,22 +7,13 @@ import {
 } from "./course-history";
 import { mountCtecAccessDetector } from "./ctec-index/access-detector";
 import { bootstrapTheme } from "./design";
-import { gateTokensCss } from "./design/tokens";
 import { AugmentationRunner } from "./framework";
 import { registerLookupMessageHandler } from "./messaging";
 import { mountTrafficIndicator } from "./peoplesoft/traffic-indicator";
 
-// Gate tokens must paint synchronously, *before* anything else — the
-// access-gate UI and the early term-page mask both consume them on the
-// very first frame, while bootstrapTheme() is still resolving theme
-// preferences asynchronously.
-injectGateTokens();
 void bootstrapTheme();
 injectEarlyTermPageMask();
 registerLookupMessageHandler();
-void startAccessGate();
-mountAccessGateModal();
-mountServerBanner();
 void initCartCache();
 // Hydrate course history on every host — the cache is read by the
 // paper.nu prereq-filter augmentation to mark eligibility, not just
@@ -58,20 +46,6 @@ if (/caesar\.ent\.northwestern\.edu/i.test(window.location.host)) {
   mountCtecAccessDetector(document);
 }
 
-function injectGateTokens(): void {
-  // Idempotent: re-inserting on subframe load is fine, but we don't want
-  // duplicate <style> nodes piling up under <head>.
-  if (document.getElementById("bc-gate-tokens")) return;
-  const host = document.head ?? document.documentElement ?? document.body;
-  if (!host) return;
-  const style = document.createElement("style");
-  style.id = "bc-gate-tokens";
-  style.textContent = gateTokensCss();
-  // Prepend so theme bootstrap can override without specificity wars
-  // (theme tokens live on :root too, but they win by source order).
-  host.insertBefore(style, host.firstChild);
-}
-
 function injectEarlyTermPageMask(): void {
   const url = new URL(window.location.href);
   const page = url.searchParams.get("PAGE") ?? url.searchParams.get("Page");
@@ -79,15 +53,18 @@ function injectEarlyTermPageMask(): void {
 
   const style = document.createElement("style");
   style.id = "better-caesar-early-term-mask";
-  // Variables resolve from <style id="bc-gate-tokens"> injected above —
-  // the design system's per-theme tokens aren't loaded yet here.
+  // Inline neutral colors — this paints on the very first frame, before
+  // the design system's per-theme tokens are loaded, so `--bc-color-*`
+  // vars would resolve to nothing. This is the documented exception to
+  // the color-literal ban.
+  // eslint-disable-next-line no-restricted-syntax
   style.textContent = `
     body > * { visibility: hidden !important; }
     body::before {
       content: "";
       position: fixed;
       inset: 0;
-      background: var(--bc-gate-bg);
+      background: #ffffff;
       z-index: 2147483646;
     }
     body::after {
@@ -97,7 +74,7 @@ function injectEarlyTermPageMask(): void {
       left: 50%;
       transform: translate(-50%, -50%);
       z-index: 2147483647;
-      color: var(--bc-gate-accent);
+      color: #66023c;
       font-size: 14px;
       font-weight: 700;
       letter-spacing: 0.2px;

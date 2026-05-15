@@ -17,11 +17,6 @@ for (const target of targets) {
 const root = resolve(process.cwd());
 const manifestBasePath = resolve(root, "src/manifest.base.json");
 
-const env = await loadDotenv(resolve(root, ".env"));
-const DEFAULT_SCHEDULE_URL = "https://better-caesar.example.com/bucket-schedule.json";
-const scheduleUrl = process.env.BC_BUCKET_SCHEDULE_URL ?? env.BC_BUCKET_SCHEDULE_URL ?? DEFAULT_SCHEDULE_URL;
-const scheduleHostPermission = toHostPermission(scheduleUrl);
-console.log(`Schedule URL: ${scheduleUrl}`);
 const staticAssets = [
   { from: "src/popup/popup.html", to: "popup/popup.html" },
   { from: "src/popup/popup.css", to: "popup/popup.css" },
@@ -42,10 +37,6 @@ async function readManifestBase() {
 
 function buildManifestForTarget(baseManifest, target) {
   const manifest = structuredClone(baseManifest);
-
-  if (scheduleHostPermission && !manifest.host_permissions.includes(scheduleHostPermission)) {
-    manifest.host_permissions.push(scheduleHostPermission);
-  }
 
   if (target === "chrome") {
     manifest.background = {
@@ -89,10 +80,7 @@ function bundleConfigForTarget(target) {
     target: target === "chrome" ? "chrome120" : "firefox128",
     sourcemap: true,
     entryNames: "[dir]/[name]",
-    logLevel: "info",
-    define: {
-      __BC_BUCKET_SCHEDULE_URL__: JSON.stringify(scheduleUrl)
-    }
+    logLevel: "info"
   };
 }
 
@@ -164,40 +152,4 @@ function getArgValue(allArgs, key) {
   const index = allArgs.indexOf(key);
   if (index === -1 || index + 1 >= allArgs.length) return null;
   return allArgs[index + 1];
-}
-
-async function loadDotenv(path) {
-  let raw;
-  try {
-    raw = await readFile(path, "utf8");
-  } catch (err) {
-    if (err.code === "ENOENT") return {};
-    throw err;
-  }
-  const out = {};
-  for (const rawLine of raw.split(/\r?\n/)) {
-    const line = rawLine.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eq = line.indexOf("=");
-    if (eq === -1) continue;
-    const key = line.slice(0, eq).trim();
-    let value = line.slice(eq + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
-      value = value.slice(1, -1);
-    }
-    out[key] = value;
-  }
-  return out;
-}
-
-function toHostPermission(url) {
-  try {
-    const u = new URL(url);
-    return `${u.protocol}//${u.host}/*`;
-  } catch {
-    return null;
-  }
 }

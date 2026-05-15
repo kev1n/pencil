@@ -38,6 +38,7 @@ describe("classSearchStyles zone split", () => {
       ".bc-cs-cart-badge",
       ".bc-cs-course",
       ".bc-cs-course-head",
+      ".bc-cs-sections-disclosure",
       ".bc-cs-section-list",
       ".bc-cs-section",
       ".bc-cs-status-pill",

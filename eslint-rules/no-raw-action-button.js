@@ -21,8 +21,7 @@
 //
 //   • Any handler that uses the `void <expr>` operator on its top-level call
 //     (the documented "fire-and-forget; rejection swallowed by intent" escape
-//     hatch — see `src/content/access-gate/banner.ts:99` and
-//     `src/popup/sections/feature-toggles.ts:215`).
+//     hatch — see `src/popup/sections/feature-toggles.ts` for an example).
 //   • The factory file itself + its spec.
 //   • Buttons created via `el(doc, "button", { ..., attrs: {
 //     [ACTION_BUTTON_MARKER_ATTR]: "controller" } })` — the controller-managed

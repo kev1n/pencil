@@ -177,8 +177,7 @@ export default [
     // Only these files may use console.* directly.
     files: [
       "src/shared/log.ts",
-      "src/background.ts",
-      "src/build-config.d.ts"
+      "src/background.ts"
     ],
     rules: {
       "no-console": "off"

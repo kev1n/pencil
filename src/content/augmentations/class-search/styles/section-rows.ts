@@ -8,6 +8,26 @@ export function sectionRowsStyles(): string {
       margin: 0;
       padding: 0;
     }
+    .bc-cs-sections-disclosure {
+      border-top: 1px solid var(--bc-color-border-divider);
+    }
+    .bc-cs-sections-summary {
+      padding: 10px 16px;
+      color: var(--bc-color-accent);
+      font-size: var(--bc-font-12);
+      font-weight: var(--bc-fw-semibold);
+      cursor: pointer;
+      user-select: none;
+      transition: background-color var(--bc-tx-fast), color var(--bc-tx-fast);
+    }
+    .bc-cs-sections-summary:hover {
+      background: var(--bc-color-surface-soft);
+      color: var(--bc-color-accent-hover);
+    }
+    .bc-cs-sections-summary:focus-visible {
+      outline: 2px solid var(--bc-color-accent);
+      outline-offset: -2px;
+    }
     .bc-cs-section {
       position: relative;
       display: grid;

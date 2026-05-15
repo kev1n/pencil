@@ -1,0 +1,45 @@
+name: release
+on:
+  push:
+    tags:
+      - "v*"
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run test
+      - name: Verify tag matches manifest version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          MANIFEST_VERSION=$(node -p "require('./src/manifest.base.json').version")
+          if [ "$TAG_VERSION" != "$MANIFEST_VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match manifest version ${MANIFEST_VERSION}" >&2
+            exit 1
+          fi
+          echo "VERSION=${TAG_VERSION}" >> "$GITHUB_ENV"
+      - name: Build
+        run: |
+          npm run build:chrome
+          npm run build:firefox
+      - name: Package
+        run: |
+          cd dist
+          zip -r "../pencil-nu-chrome-${VERSION}.zip" chrome
+          zip -r "../pencil-nu-firefox-${VERSION}.zip" firefox
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            pencil-nu-chrome-${{ env.VERSION }}.zip
+            pencil-nu-firefox-${{ env.VERSION }}.zip
+          generate_release_notes: true

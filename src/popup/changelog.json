@@ -11,13 +11,36 @@
   },
   "entries": [
     {
-      "version": "0.8.1",
+      "version": "0.9.2",
       "date": "2026-05-14",
       "headline": "Easier schedule-to-calendar exports",
       "items": [
         {
           "kind": "feat",
           "text": "When you click Paper.nu's \"Export schedule to calendar\" Download button, get a step-by-step walkthrough for adding the file to Google Calendar, Apple Calendar, or Outlook — with one-click jumps straight to the import page."
+        }
+      ]
+    },
+    {
+      "version": "0.9.0",
+      "date": "2026-05-14",
+      "headline": "See your weekly study load at a glance",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "See your estimated weekly out-of-class study hours at the top of Paper.nu — hover for the per-class breakdown."
+        },
+        {
+          "kind": "feat",
+          "text": "New \"Lazy mode\" sort for schedule combinations — lightest workload first."
+        },
+        {
+          "kind": "feat",
+          "text": "Paper.nu cart chips now show what you're enrolled in vs. still in your cart."
+        },
+        {
+          "kind": "fix",
+          "text": "Changing the schedule-combinations sort jumps back to combo #1."
         }
       ]
     },

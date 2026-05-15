@@ -140,6 +140,41 @@ describe("renderCourseCard", () => {
     expect((list?.children[1] as HTMLElement).dataset.marker).toBe("b");
   });
 
+  it("collapses multiple section rows behind a disclosure when requested", () => {
+    const doc = fresh();
+    const liA = doc.createElement("li");
+    liA.dataset.marker = "a";
+    const liB = doc.createElement("li");
+    liB.dataset.marker = "b";
+    const card = renderCourseCard(doc, {
+      row: makeRow(),
+      planEntry: null,
+      sectionRows: [liA, liB],
+      collapseSections: true
+    });
+    const disclosure = card.querySelector<HTMLDetailsElement>(
+      ".bc-cs-sections-disclosure"
+    );
+    expect(disclosure).not.toBeNull();
+    expect(disclosure?.open).toBe(false);
+    expect(disclosure?.querySelector("summary")?.textContent).toBe("2 sections");
+    const list = disclosure?.querySelector(".bc-cs-section-list");
+    expect(list?.children.length).toBe(2);
+  });
+
+  it("keeps a single section row visible even when collapse is requested", () => {
+    const doc = fresh();
+    const li = doc.createElement("li");
+    const card = renderCourseCard(doc, {
+      row: makeRow(),
+      planEntry: null,
+      sectionRows: [li],
+      collapseSections: true
+    });
+    expect(card.querySelector(".bc-cs-sections-disclosure")).toBeNull();
+    expect(card.querySelector(".bc-cs-section-list")?.children.length).toBe(1);
+  });
+
   it("works without a planEntry (no units, no description, no tag row)", () => {
     const doc = fresh();
     const card = renderCourseCard(doc, {
