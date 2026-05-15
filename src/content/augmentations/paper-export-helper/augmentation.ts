@@ -1,6 +1,6 @@
 import type { Augmentation } from "../../framework";
 import { BUTTON_BOUND_ATTR, FEATURE_ID } from "./constants";
-import { findExportDownloadButton } from "./detection";
+import { findExportButton, waitForDownloadButton } from "./detection";
 import { openExportHelperModal, type ModalHandle } from "./modal";
 import { loadLastTab, saveLastTab } from "./storage";
 import { removeExportHelperStyles } from "./styles";
@@ -11,18 +11,16 @@ function isPaperHost(): boolean {
   return host === "paper.nu" || host === "www.paper.nu";
 }
 
-type BoundTarget = HTMLButtonElement | HTMLAnchorElement;
-
 export class PaperExportHelperAugmentation implements Augmentation {
   readonly id = FEATURE_ID;
 
   // Tracked so cleanup() can remove the listener even if the underlying
   // button has been re-keyed by React in the meantime.
-  private boundButton: BoundTarget | null = null;
+  private boundButton: HTMLButtonElement | null = null;
   private modal: ModalHandle | null = null;
   // Set true by the modal's "Download" CTA so the next native click on
-  // the button is allowed to flow through. Cleared back to false after
-  // the click resolves.
+  // the EXPORT button is allowed to flow through. Cleared back to false
+  // after the click resolves.
   private allowNativeClickThrough = false;
   // Pre-warmed on construction so the click handler can read it
   // synchronously without an await. Falls back to DEFAULT until the
@@ -38,7 +36,7 @@ export class PaperExportHelperAugmentation implements Augmentation {
   run(doc: Document = document): void {
     if (!isPaperHost()) return;
 
-    const button = findExportDownloadButton(doc);
+    const button = findExportButton(doc);
     if (!button) return;
     if (button === this.boundButton) return;
     if (button.hasAttribute(BUTTON_BOUND_ATTR)) {
@@ -62,7 +60,7 @@ export class PaperExportHelperAugmentation implements Augmentation {
     removeExportHelperStyles(doc);
   }
 
-  private bindButton(button: BoundTarget): void {
+  private bindButton(button: HTMLButtonElement): void {
     button.setAttribute(BUTTON_BOUND_ATTR, "1");
     button.addEventListener("click", this.handleClick, true);
     this.boundButton = button;
@@ -83,7 +81,9 @@ export class PaperExportHelperAugmentation implements Augmentation {
   private openModal(): void {
     if (this.modal) return;
     this.modal = openExportHelperModal(document, this.cachedLastTab, {
-      onDownload: () => this.triggerNativeDownload(),
+      onDownload: () => {
+        void this.triggerNativeDownload();
+      },
       onClose: () => this.closeModal(),
       onTabChange: (app) => {
         this.cachedLastTab = app;
@@ -92,12 +92,19 @@ export class PaperExportHelperAugmentation implements Augmentation {
     });
   }
 
-  // Re-dispatch a click on paper.nu's native Download button with the
-  // bypass flag flipped so our capture-phase interceptor lets the event
-  // through to React. We deliberately keep the modal open until the
-  // click lands — the dispatch is synchronous, so by the time we close,
-  // the native handler has already initiated the .ics download.
-  private triggerNativeDownload(): void {
+  // Walk paper.nu's own export flow on the user's behalf:
+  //   1. Bypass-click EXPORT so paper.nu's React handler opens its modal.
+  //   2. Wait for the Download button to mount inside that modal.
+  //   3. Click it — that's the call that actually triggers the .ics
+  //      download (paper.nu builds and saves the file from its in-memory
+  //      schedule data).
+  //   4. Send Escape to close paper.nu's modal so the user is left with
+  //      just the downloaded file and our walkthrough.
+  //   5. Close our modal last.
+  //
+  // If anything fails, we still tear down our modal so the user isn't
+  // stuck — they can re-click EXPORT to try again.
+  private async triggerNativeDownload(): Promise<void> {
     const button = this.boundButton;
     if (!button) {
       this.closeModal();
@@ -108,6 +115,16 @@ export class PaperExportHelperAugmentation implements Augmentation {
       button.click();
     } finally {
       this.allowNativeClickThrough = false;
+    }
+    const downloadBtn = await waitForDownloadButton(document, 1500);
+    if (downloadBtn) {
+      downloadBtn.click();
+      // Most React modal libraries dismiss on Escape. If paper.nu's
+      // doesn't, the modal stays open but the .ics already downloaded
+      // — non-blocking failure mode.
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true })
+      );
     }
     this.closeModal();
   }
