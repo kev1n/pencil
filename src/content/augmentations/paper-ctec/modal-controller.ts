@@ -132,6 +132,12 @@ export class ModalController {
   invalidate(): void {
     this.state.analyticsInFlight.clear();
     this.data.reset();
+    // Close the modal view so its escKeydownHandler and darkObserver are
+    // unhooked — teardownPageForCleanup only removes the DOM node, not the
+    // doc-level listeners the view's open() attached.
+    this.openModalKey = null;
+    this.openModalSource = null;
+    this.view.close();
   }
 
   // Mirror front-page widget not-found state onto the analytics state map
