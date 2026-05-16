@@ -13,8 +13,7 @@ import {
   DEFAULT_MIN_CREDITS,
   PAPER_COMBOS_ACTIVE_ID,
   PAPER_COMBOS_FEATURE_ID,
-  STYLE_ID,
-  TOP_BAR_ID
+  STYLE_ID
 } from "./constants";
 import { loadComboPool, type LoadComboPoolResult } from "./data";
 import {
@@ -31,6 +30,7 @@ import {
   ensureHoursChip,
   ensureTopBar,
   removeHoursChip,
+  removeTopBar,
   renderTopBar,
   renderZones,
   setRootAttribute,
@@ -158,8 +158,7 @@ export class PaperCombosAugmentation implements Augmentation {
     setRootAttribute(doc, false);
     unhideRealCards(doc);
     removeHoursChip(doc);
-    const bar = doc.getElementById(TOP_BAR_ID);
-    if (bar) bar.remove();
+    removeTopBar(doc);
     const style = doc.getElementById(STYLE_ID);
     if (style) style.remove();
     this.detachPinClickHandler();

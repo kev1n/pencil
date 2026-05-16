@@ -258,6 +258,25 @@ function bindTopBarHandlers(
   handlerStore.set(bar, { onClick, onInput, onDocClick });
 }
 
+// Tears down the top bar plus every listener bindTopBarHandlers attached.
+// The `onDocClick` listener is registered on `bar.ownerDocument`, so simply
+// removing `bar` from the tree would leave that doc-level listener bound
+// forever — keeping `bar` alive via closure and firing on every document
+// click. Call this from cleanup() rather than `bar.remove()`.
+export function removeTopBar(doc: Document): void {
+  const bar = doc.getElementById(TOP_BAR_ID);
+  if (!bar) return;
+  const handlers = handlerStore.get(bar);
+  if (handlers) {
+    bar.removeEventListener("click", handlers.onClick);
+    bar.removeEventListener("input", handlers.onInput);
+    bar.ownerDocument.removeEventListener("click", handlers.onDocClick);
+    handlerStore.delete(bar);
+  }
+  zoneCallbackStore.delete(bar);
+  bar.remove();
+}
+
 function formatRating(score: number): string {
   return score.toFixed(2);
 }
