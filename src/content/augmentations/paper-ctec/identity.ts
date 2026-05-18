@@ -7,17 +7,32 @@ export function buildCourseKey(params: CourseIdentity, titleHint: string): strin
   return `${params.subject}:${params.catalogNumber}:${params.instructor.toLowerCase().trim()}:${title}`;
 }
 
+// Compact-but-discriminating identity for an instructor list. Each name
+// becomes "<firstInitial> <last>" when a leading first name is available
+// and falls back to "<last>" otherwise. Preserving the first initial lets
+// `instructorMatches` distinguish two professors who share a last name
+// (e.g. Alexander Smith vs Zachary Smith) while staying stable across
+// CAESAR's name format quirks ("A. Smith", "Alexander Smith", etc.).
 export function buildInstructorLastNameLabel(names: string[]): string {
   return names
     .map((name) => {
-      const parts = name.split(/\s+/).filter(Boolean);
-      if (parts.length === 0) return "";
+      const cleaned = name
+        .split(/\s+/)
+        .map((p) => (p.endsWith(".") ? p.slice(0, -1) : p))
+        .filter(Boolean);
+      if (cleaned.length === 0) return "";
 
-      let last = parts[parts.length - 1] ?? "";
-      if (last.endsWith(".")) last = last.slice(0, -1);
-      const normalized = last.toLowerCase();
-      if ((normalized === "jr" || normalized === "sr") && parts.length > 1) {
-        last = parts[parts.length - 2] ?? last;
+      let lastIdx = cleaned.length - 1;
+      const tail = (cleaned[lastIdx] ?? "").toLowerCase();
+      if ((tail === "jr" || tail === "sr") && lastIdx > 0) {
+        lastIdx -= 1;
+      }
+      const last = cleaned[lastIdx] ?? "";
+      if (!last) return "";
+
+      if (lastIdx > 0) {
+        const firstInitial = cleaned[0]?.[0] ?? "";
+        return firstInitial ? `${firstInitial} ${last}` : last;
       }
       return last;
     })

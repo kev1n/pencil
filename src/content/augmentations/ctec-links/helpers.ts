@@ -25,16 +25,39 @@ export function normalizeInstructor(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-// Extract the last-name token from each comma-separated name in an instructor string.
-// "John Hartman,Stacey Wolcott" → ["hartman", "wolcott"]
+type InstructorNameParts = { last: string; firstInitial: string | null };
+
+// Parses one comma-separated instructor string into structured per-name
+// entries. Each entry carries the last-name token and, when a leading
+// first name is present, its first initial. Single-token inputs (label-
+// only "Smith") leave firstInitial null so callers can fall back to
+// last-name-only matching when first-name info simply isn't available.
+// "John Hartman,Stacey Wolcott" → [{last:"hartman",firstInitial:"j"},{...}]
+// "Smith"                       → [{last:"smith",firstInitial:null}]
+export function parseInstructorNames(instructor: string): InstructorNameParts[] {
+  const result: InstructorNameParts[] = [];
+  for (const raw of instructor.split(",")) {
+    const parts = normalizeInstructor(raw).split(" ").filter((t) => t.length > 0);
+    if (parts.length === 0) continue;
+
+    // Strip a Jr/Sr suffix so "Alexander Smith Jr" → last = "smith".
+    let lastIdx = parts.length - 1;
+    if ((parts[lastIdx] === "jr" || parts[lastIdx] === "sr") && lastIdx > 0) {
+      lastIdx -= 1;
+    }
+    const last = parts[lastIdx] ?? "";
+    if (last.length < 2) continue;
+
+    const firstInitial = lastIdx > 0 ? (parts[0]?.[0] ?? null) : null;
+    result.push({ last, firstInitial });
+  }
+  return result;
+}
+
+// Last-name-only projection. Kept for callers that just need the bag of
+// last-name tokens (e.g. dedupe / display).
 export function extractLastNameTokens(instructor: string): string[] {
-  return instructor
-    .split(",")
-    .map((n) => {
-      const parts = normalizeInstructor(n.trim()).split(" ").filter((t) => t.length > 0);
-      return parts[parts.length - 1] ?? "";
-    })
-    .filter((t) => t.length > 1);
+  return parseInstructorNames(instructor).map((n) => n.last);
 }
 
 // Sentinel-only fallback. Real entries match via descriptionMatchesCatalog;
@@ -83,18 +106,31 @@ export function descriptionMatchesCatalog(
   );
 }
 
-// Any-overlap match across all comma-separated last names in either
-// string. CTEC lists co-instructors in unstable order, so trailing-token-
-// only would miss legitimate matches and admit wrong-course collisions.
+// Any-overlap match across all comma-separated names in either string.
+// CTEC lists co-instructors in unstable order, so we compare every pair.
+// When both sides know the first initial we require it to match — that's
+// how we distinguish two professors who share a last name within a
+// department (e.g. Alexander Smith vs Zachary Smith). When either side
+// only carries a last name (label-only "Smith"), we fall back to last-
+// name match so partial info doesn't lose legitimate hits.
 export function instructorMatches(
   rowInstructor: string,
   requestedInstructor: string
 ): boolean {
-  const requested = extractLastNameTokens(requestedInstructor);
+  const requested = parseInstructorNames(requestedInstructor);
   if (requested.length === 0) return true;
-  const rowLast = extractLastNameTokens(rowInstructor);
-  if (rowLast.length === 0) return false;
-  return requested.some((ln) => rowLast.includes(ln));
+  const rowNames = parseInstructorNames(rowInstructor);
+  if (rowNames.length === 0) return false;
+
+  return requested.some((req) =>
+    rowNames.some((row) => {
+      if (req.last !== row.last) return false;
+      if (req.firstInitial && row.firstInitial) {
+        return req.firstInitial === row.firstInitial;
+      }
+      return true;
+    })
+  );
 }
 
 // Predicate for the "combo" lens — entry must match this exact
