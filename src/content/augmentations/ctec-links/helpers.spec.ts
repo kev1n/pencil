@@ -17,13 +17,16 @@ describe("instructorMatches", () => {
     expect(instructorMatches("Alexander Smith", "Zachary Smith")).toBe(false);
   });
 
-  it("matches when the row carries first name but request only has last", () => {
-    // Requested name was reduced to its label form (no first initial),
-    // so we fall back to last-name match rather than dropping the hit.
-    expect(instructorMatches("Alexander Smith", "Smith")).toBe(true);
+  it("rejects when the row carries first name but request is label-only", () => {
+    // A bare "Smith" request can't safely claim Zachary Smith's row —
+    // we'd rather surface "not found" than the wrong professor's data.
+    expect(instructorMatches("Alexander Smith", "Smith")).toBe(false);
+    expect(instructorMatches("Zachary B. Smith", "Smith")).toBe(false);
   });
 
   it("matches when the request carries first name but row only has last", () => {
+    // CAESAR effectively never sends label-only rows, but if it did the
+    // request is at least as specific as the row, so accepting is safe.
     expect(instructorMatches("Smith", "Alexander Smith")).toBe(true);
   });
 

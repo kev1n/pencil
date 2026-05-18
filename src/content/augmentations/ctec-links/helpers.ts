@@ -108,11 +108,17 @@ export function descriptionMatchesCatalog(
 
 // Any-overlap match across all comma-separated names in either string.
 // CTEC lists co-instructors in unstable order, so we compare every pair.
-// When both sides know the first initial we require it to match — that's
-// how we distinguish two professors who share a last name within a
-// department (e.g. Alexander Smith vs Zachary Smith). When either side
-// only carries a last name (label-only "Smith"), we fall back to last-
-// name match so partial info doesn't lose legitimate hits.
+// Asymmetric policy:
+//   - Both sides know the first initial → require it to match. That's how
+//     we distinguish two profs who share a last name within a department
+//     (Alexander Smith vs Zachary Smith).
+//   - Row has the first initial but the request doesn't → reject. A
+//     label-only "Smith" request is too vague to safely claim Zachary
+//     Smith's row; we'd rather show no data than the wrong professor's.
+//   - Request has the first initial but the row doesn't → match. CAESAR
+//     rows almost always carry full names, so this branch is theoretical
+//     defence, not a load-bearing path.
+//   - Neither side has a first initial → match. Best we can do.
 export function instructorMatches(
   rowInstructor: string,
   requestedInstructor: string
@@ -125,8 +131,11 @@ export function instructorMatches(
   return requested.some((req) =>
     rowNames.some((row) => {
       if (req.last !== row.last) return false;
-      if (req.firstInitial && row.firstInitial) {
-        return req.firstInitial === row.firstInitial;
+      if (row.firstInitial && req.firstInitial) {
+        return row.firstInitial === req.firstInitial;
+      }
+      if (row.firstInitial && !req.firstInitial) {
+        return false;
       }
       return true;
     })
