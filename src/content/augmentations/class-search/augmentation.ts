@@ -169,7 +169,11 @@ export class ClassSearchAugmentation implements Augmentation {
           onProgress,
           fetchLimit,
           forceRefreshLinks
-        )
+        ),
+      // CAESAR class-search rows already carry full instructor names
+      // ("Alexander Smith") so paper.nu's last-name enrichment isn't
+      // needed here — pass through unchanged.
+      enrichParams: (params) => Promise.resolve(params)
     }
   );
 

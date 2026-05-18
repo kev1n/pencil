@@ -80,7 +80,8 @@ function makeDeps(
   const deps: ModalDataControllerDeps = {
     state,
     callbacks,
-    fetcher
+    fetcher,
+    enrichParams: (params) => Promise.resolve(params)
   };
   return { deps, state, callbacks, fetcher };
 }
@@ -120,7 +121,7 @@ describe("createModalDataController — kickBatch", () => {
     expect(callbacks.syncSideCard).toHaveBeenCalled();
   });
 
-  it("guards re-entrancy: a second kickBatch while in-flight is a no-op", () => {
+  it("guards re-entrancy: a second kickBatch while in-flight is a no-op", async () => {
     let resolveFetch: (v: { state: "not-found" }) => void = () => undefined;
     const fetcher = vi.fn<CtecAnalyticsFetcher>().mockReturnValue(
       new Promise((resolve) => {
@@ -132,6 +133,9 @@ describe("createModalDataController — kickBatch", () => {
 
     controller.kickBatch(makeSource());
     controller.kickBatch(makeSource());
+    // enrichParams awaits one microtask before the fetcher is invoked;
+    // flush it so the re-entrancy check sees the actual fetcher count.
+    await Promise.resolve();
     expect(fetcher).toHaveBeenCalledTimes(1);
 
     resolveFetch({ state: "not-found" });
@@ -207,7 +211,7 @@ describe("createModalDataController — kickRefresh", () => {
     });
   });
 
-  it("guards re-entrancy: a second kickRefresh while one is running is a no-op", () => {
+  it("guards re-entrancy: a second kickRefresh while one is running is a no-op", async () => {
     let resolveFetch: (v: { state: "not-found" }) => void = () => undefined;
     const fetcher = vi.fn<CtecAnalyticsFetcher>().mockReturnValue(
       new Promise((resolve) => {
@@ -219,6 +223,9 @@ describe("createModalDataController — kickRefresh", () => {
 
     controller.kickRefresh(makeSource());
     controller.kickRefresh(makeSource());
+    // enrichParams awaits one microtask before the fetcher is invoked;
+    // flush it so the re-entrancy check sees the actual fetcher count.
+    await Promise.resolve();
     expect(fetcher).toHaveBeenCalledTimes(1);
 
     resolveFetch({ state: "not-found" });

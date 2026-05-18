@@ -27,6 +27,7 @@ import {
   type AuthRecovery
 } from "../class-search/auth-recovery";
 import { fetchAggregateWithAuth, fetchAnalyticsWithAuth } from "../../auth/ctec-fetch";
+import { enrichParams } from "./instructor-enrichment";
 import { buildModalDisplayData } from "./modal-data";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
@@ -129,6 +130,7 @@ export class PaperCtecAugmentation implements Augmentation {
       showToast,
       fetchAggregate: (params, titleHint, onProgress, options) =>
         this.fetchAggregateForChip(params, titleHint, onProgress, options),
+      enrichParams: (params) => enrichParams(params, document),
       getCachedAggregate: getCachedChipAggregate,
       getCourseAnalyticsSnapshot: getChipCourseAnalyticsSnapshot,
       getAggregateLimit: getRecentAggregationTerms,
@@ -207,7 +209,8 @@ export class PaperCtecAugmentation implements Augmentation {
             onProgress,
             fetchLimit,
             forceRefreshLinks
-          )
+          ),
+        enrichParams: (params) => enrichParams(params, document)
       }
     );
 

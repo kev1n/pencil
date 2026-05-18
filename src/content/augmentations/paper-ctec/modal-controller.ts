@@ -13,7 +13,7 @@ import {
   setSectionLens,
   setSectionLensConfirmed
 } from "../ctec-links/section-lens";
-import type { CtecAnalyticsStrategy } from "../ctec-links/types";
+import type { CtecAnalyticsStrategy, CtecLinkParams } from "../ctec-links/types";
 import { getCtecStrategy } from "../../settings";
 import { PAPER_CTEC_CONFIG } from "./config";
 import { buildModalDisplayData } from "./modal-data";
@@ -82,6 +82,11 @@ export type ModalControllerCallbacks = {
   // cascade used by the schedule chip. Returns null when the user cancels
   // the auth-recovery popup.
   fetchAnalytics: typeof fetchCtecCourseAnalytics;
+  // Resolves paper.nu's grid-card "Smith" abbreviation back to a full
+  // name via paper.nu's plan data so the Prof-lens directory search can
+  // distinguish same-last-name profs. Returns input unchanged when
+  // enrichment isn't possible (no paper.nu data, ambiguous, etc.).
+  enrichParams: (params: CtecLinkParams) => Promise<CtecLinkParams>;
 };
 
 // Bridges the augmentation to the modal subsystem. Owns:
@@ -117,7 +122,8 @@ export class ModalController {
         syncView: () => this.sync(document),
         renderForKey: (key, data) => this.callbacks.renderForKey(key, data)
       },
-      fetcher: this.callbacks.fetchAnalytics
+      fetcher: this.callbacks.fetchAnalytics,
+      enrichParams: (params) => this.callbacks.enrichParams(params)
     });
   }
 
@@ -368,12 +374,6 @@ export class ModalController {
   // discovery always needs the T-endpoint round-trip unless cached
   // from a prior dry-run open in the same tab session.
   private kickDryRunDiscovery(source: AnalyticsModalSource, key: string): void {
-    const params = {
-      subject: source.params.subject,
-      catalogNumber: source.params.catalogNumber,
-      instructor: source.params.instructor
-    };
-
     const applyAndSync = (
       mutator: (state: import("./modal/types").DryRunState) =>
         import("./modal/types").DryRunState
@@ -384,23 +384,35 @@ export class ModalController {
       this.sync(document);
     };
 
-    void discoverCourseRows(params).then((result) => {
-      applyAndSync((dryRun) =>
-        applyCoursePool(
-          dryRun,
-          courseResultToPoolStatus(result)
-        )
-      );
-    });
+    void (async () => {
+      // Resolve "Smith" → "Alexander Smith" before either directory hit
+      // so same-last-name profs in the department don't collide. Course
+      // discovery doesn't need the instructor for matching, but reusing
+      // the same params keeps both pools in lockstep.
+      const params = await this.callbacks.enrichParams({
+        subject: source.params.subject,
+        catalogNumber: source.params.catalogNumber,
+        instructor: source.params.instructor
+      });
 
-    void discoverInstructorRows(params).then((result) => {
-      applyAndSync((dryRun) =>
-        applyInstructorPool(
-          dryRun,
-          instructorResultToPoolStatus(result, source.params.instructor)
-        )
-      );
-    });
+      void discoverCourseRows(params).then((result) => {
+        applyAndSync((dryRun) =>
+          applyCoursePool(
+            dryRun,
+            courseResultToPoolStatus(result)
+          )
+        );
+      });
+
+      void discoverInstructorRows(params).then((result) => {
+        applyAndSync((dryRun) =>
+          applyInstructorPool(
+            dryRun,
+            instructorResultToPoolStatus(result, params.instructor)
+          )
+        );
+      });
+    })();
   }
 
   // Writes the section's lens preference and clears the per-key caches

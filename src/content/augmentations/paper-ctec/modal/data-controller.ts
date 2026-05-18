@@ -3,6 +3,7 @@ import { showToast } from "../../../../shared/toast";
 import { getCtecStrategy } from "../../../settings";
 import { getSectionLens } from "../../ctec-links/section-lens";
 import { CTEC_ERROR_TOAST_MESSAGE } from "../../ctec-links/rate-limit";
+import type { CtecLinkParams } from "../../ctec-links/types";
 import {
   fetchCtecCourseAnalytics,
   getCachedChipAggregate,
@@ -49,6 +50,11 @@ export interface ModalDataControllerDeps {
   // Wraps fetchCtecCourseAnalytics through withAuthRecovery. Returns null
   // when the user cancels the auth-recovery popup.
   fetcher: typeof fetchCtecCourseAnalytics;
+  // Resolves paper.nu's grid-card "Smith" abbreviation back to a full
+  // name via paper.nu's plan data so same-last-name profs don't collide
+  // on the Prof-lens directory search. Returns input unchanged when
+  // enrichment isn't possible.
+  enrichParams: (params: CtecLinkParams) => Promise<CtecLinkParams>;
 }
 
 export interface ModalDataController {
@@ -171,8 +177,9 @@ export function createModalDataController(
         await currentFrontPageJob.catch(() => undefined);
       }
 
+      const enrichedParams = await deps.enrichParams(context.params);
       const result = await fetcher(
-        context.params,
+        enrichedParams,
         context.titleHint,
         PAPER_CTEC_CONFIG.aggregate.recentTerms,
         (message) => {
@@ -303,8 +310,9 @@ export function createModalDataController(
 
     void (async () => {
       try {
+        const enrichedParams = await deps.enrichParams(context.params);
         const result = await fetcher(
-          context.params,
+          enrichedParams,
           context.titleHint,
           PAPER_CTEC_CONFIG.aggregate.recentTerms,
           undefined,

@@ -72,6 +72,11 @@ export type ChipFetchCoordinatorDeps = {
     onProgress: (message: string) => void,
     options: { fetchLimit: number; aggregateLimit: number }
   ): Promise<PaperCtecWidgetData | null>;
+  /** Resolves paper.nu's grid-card "Smith" abbreviation back to a full
+   *  name ("Alexander Smith") via paper.nu's plan data, so the CTEC
+   *  directory search can distinguish same-last-name profs. Returns the
+   *  input unchanged when enrichment isn't possible. */
+  enrichParams(params: CtecLinkParams): Promise<CtecLinkParams>;
   /** Sync-cache reader: returns aggregate if already in the subject index. */
   getCachedAggregate(
     params: CtecLinkParams,
@@ -234,8 +239,9 @@ export function createChipFetchCoordinator(
 
   async function loadTarget(target: PaperCtecTarget): Promise<PaperCtecWidgetData | null> {
     try {
+      const enrichedParams = await deps.enrichParams(target.params);
       const data = await deps.fetchAggregate(
-        target.params,
+        enrichedParams,
         target.titleHint,
         (message) => {
           renderLoadingForKey(target.key, message);

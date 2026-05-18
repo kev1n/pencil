@@ -91,6 +91,7 @@ function makeDeps(
       state: "found",
       aggregate: makeAggregate()
     } as PaperCtecWidgetData),
+    enrichParams: vi.fn().mockImplementation((p) => Promise.resolve(p)),
     getCachedAggregate: vi.fn().mockReturnValue(null),
     getCourseAnalyticsSnapshot: vi.fn().mockReturnValue(null),
     getAggregateLimit: vi.fn().mockReturnValue(8),
@@ -229,11 +230,13 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
     expect(coord.hasUserActivated("chip-1")).toBe(false);
   });
 
-  it("guards re-entrancy: second kick while first in-flight is a no-op", () => {
+  it("guards re-entrancy: second kick while first in-flight is a no-op", async () => {
     const deps = makeDeps();
     const coord = createChipFetchCoordinator(deps);
     coord.kickTargetFetch(makeTarget());
     coord.kickTargetFetch(makeTarget());
+    // enrichParams awaits one microtask before fetchAggregate is invoked.
+    await Promise.resolve();
     expect(deps.fetchAggregate).toHaveBeenCalledTimes(1);
   });
 
@@ -269,7 +272,7 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
     }
   });
 
-  it("auto-resumes a kick on the next sync if userActivated is set but inFlight + resolved are empty", () => {
+  it("auto-resumes a kick on the next sync if userActivated is set but inFlight + resolved are empty", async () => {
     const deps = makeDeps();
     const coord = createChipFetchCoordinator(deps);
     // Simulate: user clicked Load CTEC, fetch was cleared by some external
@@ -284,6 +287,8 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
 
     // syncTargets should re-fire kickTargetFetch.
     coord.syncTargets([target]);
+    // enrichParams awaits one microtask before fetchAggregate is invoked.
+    await Promise.resolve();
     // Two total fetch calls now: the original + the auto-resume.
     expect(deps.fetchAggregate).toHaveBeenCalledTimes(2);
   });
