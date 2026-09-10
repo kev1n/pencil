@@ -8,8 +8,8 @@ import { ensureStyle, el } from "../framework/dom";
 import { injectModalStyles } from "../framework/modal";
 import { iconTemplate } from "../augmentations/paper-ctec/ui-shared";
 import {
-  BLUERA_HOSTNAME,
   CAESAR_HOSTNAME,
+  isBlueraHost,
   safeHostname
 } from "../../shared/nu-hosts";
 
@@ -33,7 +33,7 @@ type LoginTarget = {
 function detectLoginTarget(loginUrl: string | undefined): LoginTarget {
   const host = safeHostname(loginUrl);
 
-  if (host === BLUERA_HOSTNAME) {
+  if (isBlueraHost(loginUrl)) {
     return {
       service: "CTECs",
       whatWeNeed: "CTECs login to read evaluation reports on your behalf",
