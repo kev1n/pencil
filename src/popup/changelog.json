@@ -11,6 +11,17 @@
   },
   "entries": [
     {
+      "version": "0.9.6",
+      "date": "2026-09-10",
+      "headline": "CTECs load again",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "CTECs load again — Northwestern moved them to a new site and pencil.nu couldn't follow. It can now."
+        }
+      ]
+    },
+    {
       "version": "0.9.5",
       "date": "2026-05-15",
       "headline": "Get your schedule into your calendar",

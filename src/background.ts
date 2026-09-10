@@ -9,7 +9,7 @@ import type {
   OpenSilentAuthTabMessage,
   OpenSilentAuthTabResponse
 } from "./shared/messages";
-import { BLUERA_HOSTNAME, CAESAR_HOSTNAME } from "./shared/nu-hosts";
+import { BLUERA_HOSTNAMES, CAESAR_HOSTNAME } from "./shared/nu-hosts";
 
 const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
 const fetchControllers = new Map<string, AbortController>();
@@ -32,7 +32,7 @@ function abortWithTimeoutReason(controller: AbortController, ms: number): void {
 // feature.
 const CIRCUIT_BREAKER_WINDOW_MS = 60_000;
 const CIRCUIT_BREAKER_MAX = 150;
-const CIRCUIT_BREAKER_HOSTS = new Set([CAESAR_HOSTNAME, BLUERA_HOSTNAME]);
+const CIRCUIT_BREAKER_HOSTS = new Set([CAESAR_HOSTNAME, ...BLUERA_HOSTNAMES]);
 const requestTimestamps: number[] = [];
 let circuitTripped = false;
 
@@ -70,7 +70,11 @@ function recordAndCheckCircuitBreaker(url: string): boolean {
 
 const POST_AUTH_URL_PATTERNS = [
   /^https:\/\/caesar\.ent\.northwestern\.edu\/psc\//i,
-  /^https:\/\/northwestern\.bluera\.com\/northwestern\//i
+  /^https:\/\/northwestern\.bluera\.com\/northwestern\//i,
+  // Bluera's current host. Its login lives on a separate origin
+  // (my-northwestern-auth), so landing here at all means the OAuth hop
+  // already resolved — no path prefix needed to tell app from login page.
+  /^https:\/\/my-northwestern-bc\.bluera\.com\//i
 ];
 
 type TrackedPopup = {

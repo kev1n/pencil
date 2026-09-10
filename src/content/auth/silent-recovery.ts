@@ -22,7 +22,7 @@ import type {
   OpenSilentAuthTabMessage,
   OpenSilentAuthTabResponse
 } from "../../shared/messages";
-import { BLUERA_HOSTNAME, CAESAR_ORIGIN, safeHostname } from "../../shared/nu-hosts";
+import { CAESAR_ORIGIN, isBlueraHost } from "../../shared/nu-hosts";
 import { fetchPeopleSoftGet } from "../peoplesoft/http";
 
 // Hitting this URL silently re-handshakes through NetID SSO when the CAESAR
@@ -112,5 +112,5 @@ function isBlueraAuthError(err: unknown): boolean {
   if (!err || typeof err !== "object") return false;
   const url = (err as { loginUrl?: unknown }).loginUrl;
   if (typeof url !== "string") return false;
-  return safeHostname(url) === BLUERA_HOSTNAME;
+  return isBlueraHost(url);
 }

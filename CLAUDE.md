@@ -13,7 +13,7 @@ A Manifest V3 Chrome/Firefox extension that augments two sites for Northwestern 
 - **CAESAR** (`caesar.ent.northwestern.edu`) — course registration. Adds seat/notes details, CTEC evaluation links, and enrollment-term navigation.
 - **Paper.nu** (`paper.nu`, `www.paper.nu`) — schedule planner. Overlays CTEC summaries and analytics onto schedule cards and the section detail panel.
 
-It also reaches `northwestern.bluera.com` and Northwestern SSO hosts to fetch CTEC reports.
+It also reaches Bluera (`northwestern.bluera.com`, which now 301s to the `my-northwestern*.bluera.com` family) and Northwestern SSO hosts to fetch CTEC reports. Report URLs are still built on the legacy origin so cached index entries — deduped by `blueraUrl` — don't fork; host *checks* go through `isBlueraHost` in `src/shared/nu-hosts.ts`.
 
 ## Commands
 
