@@ -32,8 +32,9 @@ jobs:
           npm run build:chrome
           npm run build:firefox
       # Zip from inside each build dir so manifest.json sits at the archive
-      # root — both the Chrome Web Store and Firefox Add-ons reject a
-      # wrapping folder ("manifest.json was not found").
+      # root — Firefox Add-ons rejects a wrapping folder ("manifest.json
+      # was not found"). The Chrome Web Store tolerates one, but both zips
+      # use the same layout.
       - name: Package
         run: |
           (cd dist/chrome && zip -r "$GITHUB_WORKSPACE/pencil-nu-chrome-${VERSION}.zip" .)
