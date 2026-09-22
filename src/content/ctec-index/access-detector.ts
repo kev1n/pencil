@@ -7,12 +7,14 @@
 // a negative signal.
 
 import { isCtecAccessDenied, markCtecAccessDenied } from "./access";
+import { CTEC_ACCESS_CHECK_ENABLED } from "./access-shared";
 
 const CAESAR_HOST_PATTERN = /caesar\.ent\.northwestern\.edu/i;
 const UNAUTHORIZED_TEXT = "you are not authorized to access ctecs";
 const UNAUTHORIZED_PAGE_ID = "NW_CTEC_MSG_FL";
 
 export function mountCtecAccessDetector(doc: Document = document): void {
+  if (!CTEC_ACCESS_CHECK_ENABLED) return;
   if (!CAESAR_HOST_PATTERN.test(doc.location.host)) return;
 
   scan(doc);

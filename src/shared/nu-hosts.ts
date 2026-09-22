@@ -26,6 +26,25 @@ export const BLUERA_HOSTNAMES: readonly string[] = [
   "my-northwestern-auth.bluera.com"
 ];
 
+// The legacy host only redirects paths under `/northwestern/`; anything
+// else 404s. Chart images in reports parsed before we resolved against
+// the post-redirect URL were stored as `northwestern.bluera.com/<path>`,
+// so point those at the current host instead.
+const BLUERA_CURRENT_HOSTNAME = "my-northwestern-bc.bluera.com";
+
+export function repairLegacyBlueraUrl(url: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.hostname.toLowerCase() !== BLUERA_HOSTNAME) return url;
+  if (parsed.pathname.toLowerCase().startsWith("/northwestern/")) return url;
+  parsed.hostname = BLUERA_CURRENT_HOSTNAME;
+  return parsed.toString();
+}
+
 // Returns the lowercased hostname of `url`, or "" when the input is
 // missing or unparseable. Many call sites guard `new URL()` against
 // throwing on stray inputs (e.g. error.loginUrl when the error wasn't

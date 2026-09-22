@@ -7,6 +7,7 @@
 // hours-density curve (or fall back to chart-histogram).
 
 import { logQuiet } from "../../../shared/log";
+import { repairLegacyBlueraUrl } from "../../../shared/nu-hosts";
 import { el } from "../../framework/dom";
 import { extractChartFromImage } from "./chart-extract";
 import type { ModalMetricKind } from "./modal-data";
@@ -63,7 +64,7 @@ export function renderHorizontalBars(
     const img = el(doc, "img", {
       class: "bc-paper-ctec-chart-horizontal-fallback",
       attrs: {
-        src: imageUrl,
+        src: repairLegacyBlueraUrl(imageUrl),
         alt: alt ?? `${kind} distribution`,
         loading: "lazy"
       }

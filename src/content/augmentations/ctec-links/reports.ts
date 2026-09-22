@@ -343,9 +343,13 @@ export function hasCachedReportAggregate(
   return window.some((entry) => entry.reportSummary !== undefined);
 }
 
+// `baseUrl` is where the report actually loaded from after redirects —
+// relative chart srcs must resolve against it, not the legacy `url` we
+// key the index on (the legacy host 404s outside `/northwestern/`).
 export function parseCtecReportHtml(
   html: string,
-  url: string
+  url: string,
+  baseUrl: string = url
 ): CtecReportSummary | null {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const blocks = Array.from(doc.querySelectorAll<HTMLElement>(".report-block"));
@@ -361,7 +365,7 @@ export function parseCtecReportHtml(
     );
     if (!question) continue;
 
-    charts.push(...parseCharts(block, question, url));
+    charts.push(...parseCharts(block, question, baseUrl));
 
     const commentGroup = parseCommentGroup(block, question);
     if (commentGroup) commentGroups.push(commentGroup);
@@ -498,7 +502,7 @@ async function ensureReportEntries(
       return { state: "error", message: `Request failed (${response.status}).` };
     }
 
-    const summary = parseCtecReportHtml(response.text, url);
+    const summary = parseCtecReportHtml(response.text, url, response.finalUrl || url);
     if (summary) {
       await extractChartCountsForSummary(
         summary,
@@ -515,26 +519,63 @@ async function ensureReportEntries(
   };
 }
 
-function selectEntriesForTitle(
-  entries: CtecIndexedEntry[],
+export function selectEntriesForTitle<T extends { description: string }>(
+  entries: T[],
   titleHint?: string
-): CtecIndexedEntry[] {
+): T[] {
   const normalizedHint = normalizeSearch(titleHint ?? "");
   if (!normalizedHint) return entries;
 
   const distinctTitles = new Set(entries.map((entry) => extractShortTitle(entry.description)));
   if (distinctTitles.size <= 1) return entries;
 
-  const tokens = normalizedHint.split(" ").filter((token) => token.length >= 4);
+  const haystacks = entries.map((entry) => [
+    ...new Set(normalizeSearch(entry.description).split(" "))
+  ]);
+  // Only tokens that tell candidates apart count. Special-topics numbers
+  // (COMP_SCI 397 / 497) share one course title across every topic, and a
+  // paper.nu hint of "<topic> - Special Projects in Computer Science" would
+  // otherwise let "special projects" alone claim every topic's reports.
+  const tokens = normalizedHint
+    .split(" ")
+    .filter((token) => token.length >= 4)
+    .filter((token) => !haystacks.every((words) => countTokenMatches(words, [token]) === 1));
   if (tokens.length === 0) return entries;
 
-  const filtered = entries.filter((entry) => {
-    const haystack = normalizeSearch(`${entry.description} ${extractShortTitle(entry.description)}`);
-    const overlap = tokens.filter((token) => haystack.includes(token)).length;
-    return overlap >= Math.min(2, tokens.length);
-  });
+  const scores = haystacks.map((words) => countTokenMatches(words, tokens));
+
+  // Special-topics catalogs describe each section as "<Course>: <Topic>".
+  // Different topics are different courses, so require most of the
+  // topic's words and never fall back to other topics — showing nothing
+  // (and the broader-lens picker) beats another course's ratings.
+  if (entries.some((entry) => entry.description.includes(":"))) {
+    const needed = Math.ceil(tokens.length / 2);
+    return entries.filter((_, index) => scores[index]! >= needed);
+  }
+
+  // Keep the entries that match about as well as the best one — two
+  // titles can share a word, so a fixed floor alone lets the weaker in.
+  const best = Math.max(...scores);
+  const floor = Math.max(Math.min(2, tokens.length), Math.ceil(best / 2));
+  const filtered = entries.filter((_, index) => scores[index]! >= floor);
 
   return filtered.length > 0 ? filtered : entries;
+}
+
+// How many `tokens` find a distinct word in `words` starting with them.
+// Word-prefix: paper.nu truncates long topics mid-word ("Interaction
+// Anal"). Each word satisfies one token, so a truncated "anal" can't
+// score again off the "analytics" another token already matched.
+function countTokenMatches(words: string[], tokens: string[]): number {
+  const used = new Set<number>();
+  let count = 0;
+  for (const token of tokens) {
+    const index = words.findIndex((word, i) => !used.has(i) && word.startsWith(token));
+    if (index < 0) continue;
+    used.add(index);
+    count += 1;
+  }
+  return count;
 }
 
 // Keyed by blueraUrl (the report's stable identity), NOT actionId —

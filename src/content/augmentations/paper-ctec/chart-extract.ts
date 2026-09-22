@@ -12,12 +12,16 @@
 //
 // See scripts/chart-prototype/extract_final.py for the prototype.
 
+import { repairLegacyBlueraUrl } from "../../../shared/nu-hosts";
 import { fetchBinaryViaBackground } from "../../remote-fetch";
 import { CTEC_FETCH_TIMEOUT_MS } from "../ctec-links/rate-limit";
 
 const ROW_CENTERS = [30, 62, 93, 124, 155, 186] as const;
 const AXIS_Y = 217;
 const VBAND = 8;
+// How far right of axis_left+1 to look past the y-axis line's anti-aliased
+// bleed when the first sample is gray.
+const AXIS_BLEED_PX = 3;
 
 export type ChartExtraction = {
   counts: number[]; // length 6, top → bottom (1-VeryLow … 6-VeryHigh)
@@ -32,10 +36,11 @@ export type ChartExtractionResult =
 const cache = new Map<string, Promise<ChartExtractionResult>>();
 
 export function extractChartFromImage(
-  imageUrl: string,
+  rawImageUrl: string,
   total: number,
   signal?: AbortSignal
 ): Promise<ChartExtractionResult> {
+  const imageUrl = repairLegacyBlueraUrl(rawImageUrl);
   const key = `${imageUrl}|${total}`;
   const existing = cache.get(key);
   if (existing) return existing;
@@ -105,53 +110,64 @@ async function doExtract(
     ctx.drawImage(bitmap, 0, 0);
     const data = ctx.getImageData(0, 0, W, H).data;
 
-    const grids = findLightGridlines(data, W);
-    if (grids.length < 2) {
-      return { ok: false, reason: `only ${grids.length} gridline(s) detected (need ≥2)` };
-    }
-    const spacing = (grids[grids.length - 1] - grids[0]) / (grids.length - 1);
-    const computedLeft = Math.round(grids[0] - spacing);
-    // Snap to the actual y-axis line. Bluera rounds spacing inconsistently
-    // so the average can land 1px off; the true 0% column is whichever
-    // nearby x has the most gray pixels (the y-axis runs the full plot
-    // height in any gray shade — usually ~174 vs gridlines' ~210).
-    const axisLeft = snapToYAxis(data, W, computedLeft);
-    const axisRight = grids[grids.length - 1];
-    const span = axisRight - axisLeft;
-    if (span <= 0) {
-      return { ok: false, reason: `bad span ${span} (axisLeft=${axisLeft}, axisRight=${axisRight})` };
-    }
-
-    const widths: number[] = [];
-    const counts: number[] = [];
-    const percentages: number[] = [];
-    for (const yc of ROW_CENTERS) {
-      if (yc + VBAND >= H) {
-        return { ok: false, reason: `row center ${yc} out of bounds (H=${H})` };
-      }
-      const right = findBarRight(data, W, axisLeft, axisRight, yc);
-      const w = right === null ? 0 : right - axisLeft + 1;
-      widths.push(w);
-      counts.push(Math.round((w * total) / span));
-      percentages.push(Math.round((1000 * w) / span) / 10);
-    }
-
-    const sum = counts.reduce((a, b) => a + b, 0);
-    const tolerance = Math.max(3, total * 0.02);
-    if (Math.abs(sum - total) > tolerance) {
-      return {
-        ok: false,
-        reason:
-          `sum=${sum} ≠ total=${total} (tol ±${tolerance.toFixed(1)}); ` +
-          `widths=[${widths.join(",")}] span=${span} ` +
-          `image=${W}x${H} axisLeft=${axisLeft} axisRight=${axisRight}`
-      };
-    }
-
-    return { ok: true, data: { counts, percentages, total } };
+    return readChartCounts(data, W, H, total);
   } finally {
     bitmap.close?.();
   }
+}
+
+// Pure pixel pass over decoded RGBA data. Split out of doExtract so it
+// can be exercised against synthetic charts without a canvas.
+export function readChartCounts(
+  data: Uint8ClampedArray,
+  W: number,
+  H: number,
+  total: number
+): ChartExtractionResult {
+  const grids = findLightGridlines(data, W);
+  if (grids.length < 2) {
+    return { ok: false, reason: `only ${grids.length} gridline(s) detected (need ≥2)` };
+  }
+  const spacing = (grids[grids.length - 1] - grids[0]) / (grids.length - 1);
+  const computedLeft = Math.round(grids[0] - spacing);
+  // Snap to the actual y-axis line. Bluera rounds spacing inconsistently
+  // so the average can land 1px off; the true 0% column is whichever
+  // nearby x has the most gray pixels (the y-axis runs the full plot
+  // height in any gray shade — usually ~174 vs gridlines' ~210).
+  const axisLeft = snapToYAxis(data, W, computedLeft);
+  const axisRight = grids[grids.length - 1];
+  const span = axisRight - axisLeft;
+  if (span <= 0) {
+    return { ok: false, reason: `bad span ${span} (axisLeft=${axisLeft}, axisRight=${axisRight})` };
+  }
+
+  const widths: number[] = [];
+  const counts: number[] = [];
+  const percentages: number[] = [];
+  for (const yc of ROW_CENTERS) {
+    if (yc + VBAND >= H) {
+      return { ok: false, reason: `row center ${yc} out of bounds (H=${H})` };
+    }
+    const right = findBarRight(data, W, axisLeft, axisRight, yc, grids);
+    const w = right === null ? 0 : right - axisLeft + 1;
+    widths.push(w);
+    counts.push(Math.round((w * total) / span));
+    percentages.push(Math.round((1000 * w) / span) / 10);
+  }
+
+  const sum = counts.reduce((a, b) => a + b, 0);
+  const tolerance = Math.max(3, total * 0.02);
+  if (Math.abs(sum - total) > tolerance) {
+    return {
+      ok: false,
+      reason:
+        `sum=${sum} ≠ total=${total} (tol ±${tolerance.toFixed(1)}); ` +
+        `widths=[${widths.join(",")}] span=${span} ` +
+        `image=${W}x${H} axisLeft=${axisLeft} axisRight=${axisRight}`
+    };
+  }
+
+  return { ok: true, data: { counts, percentages, total } };
 }
 
 // ─── Pixel helpers ──────────────────────────────────────────────────────────
@@ -258,16 +274,27 @@ function findBarRight(
   W: number,
   axisLeft: number,
   axisRight: number,
-  yCenter: number
+  yCenter: number,
+  grids: readonly number[]
 ): number | null {
   const sampleX = axisLeft + 1;
-  const target = px(data, W, sampleX, yCenter);
-  // Empty row: pure white sample, OR the y-axis line bleeds gray into
-  // axis_left+1. Treat both as "no bar".
+  let target = px(data, W, sampleX, yCenter);
   if (isWhite(target[0], target[1], target[2])) return null;
-  if (isGrayish(target[0], target[1], target[2])) return null;
+  // A gray sample is either the y-axis line bleeding into axis_left+1
+  // (empty row) or a desaturated bar fill — Bluera's "6-Very High" bar is
+  // a washed-out mauve that passes isGrayish. Tell them apart by looking
+  // a few px further right: axis bleed gives way to white, a bar doesn't.
+  if (isGrayish(target[0], target[1], target[2])) {
+    const probe = px(data, W, Math.min(sampleX + AXIS_BLEED_PX, axisRight - 1), yCenter);
+    if (isWhite(probe[0], probe[1], probe[2])) return null;
+    if (colorDist(target, probe[0], probe[1], probe[2]) > 60) return null;
+    target = probe;
+  }
 
   for (let x = axisRight - 1; x > axisLeft; x -= 1) {
+    // Gridline columns are gray; a gray-ish bar fill would "match" them
+    // and read as extending to the next gridline.
+    if (grids.some((g) => Math.abs(g - x) <= 1)) continue;
     let match = 0;
     for (let dy = -VBAND; dy <= VBAND; dy += 1) {
       const i = ((yCenter + dy) * W + x) << 2;

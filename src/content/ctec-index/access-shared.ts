@@ -5,6 +5,12 @@
 // chrome.storage hydration, legacy-key cleanup, and onChanged listener
 // — all of which are content-script-only side effects.
 
+// Kill switch for the whole CTEC-access check (upfront probe, passive
+// DOM detector, sticky denied/confirmed verdict, popup pill). Flip to
+// false for local debugging only: access is then treated as confirmed
+// and nothing is probed or persisted. Must ship as true.
+export const CTEC_ACCESS_CHECK_ENABLED = true;
+
 export const CTEC_ACCESS_STORAGE_KEY = "better-caesar:ctec-no-access:v2";
 
 // Auto-expire any access verdict after this long, applied symmetrically

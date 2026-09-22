@@ -113,6 +113,10 @@ When in doubt, ask: "Would a student understand and care about this in one read?
 
 `src/content/ctec-index/` is the home of the shared CTEC index module — `storage.ts`, `helpers.ts`, `types.ts`, `constants.ts`. It lives outside `augmentations/` because it isn't a registered plugin; it's a sibling module that augmentations consume. `ctec-links` (and indirectly `paper-ctec` via `ctec-links/reports.ts`) read and write the `chrome.storage.local`-backed index through `readSubjectIndex`/`writeSubjectIndex`. The popup's "Clear CTEC cache" button wipes it.
 
+The CTEC-access check (`access*.ts`) sits behind `CTEC_ACCESS_CHECK_ENABLED` in `access-shared.ts`. Flipping it to `false` bypasses the check for local debugging; a spec fails if it's `false`, so CI and the release workflow won't ship the bypass.
+
+paper.nu schedule cards only carry instructor last names. `paper-ctec/instructor-enrichment.ts` resolves them to full names (user's scheduled sections first, then the whole term, matched on each section's own catalog number so cross-lists resolve) before every CTEC read and fetch — bare last names never match CAESAR rows that carry a first initial. It reads paper.nu's saved schedule through `paper-combos/data.ts`.
+
 ## User preferences
 
 - Build after every change — `npm run build:chrome` must pass before considering work done.

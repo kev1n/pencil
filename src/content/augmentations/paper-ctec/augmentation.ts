@@ -27,7 +27,7 @@ import {
   type AuthRecovery
 } from "../class-search/auth-recovery";
 import { fetchAggregateWithAuth, fetchAnalyticsWithAuth } from "../../auth/ctec-fetch";
-import { enrichParams } from "./instructor-enrichment";
+import { enrichParams, peekEnrichedParams } from "./instructor-enrichment";
 import { buildModalDisplayData } from "./modal-data";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
@@ -252,11 +252,30 @@ export class PaperCtecAugmentation implements Augmentation {
     injectStyles();
     this.syncCardHoverStyle(doc);
 
-    const targets = collectScheduleTargets(doc);
+    // Swap grid-card last names for the enriched full name so cache reads
+    // match what the fetch wrote. `key` stays on the raw label so chip
+    // identity is stable across the async enrichment landing.
+    const targets = collectScheduleTargets(doc).map((target) => ({
+      ...target,
+      params: peekEnrichedParams(target.params, doc, () => this.scheduleRerun())
+    }));
     this.chipFetch.syncTargets(targets);
     this.statusBar.syncStatusBar(doc);
     this.sideCard.syncSideCard(doc);
     this.modal.sync(doc);
+  }
+
+  // Coalesces enrichment-driven re-renders: a schedule full of cards
+  // resolving at once triggers one run, not one per card.
+  private rerunScheduled = false;
+
+  private scheduleRerun(): void {
+    if (this.rerunScheduled) return;
+    this.rerunScheduled = true;
+    requestAnimationFrame(() => {
+      this.rerunScheduled = false;
+      if (isFeatureEnabled(this.id)) this.run(document);
+    });
   }
 
   cleanup(doc: Document = document): void {

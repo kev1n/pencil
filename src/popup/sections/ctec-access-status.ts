@@ -14,6 +14,7 @@
 
 import {
   ACCESS_VERDICT_TTL_MS,
+  CTEC_ACCESS_CHECK_ENABLED,
   CTEC_ACCESS_STORAGE_KEY,
   type CtecAccessStatus
 } from "../../content/ctec-index/access-shared";
@@ -53,6 +54,10 @@ const STATUS_VIEWS: Record<CtecAccessStatus, StatusView> = {
 export async function initCtecAccessStatus(): Promise<void> {
   const root = document.getElementById(ROW_ID);
   if (!(root instanceof HTMLElement)) return;
+  if (!CTEC_ACCESS_CHECK_ENABLED) {
+    root.hidden = true;
+    return;
+  }
 
   await render(root, await readStatusOnce());
 
