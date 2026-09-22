@@ -31,11 +31,16 @@ jobs:
         run: |
           npm run build:chrome
           npm run build:firefox
+      # Zip from inside each build dir so manifest.json sits at the archive
+      # root — both the Chrome Web Store and Firefox Add-ons reject a
+      # wrapping folder ("manifest.json was not found").
       - name: Package
         run: |
-          cd dist
-          zip -r "../pencil-nu-chrome-${VERSION}.zip" chrome
-          zip -r "../pencil-nu-firefox-${VERSION}.zip" firefox
+          (cd dist/chrome && zip -r "$GITHUB_WORKSPACE/pencil-nu-chrome-${VERSION}.zip" .)
+          (cd dist/firefox && zip -r "$GITHUB_WORKSPACE/pencil-nu-firefox-${VERSION}.zip" .)
+          for t in chrome firefox; do
+            unzip -l "pencil-nu-${t}-${VERSION}.zip" | awk '{print $4}' | grep -qx manifest.json
+          done
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
