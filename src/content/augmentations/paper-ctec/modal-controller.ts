@@ -2,7 +2,8 @@ import {
   fetchCtecCourseAnalytics,
   getCachedChipAggregate,
   getCtecCourseAnalyticsSnapshot,
-  hasStrategyBeenExplored
+  hasStrategyBeenExplored,
+  selectEntriesForTitle
 } from "../ctec-links/reports";
 import {
   isCourseLensRedundant,
@@ -399,7 +400,7 @@ export class ModalController {
         applyAndSync((dryRun) =>
           applyCoursePool(
             dryRun,
-            courseResultToPoolStatus(result)
+            courseResultToPoolStatus(result, source.titleHint)
           )
         );
       });
@@ -652,13 +653,18 @@ export type { ModalRefreshFlash };
 // `empty` so the choose-stage card renders "None found" rather than
 // "0 sections found", and auth/access/error states get plain English.
 function courseResultToPoolStatus(
-  result: CourseDiscoveryResult
+  result: CourseDiscoveryResult,
+  titleHint: string
 ): DryRunPoolStatus {
   if (result.state === "found") {
-    if (result.rows.length === 0) return { kind: "empty" };
+    // Same title narrowing the Course lens applies on read, so the count
+    // offered here matches what opening that lens will actually show
+    // (special-topics numbers list every topic's sections).
+    const rows = selectEntriesForTitle(result.rows, titleHint);
+    if (rows.length === 0) return { kind: "empty" };
     return {
       kind: "ready",
-      rows: rowsToCandidates(result.rows, "course", "course")
+      rows: rowsToCandidates(rows, "course", "course")
     };
   }
   if (result.state === "not-found") return { kind: "empty" };

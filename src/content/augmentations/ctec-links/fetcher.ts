@@ -762,6 +762,12 @@ async function fetchCourseEntries(
       )
       .sort((a, b) => termToSortKey(b.term) - termToSortKey(a.term))
   );
+  // This career lists the course but has no rows for this instructor —
+  // e.g. a 400-level cross-list whose evaluations live under UGRD while
+  // TGS (tried first for 400+) holds other professors' sections. Report
+  // not-found so the caller's career loop moves on instead of stopping
+  // at the first career that merely knows the course.
+  if (sortedRows.length === 0) return { type: "not-found" };
 
   // Skip already-fetched rows; each call processes at most batchSize new ones.
   const todoAll: CtecRowSeed[] = sortedRows.filter(

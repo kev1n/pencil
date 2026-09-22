@@ -203,6 +203,20 @@ function groupByCourse(
   );
 }
 
+// Term + section_ids of the schedule paper.nu currently has loaded.
+// Shared with paper-ctec's instructor enrichment, which uses it to pick
+// the professor of the section the user actually scheduled.
+export async function readPaperScheduleSnapshot(): Promise<{
+  termId: string;
+  sectionIds: string[];
+} | null> {
+  const raw = await readPaperSchedule();
+  if (!raw) return null;
+  const termId = typeof raw.termId === "string" ? raw.termId : "";
+  if (!termId) return null;
+  return { termId, sectionIds: readScheduleSectionIds(raw) };
+}
+
 export type LoadComboPoolResult =
   | { state: "ok"; pool: ComboPool }
   | { state: "no-schedule" }

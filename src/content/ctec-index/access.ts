@@ -21,6 +21,7 @@ import { logDebug, logQuiet } from "../../shared/log";
 
 import {
   ACCESS_VERDICT_TTL_MS,
+  CTEC_ACCESS_CHECK_ENABLED,
   CTEC_ACCESS_STORAGE_KEY,
   type CtecAccessStatus
 } from "./access-shared";
@@ -60,6 +61,7 @@ function parseStored(raw: unknown): StoredState | null {
 }
 
 export function getCtecAccessStatus(): CtecAccessStatus {
+  if (!CTEC_ACCESS_CHECK_ENABLED) return "confirmed";
   if (!memoryState) return "unknown";
   // Auto-expire either verdict without mutating storage; the next mark*
   // call refreshes the timestamp.
@@ -70,11 +72,13 @@ export function getCtecAccessStatus(): CtecAccessStatus {
 }
 
 export function isCtecAccessDenied(): boolean {
+  if (!CTEC_ACCESS_CHECK_ENABLED) return false;
   if (memoryState?.kind !== "denied") return false;
   return Date.now() - memoryState.deniedAt <= ACCESS_VERDICT_TTL_MS;
 }
 
 export function markCtecAccessDenied(reason: string): void {
+  if (!CTEC_ACCESS_CHECK_ENABLED) return;
   if (
     memoryState?.kind === "denied" &&
     Date.now() - memoryState.deniedAt <= ACCESS_VERDICT_TTL_MS
@@ -87,6 +91,7 @@ export function markCtecAccessDenied(reason: string): void {
 }
 
 export function markCtecAccessConfirmed(reason: string): void {
+  if (!CTEC_ACCESS_CHECK_ENABLED) return;
   // A live denied verdict still wins — only an expired one (treated as
   // "unknown" by getCtecAccessStatus) gets overwritten by confirmed.
   if (

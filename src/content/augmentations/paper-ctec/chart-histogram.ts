@@ -7,6 +7,7 @@
 // % y-axis with light gridlines, x-axis bucket labels.
 
 import { logQuiet } from "../../../shared/log";
+import { repairLegacyBlueraUrl } from "../../../shared/nu-hosts";
 import {
   appendStackedAvgPills,
   appendVerticalGradient,
@@ -116,7 +117,7 @@ export function renderChartHistogram(
     if (options.fallbackOnError !== false) {
       const img = doc.createElement("img");
       img.className = "bc-paper-ctec-chart-histogram-fallback";
-      img.src = imageUrl;
+      img.src = repairLegacyBlueraUrl(imageUrl);
       img.alt = alt ?? `${kind} distribution`;
       img.loading = "lazy";
       fallback.append(img);

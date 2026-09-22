@@ -11,6 +11,33 @@
   },
   "entries": [
     {
+      "version": "0.9.7",
+      "date": "2026-09-22",
+      "headline": "More accurate CTECs on Paper.nu",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "CTECs you've already loaded stay loaded after a refresh, including in the hover preview and Analytics."
+        },
+        {
+          "kind": "fix",
+          "text": "Co-taught classes and professors who share a last name now find the right CTECs."
+        },
+        {
+          "kind": "fix",
+          "text": "Cross-listed and 400-level courses (like COMP_SCI 497) find their professor's CTECs instead of saying they've never taught it."
+        },
+        {
+          "kind": "fix",
+          "text": "Special-topics courses only show CTECs for that exact topic, not the professor's other topics under the same number."
+        },
+        {
+          "kind": "fix",
+          "text": "Rating distribution charts show up again."
+        }
+      ]
+    },
+    {
       "version": "0.9.6",
       "date": "2026-09-10",
       "headline": "CTECs load again",
