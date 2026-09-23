@@ -26,6 +26,7 @@ import {
 import {
   buildCtecCreditToastMessage,
   CTEC_ERROR_TOAST_MESSAGE,
+  ctecErrorToastOptions,
   formatCtecCreditsWarning,
   tryConsumeCtecCredit
 } from "./rate-limit";
@@ -138,12 +139,12 @@ export class CtecLinksAugmentation implements Augmentation {
           // idle and re-paint the fetch button.
           throw err;
         }
-        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
         throw err;
       }
 
       if (data.state === "error") {
-        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
       } else {
         const warning = formatCtecCreditsWarning();
         if (warning) {
@@ -177,4 +178,3 @@ class RateLimitedError extends Error {
     this.name = "RateLimitedError";
   }
 }
-

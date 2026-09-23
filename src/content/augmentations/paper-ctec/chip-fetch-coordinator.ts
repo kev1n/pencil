@@ -29,6 +29,7 @@ import type {
 } from "../ctec-links/reports";
 import type { ModalDisplayData } from "./modal-data";
 import { findWidgetsByKey } from "./dom";
+import { ctecErrorToastOptions } from "../ctec-links/rate-limit";
 
 export type ToastTone = "info" | "warn" | "success" | "error";
 
@@ -264,7 +265,7 @@ export function createChipFetchCoordinator(
       resolved.set(target.key, data);
       renderForKey(target.key, data);
       if (data.state === "error") {
-        deps.showToast(deps.ctecErrorToastMessage, { tone: "warn", durationMs: 9000 });
+        deps.showToast(deps.ctecErrorToastMessage, ctecErrorToastOptions());
       } else if (
         data.state === "not-found" &&
         userActivated.has(target.key)
@@ -293,7 +294,7 @@ export function createChipFetchCoordinator(
       };
       resolved.set(target.key, widgetData);
       renderForKey(target.key, widgetData);
-      deps.showToast(deps.ctecErrorToastMessage, { tone: "warn", durationMs: 9000 });
+      deps.showToast(deps.ctecErrorToastMessage, ctecErrorToastOptions());
       return widgetData;
     }
   }

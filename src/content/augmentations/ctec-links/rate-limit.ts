@@ -3,6 +3,7 @@ import {
   CTEC_CREDIT_WINDOW_MS as SHARED_CTEC_WINDOW_MS,
   ctecCreditPool
 } from "../../../shared/credit-pool";
+import { CAESAR_ORIGIN } from "../../../shared/nu-hosts";
 
 // Re-exported for backward-compat with callers that referenced these
 // constants directly.
@@ -38,7 +39,18 @@ export function buildCtecCreditToastMessage(waitMs: number): string {
 // without us, and includes the cookie-clear escape hatch for the most common
 // stuck-state we've seen.
 export const CTEC_ERROR_TOAST_MESSAGE =
-  "CTEC load failed. Try opening https://caesar.ent.northwestern.edu/ yourself. If it's stuck on infinite loading, clear your cookies for the site.";
+  "CTEC load failed. Open CAESAR to reverify your session. If it keeps loading, clear your cookies for the site.";
+
+export function ctecErrorToastOptions() {
+  return {
+    tone: "warn" as const,
+    durationMs: 15_000,
+    action: {
+      label: "Open CAESAR ↗",
+      run: () => { window.open(CAESAR_ORIGIN, "_blank", "noopener,noreferrer"); }
+    }
+  };
+}
 
 export function formatCtecCreditsWarning(now: number = Date.now()): string | null {
   return ctecCreditPool.format(now);

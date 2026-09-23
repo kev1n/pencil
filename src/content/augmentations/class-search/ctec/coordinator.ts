@@ -28,7 +28,7 @@ import {
   getCtecCourseAnalyticsSnapshot,
   type CtecReportAggregate
 } from "../../ctec-links/reports";
-import { CTEC_ERROR_TOAST_MESSAGE } from "../../ctec-links/rate-limit";
+import { CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions } from "../../ctec-links/rate-limit";
 import { getRecentAggregationTerms, subscribeCtecStrategy } from "../../../settings";
 import { buildModalDisplayData } from "../../paper-ctec/modal-data";
 import type {
@@ -185,7 +185,7 @@ export function createCtecCoordinator(
         resolved.set(identity.key, data);
         repaint(identity.key);
         if (data.state === "error") {
-          showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+          showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
         } else {
           const warning = ctecCreditPool.format();
           if (warning) {
@@ -203,7 +203,7 @@ export function createCtecCoordinator(
         };
         resolved.set(identity.key, data);
         repaint(identity.key);
-        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
       })
       .finally(() => {
         inFlight.delete(identity.key);
