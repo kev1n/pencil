@@ -16,7 +16,7 @@ const HOURS_HISTOGRAM_LABELS = [
   "8 - 11",
   "12 - 15",
   "16 - 19",
-  "20 or more"
+  "20+"
 ] as const;
 
 // Bucket midpoints for the hours histogram, used to position the mean pill.

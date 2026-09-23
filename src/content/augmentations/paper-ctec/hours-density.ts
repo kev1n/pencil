@@ -57,7 +57,9 @@ export function renderHoursDensity(
     (best, s) => (s.buckets.length > best.buckets.length ? s : best),
     usable[0]!
   );
-  const axisLabels = axisOwner.buckets.map((b) => b.label);
+  const axisLabels = axisOwner.buckets.map((b) =>
+    b.label.replace(/\s+or\s+more$/i, "+")
+  );
   const numBuckets = axisLabels.length;
 
   // Bucket counts can come back non-finite (NaN/Infinity) when a CTEC report
