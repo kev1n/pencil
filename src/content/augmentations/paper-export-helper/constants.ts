@@ -7,6 +7,7 @@ export const MODAL_ID = "bc-paper-export-helper-modal";
 // button once we've bound our interceptor — keeps run() idempotent
 // across the AugmentationRunner's mutation-driven re-ticks.
 export const BUTTON_BOUND_ATTR = "data-bc-export-helper-bound";
+export const COPY_BUTTON_ID = "bc-copy-schedule-markdown";
 
 // Stamped on the top-level EXPORT button to opt it into the purple
 // highlight styling. Pure cosmetic — no click handler, no behavior

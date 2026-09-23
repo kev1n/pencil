@@ -1,12 +1,14 @@
 import type { Augmentation } from "../../framework";
+import { showToast } from "../../../shared/toast";
 import { APP_CONTENT } from "./content";
-import { BUTTON_BOUND_ATTR, FEATURE_ID, HIGHLIGHT_ATTR } from "./constants";
+import { BUTTON_BOUND_ATTR, COPY_BUTTON_ID, FEATURE_ID, HIGHLIGHT_ATTR } from "./constants";
 import {
   findExportButton,
   findExportToCalendarButton,
   waitForDownloadButton
 } from "./detection";
 import { openExportHelperModal, type ModalHandle } from "./modal";
+import { buildScheduleMarkdown } from "./schedule-markdown";
 import { loadLastTab, saveLastTab } from "./storage";
 import {
   injectExportHelperStyles,
@@ -67,6 +69,7 @@ export class PaperExportHelperAugmentation implements Augmentation {
     // the re-mounts React does when the dropdown closes and reopens.
     const button = findExportToCalendarButton(doc);
     if (!button) return;
+    this.ensureCopyButton(doc, button);
     if (!button.hasAttribute(HIGHLIGHT_ATTR)) {
       button.setAttribute(HIGHLIGHT_ATTR, "1");
     }
@@ -96,6 +99,7 @@ export class PaperExportHelperAugmentation implements Augmentation {
       el.removeAttribute(HIGHLIGHT_ATTR);
     }
     this.allowNativeClickThrough = false;
+    doc.getElementById(COPY_BUTTON_ID)?.remove();
     this.closeModal();
     removeExportHelperStyles(doc);
   }
@@ -104,6 +108,70 @@ export class PaperExportHelperAugmentation implements Augmentation {
     button.setAttribute(BUTTON_BOUND_ATTR, "1");
     button.addEventListener("click", this.handleClick, true);
     this.boundButton = button;
+  }
+
+  private ensureCopyButton(doc: Document, calendarButton: HTMLButtonElement): void {
+    let copyButton = doc.getElementById(COPY_BUTTON_ID) as HTMLButtonElement | null;
+    if (!copyButton) {
+      copyButton = calendarButton.cloneNode(true) as HTMLButtonElement;
+      copyButton.id = COPY_BUTTON_ID;
+      copyButton.removeAttribute(BUTTON_BOUND_ATTR);
+      copyButton.removeAttribute(HIGHLIGHT_ATTR);
+      copyButton.setAttribute("aria-label", "Copy schedule as Markdown");
+      const label = copyButton.querySelector("p");
+      if (label) label.textContent = "Copy schedule as Markdown";
+      else copyButton.textContent = "Copy schedule as Markdown";
+      const icon = copyButton.querySelector("svg");
+      if (icon) {
+        icon.replaceChildren();
+        const back = doc.createElementNS("http://www.w3.org/2000/svg", "path");
+        back.setAttribute("d", "M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2");
+        const front = doc.createElementNS("http://www.w3.org/2000/svg", "rect");
+        front.setAttribute("x", "8");
+        front.setAttribute("y", "8");
+        front.setAttribute("width", "12");
+        front.setAttribute("height", "12");
+        front.setAttribute("rx", "2");
+        icon.append(back, front);
+      }
+      copyButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.copySchedule();
+      });
+    }
+    if (copyButton.previousElementSibling !== calendarButton) {
+      calendarButton.insertAdjacentElement("afterend", copyButton);
+    }
+  }
+
+  private async copySchedule(): Promise<void> {
+    try {
+      const markdown = await buildScheduleMarkdown();
+      try {
+        await navigator.clipboard.writeText(markdown);
+      } catch {
+        const field = document.createElement("textarea");
+        field.value = markdown;
+        field.style.position = "fixed";
+        field.style.opacity = "0";
+        document.body.appendChild(field);
+        let copied = false;
+        try {
+          field.select();
+          copied = document.execCommand("copy");
+        } finally {
+          field.remove();
+        }
+        if (!copied) throw new Error("Clipboard access was denied. Try copying again.");
+      }
+      showToast("Schedule copied as Markdown.", { tone: "success" });
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "Couldn’t copy the schedule.", {
+        tone: "error",
+        durationMs: 6000
+      });
+    }
   }
 
   // Arrow property so the same reference can be used for add/remove.

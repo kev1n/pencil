@@ -37,7 +37,7 @@
       "all_frames": true
     }
   ],
-  "permissions": ["storage", "unlimitedStorage"],
+  "permissions": ["storage", "unlimitedStorage", "clipboardWrite"],
   "host_permissions": [
     "https://caesar.ent.northwestern.edu/*",
     "https://www.paper.nu/*",

@@ -115,8 +115,8 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       },
       {
         id: "paper-export-helper",
-        label: "Calendar Export Walkthrough",
-        description: "When you click Paper.nu's \"Export schedule to calendar\" button, opens a step-by-step guide for importing the .ics file into Google Calendar, Apple Calendar, or Outlook."
+        label: "Schedule Export Tools",
+        description: "Adds Copy schedule as Markdown to Paper.nu's Export menu and a step-by-step calendar import guide."
       },
       {
         id: "prereq-filter",
