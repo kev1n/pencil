@@ -5,6 +5,8 @@ import type {
   FetchTextMessage,
   FetchTextResponse
 } from "../shared/messages";
+import { CAESAR_HOSTNAME, isBlueraHost, safeHostname } from "../shared/nu-hosts";
+import { showToast } from "../shared/toast";
 
 type FetchTextOptions = {
   method?: "GET" | "POST";
@@ -14,6 +16,28 @@ type FetchTextOptions = {
   signal?: AbortSignal;
   timeoutMs?: number;
 };
+
+// Northwestern's CAESAR / Bluera endpoints tend to stall (not fail) when
+// the user is on a VPN, so CTEC widgets sit on their loading state until
+// the 30–60s background timeout fires. A single request to those hosts
+// that's still pending after this long is a strong hint something on the
+// network path is wrong — nudge the user once per page instead of leaving
+// them staring at a spinner.
+export const SLOW_NU_REQUEST_HINT_MS = 15_000;
+export const SLOW_NU_REQUEST_HINT_MESSAGE =
+  "Northwestern's servers are taking a while to respond. If you're on a VPN, try turning it off and reloading.";
+let slowHintShown = false;
+
+function watchForSlowNuRequest(url: string): () => void {
+  if (slowHintShown) return () => undefined;
+  if (safeHostname(url) !== CAESAR_HOSTNAME && !isBlueraHost(url)) return () => undefined;
+  const timer = setTimeout(() => {
+    if (slowHintShown) return;
+    slowHintShown = true;
+    showToast(SLOW_NU_REQUEST_HINT_MESSAGE, { tone: "warn", durationMs: 12_000 });
+  }, SLOW_NU_REQUEST_HINT_MS);
+  return () => clearTimeout(timer);
+}
 
 let requestSequence = 0;
 function nextRequestId(): string {
@@ -36,6 +60,7 @@ export async function fetchTextResultViaBackground(
     if (signal.aborted) onAbort();
     else signal.addEventListener("abort", onAbort, { once: true });
   }
+  const stopSlowWatch = watchForSlowNuRequest(url);
 
   try {
     const response = await chrome.runtime.sendMessage({
@@ -54,6 +79,7 @@ export async function fetchTextResultViaBackground(
 
     return response;
   } finally {
+    stopSlowWatch();
     if (signal) {
       signal.removeEventListener("abort", onAbort);
     }
@@ -85,6 +111,7 @@ export async function fetchBinaryViaBackground(
     if (signal.aborted) onAbort();
     else signal.addEventListener("abort", onAbort, { once: true });
   }
+  const stopSlowWatch = watchForSlowNuRequest(url);
   try {
     const response = (await chrome.runtime.sendMessage({
       type: "fetch-binary",
@@ -103,6 +130,7 @@ export async function fetchBinaryViaBackground(
     for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
     return { buffer: bytes.buffer, contentType: response.contentType, finalUrl: response.finalUrl };
   } finally {
+    stopSlowWatch();
     if (signal) signal.removeEventListener("abort", onAbort);
   }
 }

@@ -35,11 +35,12 @@ export function buildCtecCreditToastMessage(waitMs: number): string {
 }
 
 // Shown when a CTEC fetch fails (timeout, transport error, server error).
-// Points the user at CAESAR directly so they can finish what they were doing
-// without us, and includes the cookie-clear escape hatch for the most common
-// stuck-state we've seen.
+// Leads with the VPN hint (the most common cause of consistent failures),
+// then points the user at CAESAR directly so they can finish what they were
+// doing without us, and includes the cookie-clear escape hatch for the most
+// common stuck-state we've seen.
 export const CTEC_ERROR_TOAST_MESSAGE =
-  "CTEC load failed. Open CAESAR to reverify your session. If it keeps loading, clear your cookies for the site.";
+  "CTEC load failed. If you're on a VPN, turn it off and try again. Otherwise open CAESAR to reverify your session, or clear your cookies for the site if it keeps loading.";
 
 export function ctecErrorToastOptions() {
   return {
