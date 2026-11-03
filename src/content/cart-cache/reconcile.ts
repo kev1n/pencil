@@ -3,7 +3,7 @@ import { parseCartPage } from "./parse-cart-page";
 import { getNewestRefresh, replaceTermFromCartPage } from "./storage";
 
 const STALE_AFTER_MS = 60 * 60 * 1000; // 1 hour
-const CART_URL =
+export const CART_URL =
   "https://caesar.ent.northwestern.edu/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A";
 
 let inFlight: Promise<void> | null = null;

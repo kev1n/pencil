@@ -4,8 +4,10 @@ import { parseCourseHistoryAjax } from "./parse";
 import { readCourseHistory, writeCourseHistory } from "./storage";
 
 const STALE_AFTER_MS = 60 * 60 * 1000; // 1 hour
+export const COURSE_HISTORY_PAGE_URL =
+  "https://caesar.ent.northwestern.edu/psc/csnu_5/EMPLOYEE/SA/c/SSR_STUDENT_ACAD_REC_FL.SSR_CRSE_HIST_FL.GBL?Page=SSR_CRSE_HIST_FL&pslnkid=CS_S201605051911149930439391";
 const COURSE_HISTORY_URL =
-  "https://caesar.ent.northwestern.edu/psc/csnu_5/EMPLOYEE/SA/c/SSR_STUDENT_ACAD_REC_FL.SSR_CRSE_HIST_FL.GBL?Page=SSR_CRSE_HIST_FL&pslnkid=CS_S201605051911149930439391&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
+  COURSE_HISTORY_PAGE_URL + "&ICAJAX=1&ICMDTarget=start&ICPanelControlStyle=%20pst_side1-fixed%20pst_panel-mode%20";
 
 let inFlight: Promise<void> | null = null;
 
