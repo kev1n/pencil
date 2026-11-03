@@ -25,7 +25,8 @@ import {
   readCareerFromNativeForm,
   readInstitutionFromNativeForm
 } from "../page-detection";
-import { type FoundationalDisciplineCode, type MountedState, type ResultRow } from "../types";
+import { createSearchSession } from "../search-session";
+import type { MountedState, ResultRow } from "../types";
 import { renderFoundationalDisciplineChips } from "../views/foundational-discipline-chips";
 import { setStatus } from "../views/shell";
 
@@ -47,7 +48,7 @@ export type MountStateDeps = {
   doc: Document;
   placeholder: HTMLDivElement;
   info: DataMapInfo;
-  initialTerm: string;
+  nativeTerm: string | null;
   subjects: Record<string, SubjectInfo>;
   planCourses: PaperCourse[];
   /** SSO popup re-auth recovery, shared across mount cycles. */
@@ -77,11 +78,8 @@ export function createMountState(deps: MountStateDeps): MountedState {
 
   const career = readCareerFromNativeForm(doc) ?? "UGRD";
   const institution = readInstitutionFromNativeForm(doc) ?? INSTITUTION_DEFAULT;
-  const filters = {
-    termId: deps.initialTerm,
-    query: "",
-    disciplines: new Set<FoundationalDisciplineCode>()
-  };
+  const searchSession = createSearchSession(placeholder, { nativeTerm: deps.nativeTerm, career, institution }, info);
+  const { filters } = searchSession;
   const catalogIndex = buildCatalogIndex(planCourses);
   const liveData = createCatalogLiveDataStore({
     institution,
@@ -145,6 +143,7 @@ export function createMountState(deps: MountStateDeps): MountedState {
     detailController,
     cartCardDetailsController,
     ctecCoordinator: deps.ctecCoordinator,
+    searchSession,
     handleAdd: (row, section, button) => {
       if (stateRef.state) deps.handleAdd(stateRef.state, row, section, button);
     }
@@ -158,6 +157,7 @@ export function createMountState(deps: MountStateDeps): MountedState {
       if (filters.termId !== termId) return;
       const rows = applyFilters(courses, catalogIndex, subjects, filters, career);
       resultsRenderer.render(rows);
+      if (tabs.getActive() === "better") searchSession.restoreScroll();
     },
     onStatus: (status, message) => setStatus(doc, statusEl, status, message)
   });
@@ -168,7 +168,10 @@ export function createMountState(deps: MountStateDeps): MountedState {
   // triggers the same debounced re-search the query input uses.
   renderFoundationalDisciplineChips(doc, filtersEl, {
     filters,
-    onChange: () => searchOrchestrator.scheduleSearch()
+    onChange: () => {
+      searchSession.save();
+      searchOrchestrator.scheduleSearch();
+    }
   });
 
   const state: MountedState = {
@@ -179,6 +182,7 @@ export function createMountState(deps: MountStateDeps): MountedState {
     statusEl,
     filtersEl,
     filters,
+    searchSession,
     info,
     subjects,
     catalogIndex,

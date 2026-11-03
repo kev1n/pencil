@@ -8,6 +8,7 @@ import type { SectionDetailController } from "./controllers/section-detail-contr
 import type { TabController } from "./controllers/tab-controller";
 import type { CtecCoordinator } from "./ctec/coordinator";
 import type { LiveDataStore } from "./live-data-store";
+import type { createSearchSession } from "./search-session";
 import type {
   DataMapInfo,
   PaperCourse,
@@ -114,6 +115,7 @@ export type MountedState = {
   // the chips share the same line as "29 courses · 54 sections".
   filtersEl: HTMLDivElement;
   filters: SearchFilters;
+  searchSession: ReturnType<typeof createSearchSession>;
   info: DataMapInfo;
   subjects: Record<string, SubjectInfo>;
   catalogIndex: Map<string, PaperCourse>;

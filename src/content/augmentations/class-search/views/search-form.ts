@@ -16,6 +16,7 @@ export const TABS_ID = "better-caesar-class-search-tabs";
 export type ShellViewProps = {
   /** Current term id (selects the matching <option> on render). */
   termId: string;
+  query?: string;
   /** Term metadata used to populate the <select>. */
   info: DataMapInfo;
   /** Pre-built status element, owned by the augmentation. Inserted into
@@ -112,6 +113,7 @@ function buildQueryField(doc: Document, props: ShellViewProps): HTMLDivElement {
   const input = doc.createElement("input");
   input.id = "bc-cs-query";
   input.className = "bc-cs-input bc-cs-input-query";
+  input.value = props.query ?? "";
   input.placeholder = "comp_sci 111, machine learning, stat 21x, …";
   input.autocomplete = "off";
   input.addEventListener("input", () => {

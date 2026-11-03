@@ -267,7 +267,7 @@ export class ClassSearchAugmentation implements Augmentation {
         doc,
         placeholder,
         info,
-        initialTerm: nativeTerm ?? info.latest,
+        nativeTerm,
         subjects,
         planCourses,
         authRecovery: this.authRecovery,
@@ -293,12 +293,14 @@ export class ClassSearchAugmentation implements Augmentation {
       state.panelEl.appendChild(
         renderSearchShell(doc, {
           termId: state.filters.termId,
+          query: state.filters.query,
           info: state.info,
           statusEl: state.statusEl,
           filtersEl: state.filtersEl,
           resultsEl: state.resultsEl,
           onQueryInput: (value) => {
             state.filters.query = value;
+            state.searchSession.save();
             state.searchOrchestrator.scheduleSearch();
           },
           onTermChange: (termId) => {
@@ -306,7 +308,7 @@ export class ClassSearchAugmentation implements Augmentation {
             // while the selected term's catalog loads.
             state.resultsEl.replaceChildren();
             state.cartButtons.clear();
-            state.filters.termId = termId;
+            state.searchSession.changeTerm(termId);
             void state.searchOrchestrator.loadTermData(termId);
           }
         })
@@ -340,6 +342,7 @@ export class ClassSearchAugmentation implements Augmentation {
 
   private unmount(doc: Document): void {
     this.mounted?.searchOrchestrator.cancelPending();
+    this.mounted?.searchSession.dispose();
     this.mounted?.cartUnsubscribe?.();
     this.mounted?.cartButtons.clear();
     this.mounted?.liveData.clear();
@@ -364,9 +367,11 @@ export class ClassSearchAugmentation implements Augmentation {
   // Used by both the tab button click handlers and the cart-add controller's
   // `openClassicTab` callback.
   private switchTab(state: MountedState, id: TabId): void {
+    if (id === "classic") state.searchSession.pauseScroll();
     state.tabs.setActive(id);
     syncTabButtonActive(state.doc, id);
     state.tabs.applyVisibility(state.panelEl);
+    if (id === "better" && state.resultsEl.firstChild) state.searchSession.restoreScroll();
   }
 
   // ── Add to cart ──────────────────────────────────────────────────────────

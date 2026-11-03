@@ -31,6 +31,8 @@ export type CourseCardProps = {
   sectionRows: HTMLLIElement[];
   /** Collapse multi-section result cards behind a native disclosure. */
   collapseSections?: boolean;
+  sectionsOpen?: boolean;
+  onSectionsToggle?(open: boolean): void;
 };
 
 export function renderCourseCard(
@@ -53,7 +55,7 @@ export function renderCourseCard(
   const sectionList = buildSectionList(doc, props.sectionRows);
   if (props.collapseSections && props.sectionRows.length > 1) {
     card.appendChild(
-      buildSectionsDisclosure(doc, props.sectionRows.length, sectionList)
+      buildSectionsDisclosure(doc, props, sectionList)
     );
   } else {
     card.appendChild(sectionList);
@@ -142,16 +144,21 @@ function buildSectionList(
 
 function buildSectionsDisclosure(
   doc: Document,
-  sectionCount: number,
+  props: CourseCardProps,
   sectionList: HTMLUListElement
 ): HTMLElement {
   const summary = el(doc, "summary", {
     class: "bc-cs-sections-summary",
-    text: `${sectionCount} sections`
+    text: `${props.sectionRows.length} sections`
   });
 
-  return el(doc, "details", { class: "bc-cs-sections-disclosure" }, [
+  const disclosure = el(doc, "details", { class: "bc-cs-sections-disclosure" }, [
     summary,
     sectionList
   ]);
+  disclosure.open = props.sectionsOpen ?? false;
+  disclosure.addEventListener("toggle", () => {
+    if (disclosure.isConnected) props.onSectionsToggle?.(disclosure.open);
+  });
+  return disclosure;
 }

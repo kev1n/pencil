@@ -17,6 +17,7 @@ import type { CtecCoordinator } from "../ctec/coordinator";
 import { buildCtecSectionIdentity } from "../ctec/identity";
 import type { LiveDataStore } from "../live-data-store";
 import type { PaperCourse, PaperSection, PaperTermCourse } from "../paper-data";
+import type { createSearchSession } from "../search-session";
 import type { ResultRow, SearchFilters } from "../types";
 import { renderCourseCard } from "../views/course-card";
 import { renderMyClassesView } from "../views/my-classes-view";
@@ -55,6 +56,7 @@ export type ResultsRendererDeps = {
   detailController: SectionDetailController;
   cartCardDetailsController: CartCardDetailsController;
   ctecCoordinator: CtecCoordinator;
+  searchSession: Pick<ReturnType<typeof createSearchSession>, "expandedCourses" | "setCourseExpanded">;
 
   /** Click → cart-add wizard for `(row, section)`'s Add button. */
   handleAdd(
@@ -94,7 +96,9 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
       row,
       planEntry,
       sectionRows: builtSections.map((b) => b.li),
-      collapseSections: true
+      collapseSections: true,
+      sectionsOpen: deps.searchSession.expandedCourses.has(row.course.course_id),
+      onSectionsToggle: (open) => deps.searchSession.setCourseExpanded(row.course.course_id, open)
     });
 
     // Eagerly paint live data on render. Try the in-memory cache first
