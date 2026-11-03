@@ -10,16 +10,17 @@ import {
   withAuthRecovery,
   type AuthRecovery
 } from "../class-search/auth-recovery";
-import { bareCatalogNumber } from "../class-search/catalog-format";
+import { bareCatalogNumber, formatCatalogForDisplay } from "../class-search/catalog-format";
 import {
-  findTermCoursesByCatalog,
   getDataMapInfo,
-  type PaperSection,
-  type PaperTermCourse
+  getTermCourses,
+  type PaperSection
 } from "../class-search/paper-data";
+import { extractLastNameTokens } from "../ctec-links/helpers";
 import type { CtecLinkParams } from "../ctec-links/types";
+import { readPaperScheduleSnapshot } from "../paper-combos/data";
 import { buildInstructorLastNameLabel } from "./identity";
-import { getActivePaperTermId } from "./paper-active-term";
+import { readActiveTermNameFromDom } from "./paper-active-term";
 
 export type CartChipResult =
   | {
@@ -33,26 +34,14 @@ export type CartChipResult =
       error: string;
       alreadyInCart?: boolean;
       classNumber?: string;
+      termId?: string;
+      sectionLabel?: string;
     };
 
 const INSTITUTION_DEFAULT = "NWUNV";
 
-// End-to-end cart-add flow driven from a paper.nu schedule chip. The chip
-// only knows subject + catalog + instructor + topic, so we:
-//   1. Assume the user is planning the latest paper.nu term (info.latest).
-//   2. Find the matching section in that term's cached course data using
-//      subject/catalog and the chip's last-name instructor label.
-//   3. Run a CAESAR catalog search to resolve the 5-digit class number.
-//   4. Drive CAESAR's Search → Select → Next chain via background fetches.
-//
-// This avoids any new permissions and reuses paper-data's existing cache
-// so we never touch paper.nu's IndexedDB.
-//
-// CAESAR auth is handled the same way class-search's add-to-cart on the
-// CAESAR page handles it: `withAuthRecovery` runs the silent SSO walk
-// (Layer 1 + 2) before falling back to a popup tab, and re-runs the whole
-// cart chain after recovery succeeds. The same `withAuthRecovery` helper
-// also fires for `searchCaesarCatalog` since both share `getEntryFormState()`.
+// Resolve the saved schedule before contacting CAESAR. A sign-in retry
+// keeps the original selection even if the user opens another term.
 export async function addChipSectionToCart(
   authRecovery: AuthRecovery,
   params: CtecLinkParams,
@@ -60,10 +49,12 @@ export async function addChipSectionToCart(
   onProgress?: (message: string) => void
 ): Promise<CartChipResult> {
   try {
+    onProgress?.("Loading paper.nu term data…");
+    const { termId, termName, section } = await resolveScheduledChip(params, titleHint);
     const result = await withAuthRecovery(
       authRecovery,
       isCaesarAuthRequiredError,
-      () => addChipSectionToCartCore(params, titleHint, onProgress)
+      () => addChipSectionToCartCore(params, termId, termName, section, onProgress)
     );
     if (result === null) {
       // User canceled the popup or it couldn't open — withAuthRecovery
@@ -81,29 +72,11 @@ export async function addChipSectionToCart(
 
 async function addChipSectionToCartCore(
   params: CtecLinkParams,
-  titleHint: string,
+  termId: string,
+  termName: string,
+  match: PaperSection,
   onProgress?: (message: string) => void
 ): Promise<CartChipResult> {
-  onProgress?.("Loading paper.nu term data…");
-  const info = await getDataMapInfo();
-  const { termId } = await getActivePaperTermId();
-  if (!termId) {
-    return { ok: false, error: "Couldn't determine the active paper.nu term." };
-  }
-
-  const matchingCourses = await findTermCoursesByCatalog(
-    termId,
-    params.subject,
-    params.catalogNumber
-  );
-  const match = pickSection(matchingCourses, params, titleHint);
-  if (!match) {
-    return {
-      ok: false,
-      error: `No section of ${params.subject} ${params.catalogNumber} taught by ${params.instructor || "this instructor"} found in ${info.terms[termId]?.name ?? termId}.`
-    };
-  }
-
   onProgress?.(`Searching CAESAR for ${params.subject} ${params.catalogNumber}…`);
   const search = await searchCaesarCatalog({
     termId,
@@ -112,17 +85,15 @@ async function addChipSectionToCartCore(
     bareCatalog: bareCatalogNumber(params.catalogNumber)
   });
 
-  // CTEC links carry only the bare number ("105"); paper.nu's resolved
-  // section knows the full catalog including the suffix ("105-8"). Use
-  // the resolved value so `matchCaesarGroup` lands on the right group.
-  const group = matchCaesarGroup(search.groups, match.catalog ?? params.catalogNumber);
+  // Cross-listed sections can carry a different catalog from their parent course.
+  const group = matchCaesarGroup(search.groups, match.number ?? match.catalog);
   const caesarSection = group
     ? matchCaesarSection(group, match.section, match.component)
     : null;
   if (!caesarSection) {
     return {
       ok: false,
-      error: `CAESAR didn't return section ${match.section}-${match.component} for ${params.subject} ${params.catalogNumber} in ${info.terms[termId]?.name ?? termId}.`
+      error: `CAESAR didn't return section ${match.section}-${match.component} for ${params.subject} ${params.catalogNumber} in ${termName}.`
     };
   }
 
@@ -156,22 +127,17 @@ async function addChipSectionToCartCore(
     ok: false,
     error: result.error,
     alreadyInCart: result.alreadyInCart,
-    classNumber: result.classNumber ?? caesarSection.classNumber
+    classNumber: result.classNumber ?? caesarSection.classNumber,
+    termId,
+    sectionLabel: caesarSection.sectionLabel
   };
 }
 
-// Resolves a chip's identity (subject + catalog + instructor + topic) to a
-// concrete paper.nu section + termId, without touching CAESAR. Used by the
-// cart-cache integration so chips can render "in cart" / "enrolled" badges
-// on initial mount based purely on local data + the persisted cache.
-//
-// Returns null when paper.nu data hasn't loaded yet, the active term can't
-// be resolved, or no section matches the chip identity.
 export type ResolvedChipSection = {
   termId: string;
   subject: string;
   catalog: string;
-  sectionLabel: string;     // "1-LEC" — matches CAESAR cart cache convention
+  sectionLabel: string;
 };
 
 export async function resolveChipSection(
@@ -179,97 +145,74 @@ export async function resolveChipSection(
   titleHint: string
 ): Promise<ResolvedChipSection | null> {
   try {
-    const { termId } = await getActivePaperTermId();
-    if (!termId) return null;
-    const matchingCourses = await findTermCoursesByCatalog(
-      termId,
-      params.subject,
-      params.catalogNumber
-    );
-    const found = pickSectionWithCourse(matchingCourses, params, titleHint);
-    if (!found) return null;
+    const { termId, section } = await resolveScheduledChip(params, titleHint);
     return {
       termId,
-      subject: params.subject,
-      // CTEC links only carry the bare catalog (`extractSubjectAndCatalog`
-      // captures `\d{3}`), so a chip for CHEM 105-8 has params.catalogNumber
-      // = "105". Use the resolved paper.nu course's catalog instead — that
-      // keeps the suffix (e.g. "105-8") so the cache signature matches the
-      // cart-page hydrator's parse of "CHEM 105-8-05".
-      catalog: found.course.catalog,
-      sectionLabel: `${found.section.section}-${found.section.component}`
+      subject: section.subject,
+      catalog: section.number ?? section.catalog,
+      sectionLabel: `${section.section}-${section.component}`
     };
   } catch {
     return null;
   }
 }
 
-function pickSectionWithCourse(
-  matchingCourses: PaperTermCourse[],
+async function resolveScheduledChip(
   params: CtecLinkParams,
   titleHint: string
-): { course: PaperTermCourse; section: PaperSection } | null {
-  const section = pickSection(matchingCourses, params, titleHint);
-  if (!section) return null;
-  for (const course of matchingCourses) {
-    if (course.sections.includes(section)) return { course, section };
+): Promise<{ termId: string; termName: string; section: PaperSection }> {
+  // Paper.nu keeps the term control in the DOM when the Search pane is
+  // hidden. Verify this tab's term because the saved schedule is shared
+  // across tabs. Only consider sections on the matching schedule.
+  const activeTerm = readActiveTermNameFromDom(document);
+  if (!activeTerm) {
+    throw new Error("Couldn't verify the schedule's term. Open Search in Paper.nu and try again.");
   }
-  return null;
-}
+  const schedule = await readPaperScheduleSnapshot();
+  if (!schedule) {
+    throw new Error("Couldn't read the active paper.nu schedule. Reload Paper.nu and try again.");
+  }
+  const { termId, sectionIds } = schedule;
+  const info = await getDataMapInfo(termId);
+  const termName = info.terms[termId]?.name;
+  if (!termName) {
+    throw new Error("Paper.nu hasn't published course data for this schedule's term.");
+  }
+  if (activeTerm !== termName) {
+    throw new Error("The saved schedule doesn't match this tab's term. Reload Paper.nu and try again.");
+  }
+  const courses = await getTermCourses(termId);
+  if (readActiveTermNameFromDom(document) !== activeTerm) {
+    throw new Error("Paper.nu is switching terms. Wait for the schedule to load and try again.");
+  }
 
-// Picks the section a chip represents from a pre-filtered list of courses
-// (subject + catalog already narrowed via findTermCoursesByCatalog). We
-// disambiguate within those courses using the same last-name instructor
-// label the rest of the augmentation uses (so "Smith, Jones" matches
-// "Jones, Smith" too) and topic if the chip carries one. Falls back to LEC
-// over discussion/lab when multiple sections still tie.
-function pickSection(
-  matchingCourses: PaperTermCourse[],
-  params: CtecLinkParams,
-  titleHint: string
-): PaperSection | null {
-  if (matchingCourses.length === 0) return null;
-
+  const scheduled = new Set(sectionIds);
+  const wantCatalog = formatCatalogForDisplay(params.catalogNumber);
   const wantInstructor = sortedLower(params.instructor);
-  const wantTopic = extractTopic(titleHint);
-
-  const candidates: PaperSection[] = [];
-  for (const course of matchingCourses) {
+  const matches = new Map<string, PaperSection>();
+  for (const course of courses) {
     for (const section of course.sections) {
-      const label = buildInstructorLastNameLabel(
-        (section.instructors ?? [])
-          .map((i) => i.name?.trim() ?? "")
-          .filter(Boolean)
-      );
-      if (sortedLower(label) !== wantInstructor) continue;
-      if (wantTopic && section.topic && section.topic.trim() !== wantTopic) continue;
-      candidates.push(section);
+      if (!scheduled.has(section.section_id) || section.subject !== params.subject) continue;
+      if (formatCatalogForDisplay(section.number ?? section.catalog) !== wantCatalog) continue;
+      const names = (section.instructors ?? []).map((i) => i.name ?? "").filter(Boolean);
+      const withInitials = buildInstructorLastNameLabel(names);
+      // Canvas cards show last names only. That is safe for cart matching
+      // only when a single section on the saved schedule fits the card.
+      const lastNames = extractLastNameTokens(withInitials).join(",");
+      if (wantInstructor !== sortedLower(withInitials) && wantInstructor !== sortedLower(lastNames)) continue;
+      const title = section.topic ? `${section.topic} - ${section.title}` : section.title;
+      if (title.trim() !== titleHint.trim()) continue;
+      matches.set(section.section_id, section);
     }
   }
 
-  if (candidates.length === 0) return null;
-  if (candidates.length === 1) return candidates[0]!;
-
-  const lec = candidates.find((s) => s.component === "LEC");
-  return lec ?? candidates[0]!;
+  const [section] = matches.values();
+  if (matches.size !== 1 || !section) {
+    throw new Error(`Couldn't identify one section of ${params.subject} ${params.catalogNumber} on your ${termName} schedule. Use CAESAR Class Search to add it.`);
+  }
+  return { termId, termName, section };
 }
 
 function sortedLower(value: string): string {
-  return value
-    .toLowerCase()
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .sort()
-    .join(",");
+  return value.toLowerCase().split(",").map((s) => s.trim()).filter(Boolean).sort().join(",");
 }
-
-// titleHint is "{topic} - {subtitle}" when a topic exists, otherwise the
-// subtitle alone. Pull the topic back out so we can disambiguate sections.
-function extractTopic(titleHint: string): string | null {
-  if (!titleHint) return null;
-  const idx = titleHint.indexOf(" - ");
-  if (idx <= 0) return null;
-  return titleHint.slice(0, idx).trim();
-}
-

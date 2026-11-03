@@ -28,7 +28,7 @@ export async function getActivePaperTermId(
   return { termId: info.latest, source: "fallback" };
 }
 
-function readActiveTermNameFromDom(doc: Document): string | null {
+export function readActiveTermNameFromDom(doc: Document): string | null {
   // paper.nu's Tooltip component renders a `div.absolute.hidden` with the
   // tooltip text. Match by exact textContent so we don't confuse it with
   // the schedule's other tooltips ("Filter", "Search options", etc.).

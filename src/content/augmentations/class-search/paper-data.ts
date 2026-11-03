@@ -8,6 +8,7 @@ const TERM_URL = (termId: string) => `https://cdn.dil.sh/paper-data/${termId}.js
 
 const STORAGE_PREFIX = "better-caesar:paper:";
 const META_KEY = `${STORAGE_PREFIX}meta:v1`;
+const META_TTL_MS = 60 * 60 * 1000;
 const SUBJECTS_KEY = `${STORAGE_PREFIX}subjects:v1`;
 // v3: force another one-shot rebuild — paper.nu sometimes serves a
 // plan.json that carries stale `p` strings for courses whose prereqs
@@ -178,7 +179,9 @@ type CachedTerm = {
   byCourseKey: Record<string, PaperTermCourse>;
 };
 
-let infoPromise: Promise<DataMapInfo> | null = null;
+type CachedInfo = { data: DataMapInfo; cachedAt: number };
+let infoCache: (CachedInfo & { fetchedHere?: boolean }) | null = null;
+let infoPromise: Promise<void> | null = null;
 let subjectsPromise: Promise<Record<string, SubjectInfo>> | null = null;
 let planPromise: Promise<PaperCourse[]> | null = null;
 const termIndexPromises = new Map<string, Promise<Record<string, PaperTermCourse>>>();
@@ -187,24 +190,35 @@ function courseKey(subject: string, catalog: string): string {
   return `${subject}|${catalog}`;
 }
 
-export async function getDataMapInfo(): Promise<DataMapInfo> {
-  if (infoPromise) return infoPromise;
-  infoPromise = (async () => {
-    const cached = await readCache<{ data: DataMapInfo; cachedAt: number }>(META_KEY);
-    // Meta cache lives 30 days. The actual data caches (plan, term)
-    // already key on `info.plan` / `info.terms[id].updated`, so they
-    // self-bust the moment a revision changes — no need for the meta
-    // cache to be short-lived. Manual cache invalidation lives in the
-    // popup; the version-suffixed storage keys are the kill switch.
-    if (cached && Date.now() - cached.cachedAt < 30 * 24 * 60 * 60 * 1000) {
-      return cached.data;
-    }
-    const text = await fetchTextViaBackground(DATA_URL);
-    const data = JSON.parse(text) as DataMapInfo;
-    await writeCache(META_KEY, { data, cachedAt: Date.now() });
-    return data;
-  })();
-  return infoPromise;
+export async function getDataMapInfo(expectedTermId?: string): Promise<DataMapInfo> {
+  // A term we can see in CAESAR or Paper.nu is stronger evidence than
+  // disk metadata. Check upstream if that term is missing, even within
+  // the TTL. If we already fetched this hour, don't keep retrying a term
+  // Paper.nu hasn't published yet.
+  while (
+    !infoCache ||
+    Date.now() - infoCache.cachedAt >= META_TTL_MS ||
+    (expectedTermId && !infoCache.data.terms[expectedTermId] && !infoCache.fetchedHere)
+  ) {
+    infoPromise ??= (async () => {
+      const cached = infoCache ? null : await readCache<CachedInfo>(META_KEY);
+      if (
+        cached &&
+        Date.now() - cached.cachedAt < META_TTL_MS &&
+        (!expectedTermId || cached.data.terms[expectedTermId])
+      ) {
+        infoCache = cached;
+        return;
+      }
+      const text = await fetchTextViaBackground(DATA_URL);
+      const data = JSON.parse(text) as DataMapInfo;
+      const entry = { data, cachedAt: Date.now() };
+      infoCache = { ...entry, fetchedHere: true };
+      await writeCache(META_KEY, entry);
+    })().finally(() => { infoPromise = null; });
+    await infoPromise;
+  }
+  return infoCache.data;
 }
 
 export async function getSubjects(): Promise<Record<string, SubjectInfo>> {
@@ -400,7 +414,8 @@ export async function findTermCoursesByCatalog(
 // section_id in paper.nu's data_schedule is missing from our cache.
 export async function refreshTermCourses(termId: string): Promise<PaperTermCourse[]> {
   termIndexPromises.delete(termId);
-  infoPromise = null;
+  await infoPromise;
+  infoCache = null;
   await chrome.storage.local.remove([META_KEY, TERM_KEY(termId)]);
   return getTermCourses(termId);
 }

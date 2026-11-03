@@ -312,7 +312,7 @@ export function createChipCartCoordinator(
           kind: "already",
           classNumber: result.classNumber
         });
-        recordCartAdd(chip, result.classNumber, undefined, undefined);
+        recordCartAdd(chip, result.classNumber, result.sectionLabel, result.termId);
         const warning = deps.psCreditPool.format();
         const suffix = warning ? ` ${warning}.` : "";
         deps.showToast(
