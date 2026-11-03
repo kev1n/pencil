@@ -11,6 +11,18 @@
   },
   "entries": [
     {
+      "version": "0.9.8",
+      "date": "2026-11-03",
+      "headline": "Faster trips through CAESAR",
+      "items": [
+        { "kind": "feat", "text": "Jump to Class Search, your cart, enrollment dates, or course history from CAESAR’s header." },
+        { "kind": "feat", "text": "Sharper Search remembers your filters, results, and scroll position when you return in the same tab." },
+        { "kind": "feat", "text": "Copy your Paper.nu schedule as Markdown, including meeting times and any CTEC ratings you’ve loaded." },
+        { "kind": "fix", "text": "Sharper Search opens from the Shopping Cart’s Search button." },
+        { "kind": "fix", "text": "Adding a class from Paper.nu uses the right CAESAR quarter, even while you’re searching." }
+      ]
+    },
+    {
       "version": "0.9.7",
       "date": "2026-09-22",
       "headline": "More accurate CTECs on Paper.nu",
