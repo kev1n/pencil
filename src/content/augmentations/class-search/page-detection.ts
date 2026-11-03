@@ -8,11 +8,22 @@
 // Extracted from augmentation.ts (Wave 5a). No behavior change.
 
 import { logQuiet } from "../../../shared/log";
+import { readTermId } from "../../cart-cache/parse-cart-page";
+import { SEARCH_ACTION_ID } from "../../peoplesoft/shared";
 import type { TabId } from "./types";
 
 const SEARCH_PAGE_ID = "SSR_CLSRCH_ENTRY";
 const SEARCH_COMPONENT = "CLASS_SEARCH";
 const TAB_STORAGE_KEY = "better-caesar:class-search:active-tab";
+export const CART_SEARCH_RETURN_ID = "CLASS_SRCH_WRK2_SSR_PB_CLOSE";
+
+function isCartSearchEntryPage(doc: Document): boolean {
+  const form = doc.querySelector('form[name="win0"]#SSR_SSENRL_CART');
+  return Boolean(
+    form?.querySelector(`#${SEARCH_ACTION_ID}`) &&
+    form.querySelector(`#${CART_SEARCH_RETURN_ID}`)
+  );
+}
 
 /**
  * Recognize the search entry page in both PeopleSoft layouts. In the
@@ -20,6 +31,7 @@ const TAB_STORAGE_KEY = "better-caesar:class-search:active-tab";
  * but only the entry page has the term selector and Search action.
  */
 export function isSearchEntryPage(doc: Document): boolean {
+  if (isCartSearchEntryPage(doc)) return true;
   const pageInfo = doc.getElementById("pt_pageinfo_win0");
   if (pageInfo?.hasAttribute("Component") && pageInfo.hasAttribute("Page")) {
     return (
@@ -30,8 +42,13 @@ export function isSearchEntryPage(doc: Document): boolean {
   const form = doc.querySelector('form[name="win0"]#CLASS_SEARCH');
   return Boolean(
     form?.querySelector('select[name^="CLASS_SRCH_WRK2_STRM"]') &&
-    form.querySelector("#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH")
+    form.querySelector(`#${SEARCH_ACTION_ID}`)
   );
+}
+
+export function findNativeSearchContainer(doc: Document): HTMLElement | null {
+  return doc.getElementById("win0divPAGECONTAINER") ??
+    (isCartSearchEntryPage(doc) ? doc.getElementById("win0divPSPAGECONTAINER") : null);
 }
 
 /**
@@ -81,7 +98,7 @@ export function readInstitutionFromNativeForm(doc: Document): string | null {
 /** Reads the native term select (`STRM`, e.g. `4750`). */
 export function readTermFromNativeForm(doc: Document): string | null {
   const select = findSelectByPrefix(doc, "CLASS_SRCH_WRK2_STRM");
-  return select?.value || null;
+  return select?.value || (isCartSearchEntryPage(doc) ? readTermId(doc) : null);
 }
 
 /**

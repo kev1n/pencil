@@ -16,6 +16,7 @@
 // `ROOT_ID` is exported so the augmentation can id-check `getElementById`
 // when reconciling mount state after PS DOM swaps.
 
+import { findNativeSearchContainer } from "../page-detection";
 import type { SearchFilters } from "../types";
 
 export const ROOT_ID = "better-caesar-class-search-root";
@@ -28,7 +29,7 @@ export function ensureRoot(doc: Document): HTMLDivElement {
   // .bc-cs-root carries every CSS custom property; nothing renders without it.
   root.className = "bc-cs-root";
   const anchor =
-    doc.getElementById("win0divPAGECONTAINER") ??
+    findNativeSearchContainer(doc) ??
     doc.querySelector(".PSPAGECONTAINER")?.closest("td") ??
     doc.body;
   const parent = anchor.parentElement ?? doc.body;

@@ -29,6 +29,7 @@ export type ShellViewProps = {
   /** Pre-built results element, owned by the augmentation. Inserted as
    *  the bottom child of the shell. */
   resultsEl: HTMLElement;
+  nativeReturnToCart?: HTMLElement | null;
   onQueryInput(value: string): void;
   onTermChange(termId: string): void;
 };
@@ -46,6 +47,22 @@ export function renderSearchShell(doc: Document, props: ShellViewProps): HTMLEle
   subtitle.className = "bc-cs-subtitle";
   subtitle.innerHTML = `Catalog from <a href="https://paper.nu" target="_blank" rel="noopener">paper.nu</a> · live status fetched from CAESAR on demand`;
   header.append(title, subtitle);
+  const nativeReturn = props.nativeReturnToCart;
+  if (nativeReturn) {
+    const href = nativeReturn.getAttribute("href");
+    // A real click on the native PeopleSoft URL runs in CAESAR's page.
+    // A synthetic click on its hidden JavaScript link can be ignored.
+    const returnToCart = doc.createElement(href ? "a" : "button");
+    if (returnToCart instanceof HTMLAnchorElement && href) {
+      returnToCart.setAttribute("href", href);
+    } else if (returnToCart instanceof HTMLButtonElement) {
+      returnToCart.type = "button";
+      returnToCart.addEventListener("click", () => nativeReturn.click());
+    }
+    returnToCart.className = "bc-btn bc-btn--ghost bc-btn--sm";
+    returnToCart.textContent = "← Return to cart";
+    header.appendChild(returnToCart);
+  }
 
   const card = doc.createElement("div");
   card.className = "bc-cs-card";

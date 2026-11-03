@@ -12,15 +12,10 @@
 // in `augmentation.ts → buildTabs()`). Buttons call `setActive()` and then
 // `applyVisibility()` to flip the UI; the controller manages the rest.
 
-import { readActiveTab, writeActiveTab } from "../page-detection";
+import { findNativeSearchContainer, readActiveTab, writeActiveTab } from "../page-detection";
 import type { TabId } from "../types";
 
 const HIDE_NATIVE_STYLE_ID = "better-caesar-class-search-hide-native";
-
-const HIDE_NATIVE_CSS = `
-    #win0divPAGECONTAINER { display: none !important; }
-    #win0divPAGEBAR, #win0divPSPANELTABS { display: none !important; }
-  `;
 
 export interface TabController {
   /** Returns the current tab id (memory mirror of session storage). */
@@ -63,7 +58,8 @@ export function createTabController(deps: TabControllerDeps): TabController {
     if (doc.getElementById(HIDE_NATIVE_STYLE_ID)) return;
     const style = doc.createElement("style");
     style.id = HIDE_NATIVE_STYLE_ID;
-    style.textContent = HIDE_NATIVE_CSS;
+    const containerId = findNativeSearchContainer(doc)?.id ?? "win0divPAGECONTAINER";
+    style.textContent = `#${containerId}, #win0divPAGEBAR, #win0divPSPANELTABS { display: none !important; }`;
     (doc.head ?? doc.documentElement).appendChild(style);
   }
 

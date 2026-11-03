@@ -1,6 +1,5 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { ClassSearchAugmentation } from "./augmentation";
 import { ROOT_ID } from "./views/shell";
 
 const fall = { name: "2026 Fall", updated: "fall" };
@@ -20,6 +19,19 @@ const searchPage = `
       <input type="button" id="CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH" value="Search">
     </div>
   </form>`;
+const cartSearchPage = `
+  <script>const PIA_KEYSTRUCT = { STRM: "5060" };</script>
+  <form name="win0" id="SSR_SSENRL_CART">
+    <div id="win0divPSPAGECONTAINER">
+      <input type="button" id="CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH" value="Search">
+      <a href="#cart" id="CLASS_SRCH_WRK2_SSR_PB_CLOSE">Return to Add Classes</a>
+    </div>
+  </form>`;
+
+beforeEach(() => {
+  // Each entry point starts with its own catalog metadata cache.
+  vi.resetModules();
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -27,7 +39,10 @@ afterEach(() => {
   window.sessionStorage.clear();
 });
 
-it("mounts on the current CAESAR form, finds a newly published term, and leaves Classic results visible", async () => {
+it.each([
+  { entry: "the Class Search page", markup: searchPage, containerId: "win0divPAGECONTAINER", nativeTerm: "5050", term: winter },
+  { entry: "the Shopping Cart search", markup: cartSearchPage, containerId: "win0divPSPAGECONTAINER", nativeTerm: "5060", term: { name: "2027 Spring", updated: "spring" } }
+])("mounts on $entry, finds a newly published term, and leaves Classic results visible", async ({ markup, containerId, nativeTerm, term }) => {
   await chrome.storage.local.set({
     "better-caesar:paper:meta:v1": {
       data: { latest: "5040", terms: { "5040": fall }, plan: "old", subjects: "old" },
@@ -44,12 +59,12 @@ it("mounts on the current CAESAR form, finds a newly published term, and leaves 
       requestedUrls.push(url);
       let data: unknown;
       if (url.endsWith("/paper/data")) {
-        data = { latest: "5050", terms: { "5040": fall, "5050": winter }, plan: "new", subjects: "new" };
+        data = { latest: "5040", terms: { "5040": fall, [nativeTerm]: term }, plan: "new", subjects: "new" };
       } else if (url.endsWith("/subjects")) {
         data = { subjects: { COMP_SCI: { d: "Computer Science" } } };
       } else if (url.endsWith("/plan.json")) {
         data = { courses: [] };
-      } else if (url.endsWith("/5050.json")) {
+      } else if (url.endsWith(`/${nativeTerm}.json`)) {
         data = [course];
       } else if (url.endsWith("/5040.json")) {
         await fallPending;
@@ -62,7 +77,9 @@ it("mounts on the current CAESAR form, finds a newly published term, and leaves 
   );
 
   // Current PeopleSoft markup, with no pt_pageinfo_win0 element.
-  document.body.innerHTML = searchPage;
+  document.body.innerHTML = markup;
+  const nativeReturn = document.getElementById("CLASS_SRCH_WRK2_SSR_PB_CLOSE");
+  const { ClassSearchAugmentation } = await import("./augmentation");
   const augmentation = new ClassSearchAugmentation();
   try {
     augmentation.run(document);
@@ -71,22 +88,27 @@ it("mounts on the current CAESAR form, finds a newly published term, and leaves 
       expect(input).not.toBeNull();
       return input!;
     });
-    const term = document.querySelector<HTMLSelectElement>("#bc-cs-term")!;
-    expect(term.value).toBe("5050");
+    const termSelect = document.querySelector<HTMLSelectElement>("#bc-cs-term")!;
+    expect(termSelect.value).toBe(nativeTerm);
     expect(requestedUrls.filter((url) => url.endsWith("/paper/data"))).toHaveLength(1);
+    if (nativeReturn) {
+      const sharperReturn = document.querySelector(`#${ROOT_ID} a[href='#cart']`);
+      expect(sharperReturn?.textContent).toContain("Return to cart");
+      expect(getComputedStyle(document.getElementById(containerId)!).display).toBe("none");
+    }
 
     query.value = "comp_sci 211";
     query.dispatchEvent(new Event("input"));
     await vi.waitFor(() => expect(document.querySelector(".bc-cs-add")).not.toBeNull());
 
-    term.value = "5040";
-    term.dispatchEvent(new Event("change"));
+    termSelect.value = "5040";
+    termSelect.dispatchEvent(new Event("change"));
     expect(document.querySelector(".bc-cs-add")).toBeNull();
     releaseFall();
     await vi.waitFor(() => expect(document.getElementById(ROOT_ID)?.textContent).toContain("No matches"));
 
     document.querySelector<HTMLButtonElement>('[data-tab="classic"]')!.click();
-    const native = document.getElementById("win0divPAGECONTAINER")!;
+    const native = document.getElementById(containerId)!;
     expect(getComputedStyle(native).display).not.toBe("none");
     native.innerHTML = '<input type="button" id="CLASS_SRCH_WRK2_SSR_PB_MODIFY" value="Modify Search">';
     augmentation.run(document);
@@ -118,6 +140,7 @@ it("restores the same-tab search after leaving and rebuilding the native form", 
     }
   );
   document.body.innerHTML = searchPage;
+  const { ClassSearchAugmentation } = await import("./augmentation");
   const augmentation = new ClassSearchAugmentation();
   const scroller = document.scrollingElement ?? document.documentElement;
   try {

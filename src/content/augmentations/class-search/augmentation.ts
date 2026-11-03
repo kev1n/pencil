@@ -54,7 +54,7 @@ import {
   type PaperSection,
   type SubjectInfo
 } from "./paper-data";
-import { isSearchEntryPage, readTermFromNativeForm } from "./page-detection";
+import { CART_SEARCH_RETURN_ID, isSearchEntryPage, readTermFromNativeForm } from "./page-detection";
 import { STYLE_ID as CLASS_SEARCH_STYLE_ID, ensureStyles } from "./styles";
 import { type MountedState, type ResultRow, type TabId } from "./types";
 import {
@@ -298,6 +298,7 @@ export class ClassSearchAugmentation implements Augmentation {
           statusEl: state.statusEl,
           filtersEl: state.filtersEl,
           resultsEl: state.resultsEl,
+          nativeReturnToCart: doc.getElementById(CART_SEARCH_RETURN_ID),
           onQueryInput: (value) => {
             state.filters.query = value;
             state.searchSession.save();
