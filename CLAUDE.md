@@ -30,6 +30,14 @@ npm run test:watch     # vitest watch mode
 
 **Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and both target builds on every push to main and every PR — keep all five green.
 
+## Required pre-push checks for feature changes
+
+Before pushing a user-facing feature or fix, complete both automated checks and live browser QA on the build you intend to ship.
+
+1. **Run regression checks.** Build the extension, run typecheck and lint, and run the tests that cover the changed behavior and nearby flows.
+2. **Test with the patched extension active.** Have a Terra subagent use Computer Use to smoke-test the actual user flow in Chrome on the affected site. Reload the unpacked build and confirm the patch is active before testing. For flows that write data, use an authorized, reversible sample and verify the result in the destination UI. Remove any test data and confirm the original state is restored.
+3. **Hold the push if verification is incomplete.** Fixtures and passing CI do not replace live QA. Fix failures and rerun the affected checks on the revised build. If a login, extension reload, or test setup blocks live QA, report the blocker and wait for help or an explicit waiver before pushing.
+
 ## Top-level layout
 
 - `src/background.ts` — service worker. Used for things content scripts can't do directly (e.g. cross-origin fetches).
