@@ -15,17 +15,22 @@ const SEARCH_COMPONENT = "CLASS_SEARCH";
 const TAB_STORAGE_KEY = "better-caesar:class-search:active-tab";
 
 /**
- * Reads CAESAR's `#pt_pageinfo_win0` element to detect whether the current
- * document is the class-search entry page. PS sets `Component` and `Page`
- * attributes on this hidden element on every navigation; we use them as
- * the source of truth instead of brittle DOM heuristics.
+ * Recognize the search entry page in both PeopleSoft layouts. In the
+ * current layout, the search and results pages share the same form ID,
+ * but only the entry page has the term selector and Search action.
  */
 export function isSearchEntryPage(doc: Document): boolean {
   const pageInfo = doc.getElementById("pt_pageinfo_win0");
-  if (!pageInfo) return false;
-  return (
-    pageInfo.getAttribute("Component") === SEARCH_COMPONENT &&
-    pageInfo.getAttribute("Page") === SEARCH_PAGE_ID
+  if (pageInfo?.hasAttribute("Component") && pageInfo.hasAttribute("Page")) {
+    return (
+      pageInfo.getAttribute("Component") === SEARCH_COMPONENT &&
+      pageInfo.getAttribute("Page") === SEARCH_PAGE_ID
+    );
+  }
+  const form = doc.querySelector('form[name="win0"]#CLASS_SEARCH');
+  return Boolean(
+    form?.querySelector('select[name^="CLASS_SRCH_WRK2_STRM"]') &&
+    form.querySelector("#CLASS_SRCH_WRK2_SSR_PB_CLASS_SRCH")
   );
 }
 

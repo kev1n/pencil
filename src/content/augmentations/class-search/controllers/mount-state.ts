@@ -23,8 +23,7 @@ import type {
 import { getTermCourses } from "../paper-data";
 import {
   readCareerFromNativeForm,
-  readInstitutionFromNativeForm,
-  readTermFromNativeForm
+  readInstitutionFromNativeForm
 } from "../page-detection";
 import { type FoundationalDisciplineCode, type MountedState, type ResultRow } from "../types";
 import { renderFoundationalDisciplineChips } from "../views/foundational-discipline-chips";
@@ -48,6 +47,7 @@ export type MountStateDeps = {
   doc: Document;
   placeholder: HTMLDivElement;
   info: DataMapInfo;
+  initialTerm: string;
   subjects: Record<string, SubjectInfo>;
   planCourses: PaperCourse[];
   /** SSO popup re-auth recovery, shared across mount cycles. */
@@ -77,10 +77,8 @@ export function createMountState(deps: MountStateDeps): MountedState {
 
   const career = readCareerFromNativeForm(doc) ?? "UGRD";
   const institution = readInstitutionFromNativeForm(doc) ?? INSTITUTION_DEFAULT;
-  const initialTerm = readTermFromNativeForm(doc) ?? info.latest;
-
   const filters = {
-    termId: initialTerm,
+    termId: deps.initialTerm,
     query: "",
     disciplines: new Set<FoundationalDisciplineCode>()
   };

@@ -62,7 +62,7 @@ export function renderFatalError(root: HTMLElement, doc: Document, message: stri
     <div style="display:flex;flex-direction:column;gap:8px;font-size:var(--bc-font-13);color:var(--bc-color-danger);">
       <strong>Couldn't load paper.nu catalog data.</strong>
       <span style="color:var(--bc-color-text-muted);">${escapeHtml(message)}</span>
-      <span style="color:var(--bc-color-text-muted);font-size:var(--bc-font-12);">Reload the page to try again, or switch to Classic CAESAR using the tab above.</span>
+      <span style="color:var(--bc-color-text-muted);font-size:var(--bc-font-12);">Use the Classic CAESAR form below, or reload to try Sharper Search again.</span>
     </div>
   `;
   wrap.appendChild(card);

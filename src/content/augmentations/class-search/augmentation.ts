@@ -54,7 +54,7 @@ import {
   type PaperSection,
   type SubjectInfo
 } from "./paper-data";
-import { isSearchEntryPage } from "./page-detection";
+import { isSearchEntryPage, readTermFromNativeForm } from "./page-detection";
 import { STYLE_ID as CLASS_SEARCH_STYLE_ID, ensureStyles } from "./styles";
 import { type MountedState, type ResultRow, type TabId } from "./types";
 import {
@@ -215,7 +215,8 @@ export class ClassSearchAugmentation implements Augmentation {
       return;
     }
 
-    if (this.mountInProgress) return;
+    if (this.mountInProgress || doc.getElementById(ROOT_ID)?.dataset.loadFailed) return;
+    if (this.mounted) this.unmount(doc);
     void this.mount(doc);
   }
 
@@ -236,14 +237,19 @@ export class ClassSearchAugmentation implements Augmentation {
       let info: DataMapInfo;
       let subjects: Record<string, SubjectInfo>;
       let planCourses: PaperCourse[];
+      const nativeTerm = readTermFromNativeForm(doc);
       try {
         [info, subjects, planCourses] = await Promise.all([
-          getDataMapInfo(),
+          getDataMapInfo(nativeTerm ?? undefined),
           getSubjects(),
           getPlanCourses()
         ]);
+        if (nativeTerm && !info.terms[nativeTerm]) {
+          throw new Error("Paper.nu hasn't published course data for the selected CAESAR term.");
+        }
       } catch (error) {
-        if (doc.getElementById(ROOT_ID)) {
+        if (placeholder.isConnected && isSearchEntryPage(doc)) {
+          placeholder.dataset.loadFailed = "true";
           renderFatalError(
             placeholder,
             doc,
@@ -253,7 +259,7 @@ export class ClassSearchAugmentation implements Augmentation {
         return;
       }
 
-      if (!doc.getElementById(ROOT_ID) || !isSearchEntryPage(doc)) {
+      if (!placeholder.isConnected || !isSearchEntryPage(doc)) {
         return;
       }
 
@@ -261,6 +267,7 @@ export class ClassSearchAugmentation implements Augmentation {
         doc,
         placeholder,
         info,
+        initialTerm: nativeTerm ?? info.latest,
         subjects,
         planCourses,
         authRecovery: this.authRecovery,
@@ -275,7 +282,7 @@ export class ClassSearchAugmentation implements Augmentation {
       // re-render the empty-state "Your classes" cards if showing.
       state.cartUnsubscribe = subscribeCartCache(() => {
         state.cartCachePainter.repaintAll();
-        if (!hasAnyFilter(state.filters)) {
+        if (!hasAnyFilter(state.filters) && state.searchOrchestrator.getTerm(state.filters.termId)) {
           state.resultsRenderer.renderMyClasses();
         }
       });
@@ -295,6 +302,10 @@ export class ClassSearchAugmentation implements Augmentation {
             state.searchOrchestrator.scheduleSearch();
           },
           onTermChange: (termId) => {
+            // Do not leave the old term's Add and Details buttons active
+            // while the selected term's catalog loads.
+            state.resultsEl.replaceChildren();
+            state.cartButtons.clear();
             state.filters.termId = termId;
             void state.searchOrchestrator.loadTermData(termId);
           }
