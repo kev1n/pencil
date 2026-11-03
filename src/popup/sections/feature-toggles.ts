@@ -67,6 +67,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Improves navigation across enrollment terms and related registration screens."
       },
       {
+        id: "caesar-go-to",
+        label: "Go to menu",
+        description: "Jump to CAESAR pages from the top ribbon or with Command/Ctrl+K."
+      },
+      {
         id: "class-search",
         label: "Class Search",
         description: "Replaces CAESAR's class search with a paper.nu-powered UI that adds sections to your cart in place."
