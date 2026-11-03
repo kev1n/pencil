@@ -1,5 +1,6 @@
 import { CartPageHydrator } from "../cart-cache";
 import type { Augmentation } from "../framework";
+import { caesarGoToAugmentation } from "./caesar-go-to";
 import { classSearchAugmentation } from "./class-search";
 import { ctecLinksAugmentation } from "./ctec-links";
 import { enrollmentNavigationAugmentation } from "./enrollment-navigation";
@@ -17,6 +18,7 @@ import { seatsNotesAugmentation } from "./seats-notes";
 const cartPageHydrator = new CartPageHydrator();
 
 export const augmentationRegistry: Augmentation[] = [
+  caesarGoToAugmentation,
   enrollmentNavigationAugmentation,
   classSearchAugmentation,
   ctecLinksAugmentation,

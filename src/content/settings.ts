@@ -39,6 +39,7 @@ export const FEATURE_GROUPS: Record<string, "caesar" | "paper"> = {
   "seats-notes": "caesar",
   "ctec-links": "caesar",
   "enrollment-navigation": "caesar",
+  "caesar-go-to": "caesar",
   "class-search": "caesar",
   "paper-brand": "paper",
   "paper-ctec": "paper",
