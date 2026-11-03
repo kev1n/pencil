@@ -1,93 +1,88 @@
 import { CAESAR_HOSTNAME } from "../../../shared/nu-hosts";
 import { el, ensureStyle, type Augmentation } from "../../framework";
-import { readDestinations } from "./destinations";
-import { createPalette, TRIGGER_ID } from "./palette";
+import { readBookmarks, type Bookmark } from "./destinations";
 import { STYLE_ID, styles } from "./styles";
 
-const RIBBON_ID = "bc-caesar-go-to-ribbon";
-const HEADER = "#PT_HEADER, #pthdr2container";
-const PAGE_CONTENT = "#pt_pageinfo_win0, #ptifrmtgtframe, #win0divPSPAGECONTAINER";
+const BOOKMARKS_ID = "bc-caesar-bookmarks";
+const BANNER_SLOT = '[id$="hdrdivPT_CUSTOM_RIGHT"]';
+const TRANSACTION_TITLE = '[id$="divDERIVED_REGFRM1_SS_TRANSACT_TITLE"]';
 const APP_PATH = /^\/ps[cp]\/csnu(?:_\d+)?\/EMPLOYEE\/SA(?:\/|$)/i;
 
-function isShortcut(event: KeyboardEvent): boolean {
-  return !event.defaultPrevented && !event.isComposing && !event.altKey && !event.shiftKey &&
-    (event.metaKey !== event.ctrlKey) && event.key.toLowerCase() === "k";
+function createBookmark(doc: Document, bookmark: Bookmark): HTMLElement {
+  const label = bookmark.shortLabel ?? bookmark.label;
+  const attrs = { title: bookmark.label, "aria-label": bookmark.label };
+  if (!bookmark.href) {
+    return el(doc, "button", {
+      text: label,
+      attrs: { ...attrs, type: "button" },
+      on: { click: bookmark.navigate }
+    });
+  }
+
+  return el(doc, "a", {
+    text: label,
+    attrs: { ...attrs, href: bookmark.href },
+    on: {
+      click: (event) => {
+        if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        bookmark.navigate();
+      }
+    }
+  });
 }
 
-export class CaesarGoToAugmentation implements Augmentation {
+export class CaesarBookmarksAugmentation implements Augmentation {
+  // Keep the existing ID so the user's navigation preference carries over.
   readonly id = "caesar-go-to";
-  private listeners: AbortController | undefined;
-  private palette: ReturnType<typeof createPalette> | undefined;
-  private ribbon: HTMLDivElement | undefined;
+  private host?: Element;
+  private bar?: HTMLElement;
+  private bookmarkIds = "";
 
   run(doc: Document = document): void {
     const view = doc.defaultView;
-    if (!view || doc.location.hostname !== CAESAR_HOSTNAME || !APP_PATH.test(doc.location.pathname)) {
-      if (this.listeners) this.cleanup(doc);
+    if (!view || view !== view.top || doc.location.hostname !== CAESAR_HOSTNAME ||
+        !APP_PATH.test(doc.location.pathname)) {
       return;
     }
 
-    if (view !== view.top) {
-      // Keyboard events stay in the focused PeopleSoft frame. Use the top
-      // document's launcher when both documents are on the CAESAR origin.
-      if (!this.listeners) {
-        this.listeners = new AbortController();
-        view.addEventListener("keydown", (event) => {
-          if (!isShortcut(event)) return;
-          const parentDoc = view.frameElement?.ownerDocument;
-          if (parentDoc?.defaultView !== view.top) return;
-          const trigger = parentDoc.getElementById(TRIGGER_ID);
-          if (!trigger) return;
-          event.preventDefault();
-          event.stopImmediatePropagation();
-          if (!event.repeat) trigger.click();
-        }, { capture: true, signal: this.listeners.signal });
-      }
+    const banner = doc.querySelector(BANNER_SLOT);
+    const title = doc.querySelector(TRANSACTION_TITLE);
+    const host = banner ?? doc.querySelector(".bc-cs-tabs") ?? title;
+    if (!host) {
+      if (this.bar) this.cleanup(doc);
       return;
     }
 
-    const header = doc.querySelector(HEADER);
-    if (!doc.body || (!header && !doc.querySelector(PAGE_CONTENT))) {
-      if (this.ribbon) this.cleanup(doc);
+    const bookmarks = readBookmarks(doc);
+    const bookmarkIds = bookmarks.map(({ id }) => id).join(" ");
+    if (this.host === host && this.bar?.parentElement === host && this.bookmarkIds === bookmarkIds) {
       return;
     }
 
-    if (this.ribbon?.isConnected && this.palette?.dialog.isConnected) {
-      if (header && header.nextElementSibling !== this.ribbon) header.after(this.ribbon);
-      return;
-    }
     this.cleanup(doc);
     ensureStyle(doc, STYLE_ID, styles);
-    const palette = createPalette(doc, () => readDestinations(doc));
-    const ribbon = el(doc, "div", { attrs: { id: RIBBON_ID } }, [palette.trigger]);
-    if (header?.parentElement) header.after(ribbon);
-    else doc.body.prepend(ribbon);
-    doc.body.append(palette.dialog);
-    this.palette = palette;
-    this.ribbon = ribbon;
-
-    this.listeners = new AbortController();
-    view.addEventListener("pageshow", (event) => {
-      if (event.persisted && palette.dialog.open) palette.dialog.close();
-    }, { signal: this.listeners.signal });
-    view.addEventListener("keydown", (event) => {
-      if (!isShortcut(event)) return;
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      if (!event.repeat) palette.toggle();
-    }, { capture: true, signal: this.listeners.signal });
+    if (host === banner) host.setAttribute("data-bc-bookmark-slot", "");
+    if (host === title) host.setAttribute("data-bc-bookmark-title", "");
+    const bar = el(doc, "nav", {
+      attrs: { id: BOOKMARKS_ID, "aria-label": "CAESAR bookmarks" },
+      dataset: { banner: String(host === banner) }
+    }, bookmarks.map((bookmark) => createBookmark(doc, bookmark)));
+    host.append(bar);
+    this.host = host;
+    this.bar = bar;
+    this.bookmarkIds = bookmarkIds;
   }
 
   cleanup(doc: Document = document): void {
-    this.listeners?.abort();
-    this.listeners = undefined;
-    if (this.palette?.dialog.open) this.palette.dialog.close();
-    this.palette?.dialog.remove();
-    this.palette = undefined;
-    this.ribbon?.remove();
-    this.ribbon = undefined;
+    this.bar?.remove();
+    this.host?.removeAttribute("data-bc-bookmark-title");
+    this.host?.removeAttribute("data-bc-bookmark-slot");
+    this.host = undefined;
+    this.bar = undefined;
+    this.bookmarkIds = "";
     doc.getElementById(STYLE_ID)?.remove();
   }
 }
 
-export const caesarGoToAugmentation = new CaesarGoToAugmentation();
+export const caesarBookmarksAugmentation = new CaesarBookmarksAugmentation();

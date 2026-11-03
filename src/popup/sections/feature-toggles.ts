@@ -68,8 +68,8 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       },
       {
         id: "caesar-go-to",
-        label: "Go to menu",
-        description: "Jump to CAESAR pages from the top ribbon or with Command/Ctrl+K."
+        label: "CAESAR Bookmarks",
+        description: "Shows shortcuts to common pages in the CAESAR header."
       },
       {
         id: "class-search",
