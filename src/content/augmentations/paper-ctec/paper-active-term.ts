@@ -2,16 +2,8 @@ import { getDataMapInfo } from "../class-search/paper-data";
 
 // Reads the term the user is currently planning on paper.nu.
 //
-// In schedule mode paper.nu always renders a "Change term" button next to
-// the search controls — it shows the term name (e.g. "Spring 2026") and
-// has a hover tooltip containing the literal text "Change term". We find
-// that button by its tooltip child, peel the tooltip text off the button's
-// textContent, and resolve the remaining name back to a term ID via
-// paper-data's already-cached info map.
-//
-// Falls back to `info.latest` only if the button isn't on the page (plan
-// mode, or a paper.nu UI rewrite). The cart-flow then surfaces a clear
-// error if the assumed term doesn't actually contain the section.
+// Resolve the term for CTEC enrichment. Cart adds use the DOM reader
+// directly because they must verify the term before writing to CAESAR.
 export async function getActivePaperTermId(
   doc: Document = document
 ): Promise<{ termId: string; source: "dom" | "fallback" }> {
@@ -40,6 +32,13 @@ export function readActiveTermNameFromDom(doc: Document): string | null {
     const full = button.textContent?.trim() ?? "";
     const name = full.replace("Change term", "").trim();
     if (name) return name;
+  }
+  // Searching hides the term button, but the search field still names
+  // the quarter (e.g. "Search 2027 Winter..."). Ignore the plan-mode
+  // placeholder ("Search for classes...").
+  for (const input of doc.querySelectorAll<HTMLInputElement>('input[placeholder^="Search "]')) {
+    const match = /^Search (\d{4} (?:Fall|Winter|Spring|Summer))\.\.\.$/.exec(input.placeholder);
+    if (match?.[1]) return match[1];
   }
   return null;
 }

@@ -14,6 +14,8 @@ import { bareCatalogNumber, formatCatalogForDisplay } from "../class-search/cata
 import {
   getDataMapInfo,
   getTermCourses,
+  refreshTermCourses,
+  type PaperTermCourse,
   type PaperSection
 } from "../class-search/paper-data";
 import { extractLastNameTokens } from "../ctec-links/helpers";
@@ -50,7 +52,7 @@ export async function addChipSectionToCart(
 ): Promise<CartChipResult> {
   try {
     onProgress?.("Loading paper.nu term data…");
-    const { termId, termName, section } = await resolveScheduledChip(params, titleHint);
+    const { termId, termName, section } = await resolveScheduledChip(params, titleHint, true);
     const result = await withAuthRecovery(
       authRecovery,
       isCaesarAuthRequiredError,
@@ -159,11 +161,11 @@ export async function resolveChipSection(
 
 async function resolveScheduledChip(
   params: CtecLinkParams,
-  titleHint: string
+  titleHint: string,
+  refreshOnMiss = false
 ): Promise<{ termId: string; termName: string; section: PaperSection }> {
-  // Paper.nu keeps the term control in the DOM when the Search pane is
-  // hidden. Verify this tab's term because the saved schedule is shared
-  // across tabs. Only consider sections on the matching schedule.
+  // The saved schedule is shared across tabs. Verify that it belongs to
+  // the term displayed in this tab before looking up any section.
   const activeTerm = readActiveTermNameFromDom(document);
   if (!activeTerm) {
     throw new Error("Couldn't verify the schedule's term. Open Search in Paper.nu and try again.");
@@ -181,36 +183,63 @@ async function resolveScheduledChip(
   if (activeTerm !== termName) {
     throw new Error("The saved schedule doesn't match this tab's term. Reload Paper.nu and try again.");
   }
-  const courses = await getTermCourses(termId);
-  if (readActiveTermNameFromDom(document) !== activeTerm) {
-    throw new Error("Paper.nu is switching terms. Wait for the schedule to load and try again.");
+  if (sectionIds.length === 0) {
+    throw new Error("Paper.nu hasn't saved any sections for this schedule yet. Wait a moment and try again.");
   }
 
   const scheduled = new Set(sectionIds);
+  let matches = matchingScheduledSections(await getTermCourses(termId), scheduled, params, titleHint);
+  // Paper.nu may have loaded a newer catalog than Pencil has cached.
+  // Refresh only on a user click and continue to require a unique match.
+  if (matches.length === 0 && refreshOnMiss) {
+    matches = matchingScheduledSections(await refreshTermCourses(termId), scheduled, params, titleHint);
+  }
+  if (readActiveTermNameFromDom(document) !== activeTerm) {
+    throw new Error("Paper.nu is switching terms. Wait for the schedule to load and try again.");
+  }
+  const [section] = matches;
+  if (matches.length !== 1 || !section) {
+    throw new Error(`Couldn't identify one section of ${params.subject} ${params.catalogNumber} on your ${termName} schedule. Use CAESAR Class Search to add it.`);
+  }
+  return { termId, termName, section };
+}
+
+function matchingScheduledSections(
+  courses: PaperTermCourse[],
+  scheduled: ReadonlySet<string>,
+  params: CtecLinkParams,
+  titleHint: string
+): PaperSection[] {
   const wantCatalog = formatCatalogForDisplay(params.catalogNumber);
-  const wantInstructor = sortedLower(params.instructor);
+  const wantTitle = normalizeTitle(titleHint);
   const matches = new Map<string, PaperSection>();
   for (const course of courses) {
     for (const section of course.sections) {
       if (!scheduled.has(section.section_id) || section.subject !== params.subject) continue;
       if (formatCatalogForDisplay(section.number ?? section.catalog) !== wantCatalog) continue;
-      const names = (section.instructors ?? []).map((i) => i.name ?? "").filter(Boolean);
-      const withInitials = buildInstructorLastNameLabel(names);
-      // Canvas cards show last names only. That is safe for cart matching
-      // only when a single section on the saved schedule fits the card.
-      const lastNames = extractLastNameTokens(withInitials).join(",");
-      if (wantInstructor !== sortedLower(withInitials) && wantInstructor !== sortedLower(lastNames)) continue;
       const title = section.topic ? `${section.topic} - ${section.title}` : section.title;
-      if (title.trim() !== titleHint.trim()) continue;
+      if (normalizeTitle(title) !== wantTitle) continue;
       matches.set(section.section_id, section);
     }
   }
 
-  const [section] = matches.values();
-  if (matches.size !== 1 || !section) {
-    throw new Error(`Couldn't identify one section of ${params.subject} ${params.catalogNumber} on your ${termName} schedule. Use CAESAR Class Search to add it.`);
-  }
-  return { termId, termName, section };
+  const candidates = [...matches.values()];
+  if (candidates.length <= 1) return candidates;
+
+  // Instructor text can differ between Paper.nu's card and the cached
+  // catalog. Use it only to disambiguate multiple saved sections.
+  const wantInstructor = sortedLower(params.instructor);
+  const withMatchingInstructor = candidates.filter((section) => {
+    const names = (section.instructors ?? []).map((i) => i.name ?? "").filter(Boolean);
+    const withInitials = buildInstructorLastNameLabel(names);
+    const lastNames = extractLastNameTokens(withInitials).join(",");
+    return wantInstructor === sortedLower(withInitials) || wantInstructor === sortedLower(lastNames);
+  });
+  return withMatchingInstructor.length ? withMatchingInstructor : candidates;
+}
+
+function normalizeTitle(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 function sortedLower(value: string): string {

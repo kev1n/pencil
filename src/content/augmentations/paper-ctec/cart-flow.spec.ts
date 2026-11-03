@@ -9,7 +9,7 @@ vi.mock("../class-search/caesar-search", async (importOriginal) => ({
 }));
 
 import { addSectionToCart, searchCaesarCatalog, type CaesarCourseGroup } from "../class-search/caesar-search";
-import { getDataMapInfo, getTermCourses, type PaperSection } from "../class-search/paper-data";
+import { getDataMapInfo, getTermCourses, refreshTermCourses, type PaperSection } from "../class-search/paper-data";
 import { readPaperScheduleSnapshot } from "../paper-combos/data";
 import { addChipSectionToCart } from "./cart-flow";
 
@@ -21,6 +21,10 @@ const section: PaperSection = {
   instructors: [{ name: "Alex Example" }], meeting_days: [], start_time: [], end_time: [], room: []
 };
 const otherSection = { ...section, section_id: "COMP_SCI;winter-1", section: "1" };
+const course = {
+  course_id: section.course_id, subject: section.subject, catalog: section.catalog,
+  title: section.title, sections: [section, otherSection]
+};
 const groups: CaesarCourseGroup[] = [{
   courseId: "COMP_SCI 211-0 - Systems", catalog: "211-0", title: "Systems",
   sections: [{
@@ -37,10 +41,7 @@ beforeEach(() => {
     latest: "5040", plan: "", subjects: "",
     terms: { "5040": { name: "2026 Fall", updated: "" }, "5050": { name: "2027 Winter", updated: "" } }
   });
-  vi.mocked(getTermCourses).mockResolvedValue([{
-    course_id: section.course_id, subject: section.subject, catalog: section.catalog,
-    title: section.title, sections: [section, otherSection]
-  }]);
+  vi.mocked(getTermCourses).mockResolvedValue([course]);
   vi.mocked(readPaperScheduleSnapshot).mockResolvedValue({ termId: "5050", sectionIds: [section.section_id] });
   vi.mocked(searchCaesarCatalog).mockResolvedValue({ groups });
   vi.mocked(addSectionToCart).mockResolvedValue({
@@ -53,6 +54,34 @@ it("uses the saved Winter term and exact scheduled section with the Search pane 
     ok: true, termId: "5050", classNumber: "24943"
   });
   expect(searchCaesarCatalog).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ termId: "5050" }));
+  expect(addSectionToCart).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    termId: "5050", classNumber: "24943"
+  }));
+});
+
+it("reads the Winter search placeholder and refreshes a catalog missing the scheduled section", async () => {
+  document.body.innerHTML = '<input placeholder="Search 2027 Winter..." value="comp_sci 211">';
+  vi.mocked(getTermCourses).mockResolvedValueOnce([{ ...course, sections: [otherSection] }]);
+  vi.mocked(refreshTermCourses).mockResolvedValueOnce([course]);
+
+  expect(await addChipSectionToCart(auth, params, "Systems")).toMatchObject({
+    ok: true, termId: "5050", classNumber: "24943"
+  });
+  expect(refreshTermCourses).toHaveBeenCalledExactlyOnceWith("5050");
+  expect(addSectionToCart).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+    termId: "5050", classNumber: "24943"
+  }));
+});
+
+it("uses a unique saved section even when the catalog instructor differs from the card", async () => {
+  vi.mocked(getTermCourses).mockResolvedValueOnce([{
+    ...course,
+    sections: [{ ...section, instructors: [{ name: "Earlier Instructor" }] }, otherSection]
+  }]);
+
+  expect(await addChipSectionToCart(auth, params, "Systems")).toMatchObject({
+    ok: true, termId: "5050", classNumber: "24943"
+  });
   expect(addSectionToCart).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
     termId: "5050", classNumber: "24943"
   }));
