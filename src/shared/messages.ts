@@ -74,6 +74,7 @@ export type FetchTextSuccess = {
 export type FetchTextFailure = {
   ok: false;
   error: string;
+  connectionFailed?: true;
   status?: number;
 };
 

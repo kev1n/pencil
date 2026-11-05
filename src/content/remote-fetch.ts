@@ -5,6 +5,8 @@ import type {
   FetchTextMessage,
   FetchTextResponse
 } from "../shared/messages";
+import { CAESAR_HOSTNAME, CAESAR_SERVICE_URL, safeHostname } from "../shared/nu-hosts";
+import { CaesarConnectionError } from "./peoplesoft/connection";
 
 type FetchTextOptions = {
   method?: "GET" | "POST";
@@ -48,6 +50,15 @@ export async function fetchTextResultViaBackground(
       timeoutMs: options?.timeoutMs
     } satisfies FetchTextMessage) as FetchTextResponse;
 
+    if (safeHostname(url) === CAESAR_HOSTNAME && response) {
+      // Off-network CAESAR requests redirect to the university's service page.
+      // The browser may also reject the cross-origin redirect before exposing it.
+      if (response.ok
+        ? response.finalUrl?.split(/[?#]/, 1)[0] === CAESAR_SERVICE_URL
+        : response.connectionFailed) {
+        throw new CaesarConnectionError();
+      }
+    }
     if (!response?.ok) {
       throw new Error(response?.error || "Background fetch failed.");
     }

@@ -4,6 +4,7 @@ import type {
   CreditUsedMessage,
   FetchBinaryMessage,
   FetchTextMessage,
+  FetchTextFailure,
   OpenAuthPopupMessage,
   OpenAuthPopupResponse,
   OpenSilentAuthTabMessage,
@@ -362,10 +363,14 @@ async function handleFetchText(
       finalUrl: res.url
     });
   } catch (error) {
+    const connectionFailed = controller.signal.aborted
+      ? controller.signal.reason?.name === "TimeoutError"
+      : error instanceof TypeError;
     sendResponse({
       ok: false,
-      error: error instanceof Error ? error.message : String(error)
-    });
+      error: error instanceof Error ? error.message : String(error),
+      connectionFailed: connectionFailed ? true : undefined
+    } satisfies FetchTextFailure);
   } finally {
     clearTimeout(timeout);
     if (message.requestId) {
