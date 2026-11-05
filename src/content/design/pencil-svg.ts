@@ -1,4 +1,4 @@
-// Inline SVG for the pencil mascot. Mirrors src/assets/icons/pencil.svg —
+// Shared inline SVG for the pencil mascot. Mirrors src/assets/icons/pencil.svg —
 // inlining avoids needing to add the PNG/SVG to manifest
 // web_accessible_resources, and keeps the colors theme-friendly without
 // chrome.runtime.getURL hops. Sizing is left to the consumer's CSS.

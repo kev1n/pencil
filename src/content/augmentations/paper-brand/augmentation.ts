@@ -7,7 +7,7 @@ import {
   MODAL_ID
 } from "./constants";
 import { openAboutModal, type AboutModalHandle } from "./modal";
-import { PENCIL_SVG_MARKUP } from "./pencil-svg";
+import { PENCIL_SVG_MARKUP } from "../../design/pencil-svg";
 import {
   injectPaperBrandStyles,
   removePaperBrandStyles
@@ -32,11 +32,6 @@ export class PaperBrandAugmentation implements Augmentation {
   readonly id = FEATURE_ID;
 
   private modal: AboutModalHandle | null = null;
-  // Tracked on the instance so cleanup() can unhook the listener even when
-  // the modal handle's destroy() shortcut skips its own onClose path (e.g.
-  // when the runner tears down on a feature-flag flip with the modal open).
-  private modalDoc: Document | null = null;
-  private modalKeydown: ((event: KeyboardEvent) => void) | null = null;
 
   run(doc: Document = document): void {
     if (!isPaperHost()) return;
@@ -114,22 +109,10 @@ export class PaperBrandAugmentation implements Augmentation {
 
   private openModal(doc: Document): void {
     if (this.modal) return;
-    const onKeydown = (event: KeyboardEvent): void => {
-      if (event.key !== "Escape") return;
-      this.closeModal();
-    };
-    doc.addEventListener("keydown", onKeydown);
-    this.modalDoc = doc;
-    this.modalKeydown = onKeydown;
     this.modal = openAboutModal(doc, () => this.closeModal());
   }
 
   private closeModal(): void {
-    if (this.modalKeydown && this.modalDoc) {
-      this.modalDoc.removeEventListener("keydown", this.modalKeydown);
-    }
-    this.modalKeydown = null;
-    this.modalDoc = null;
     this.modal?.destroy();
     this.modal = null;
   }

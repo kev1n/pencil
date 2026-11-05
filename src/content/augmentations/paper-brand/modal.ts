@@ -6,7 +6,7 @@ import {
   LANDING_URL,
   MODAL_ID
 } from "./constants";
-import { PENCIL_SVG_MARKUP } from "./pencil-svg";
+import { PENCIL_SVG_MARKUP } from "../../design/pencil-svg";
 import { injectPaperBrandStyles } from "./styles";
 
 export type AboutModalHandle = {
@@ -145,9 +145,17 @@ export function openAboutModal(
   backdrop.appendChild(card);
 
   doc.body.appendChild(backdrop);
+  const onKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    onClose();
+  };
+  doc.addEventListener("keydown", onKeydown, true);
 
   return {
     destroy: () => {
+      doc.removeEventListener("keydown", onKeydown, true);
       backdrop.remove();
     }
   };
