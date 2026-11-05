@@ -1,6 +1,8 @@
 import { CART_URL } from "../../cart-cache/reconcile";
+import { LANDING_PAGE_URL } from "../../auth/silent-recovery";
 import { COURSE_HISTORY_PAGE_URL } from "../../course-history/reconcile";
 import { SEARCH_ENTRY_URL } from "../../peoplesoft/shared";
+import { APPOINTMENTS_URL } from "./appointment-dates";
 
 export type Bookmark = {
   id: string;
@@ -15,6 +17,13 @@ type Route = Omit<Bookmark, "navigate"> & {
 };
 
 const ROUTES: readonly Route[] = [
+  {
+    id: "home",
+    label: "CAESAR Home",
+    shortLabel: "Home",
+    nativeLabels: [],
+    href: LANDING_PAGE_URL
+  },
   {
     id: "search",
     label: "Class Search",
@@ -32,13 +41,13 @@ const ROUTES: readonly Route[] = [
     id: "schedule",
     label: "My Class Schedule",
     shortLabel: "Schedule",
-    nativeLabels: ["my class schedule", "view my classes"]
+    nativeLabels: ["my class schedule", "view my class schedule", "view my classes"]
   },
   {
     id: "appointment",
     label: "Enrollment Dates",
     nativeLabels: ["enrollment appointment/dates", "enrollment dates", "enrollment appointments"],
-    href: "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_APPT.GBL?Action=A"
+    href: APPOINTMENTS_URL
   },
   {
     id: "history",
