@@ -1,4 +1,5 @@
 import { html, render, type TemplateResult } from "lit-html";
+import { CAESAR_CONNECTION_LABEL, CAESAR_CONNECTION_MESSAGE } from "../../peoplesoft/connection";
 
 import { getOrCreatePreviewController } from "./analytics-preview";
 import { PAPER_CTEC_CONFIG } from "./config";
@@ -37,15 +38,18 @@ export type CartAnchorState =
 export function renderIdle(
   widget: HTMLElement,
   onLoad: () => void,
-  onOpenAnalytics?: () => void
+  caesarUnreachable = false
 ): void {
-  widget.title = "Click to fetch CTEC summary for this class.";
+  widget.title = caesarUnreachable
+    ? CAESAR_CONNECTION_MESSAGE
+    : "Click to fetch CTEC summary for this class.";
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>
       <button
         type="button"
         class=${`${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`}
+        aria-label=${caesarUnreachable ? `${CAESAR_CONNECTION_LABEL}. Retry CTEC` : "Load CTEC"}
         @pointerdown=${(event: Event) => {
           preventAndStop(event);
           onLoad();
@@ -58,12 +62,12 @@ export function renderIdle(
         }}
       >${iconTemplate("spark")}<span
           class=${`${WIDGET_CLASS}-chip-button-label`}
-        >Load CTEC</span></button>
+        >${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
     </div>`,
     widget
   );
 
-  attachAnalyticsAnchor(widget, onOpenAnalytics);
+  attachAnalyticsAnchor(widget);
 }
 
 export function renderLoading(

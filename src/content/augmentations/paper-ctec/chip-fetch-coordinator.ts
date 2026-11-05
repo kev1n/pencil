@@ -30,6 +30,7 @@ import type {
 import type { ModalDisplayData } from "./modal-data";
 import { findWidgetsByKey } from "./dom";
 import { ctecErrorToastOptions } from "../ctec-links/rate-limit";
+import { CaesarConnectionError, caesarConnectionToastOptions } from "../../peoplesoft/connection";
 
 export type ToastTone = "info" | "warn" | "success" | "error";
 
@@ -113,7 +114,7 @@ export type ChipFetchCoordinatorDeps = {
   /** Open the analytics modal for this chip. */
   openAnalyticsModal(source: AnalyticsModalSource): void;
   /** Render an idle chip (Load CTEC button). */
-  renderIdle(widget: HTMLElement, onLoad: () => void): void;
+  renderIdle(widget: HTMLElement, onLoad: () => void, caesarUnreachable?: boolean): void;
   /** Render a loading chip with optional analytics-button callback. */
   renderLoading(
     widget: HTMLElement,
@@ -168,6 +169,7 @@ export function createChipFetchCoordinator(
   const resolved = new Map<string, PaperCtecWidgetData>();
   const loadingMessages = new Map<string, ChipFetchProgressMessage>();
   const userActivated = new Set<string>();
+  const caesarUnreachable = new Set<string>();
   const visibleKeys = new Set<string>();
   // Per-key snapshot of the data needed to open the modal. syncTargets
   // populates this from currently-visible targets so renderForKey /
@@ -288,6 +290,12 @@ export function createChipFetchCoordinator(
       }
       return data;
     } catch (error) {
+      if (error instanceof CaesarConnectionError) {
+        userActivated.delete(target.key);
+        caesarUnreachable.add(target.key);
+        deps.showToast(error.message, caesarConnectionToastOptions());
+        return null;
+      }
       const widgetData: PaperCtecWidgetData = {
         state: "error",
         message: error instanceof Error ? error.message : String(error)
@@ -313,6 +321,7 @@ export function createChipFetchCoordinator(
       return;
     }
 
+    caesarUnreachable.delete(target.key);
     userActivated.add(target.key);
 
     deps.setProgress(target.key, "Connecting to Northwestern CTEC…");
@@ -322,6 +331,11 @@ export function createChipFetchCoordinator(
     inFlight.set(target.key, job);
     void job.finally(() => {
       inFlight.delete(target.key);
+      if (caesarUnreachable.has(target.key)) {
+        for (const widget of findWidgetsByKey(document, target.key)) {
+          deps.renderIdle(widget, () => kickTargetFetch({ ...target, widget }), true);
+        }
+      }
       if (!deps.modalHasInFlight(target.key)) {
         loadingMessages.delete(target.key);
       }
@@ -420,7 +434,7 @@ export function createChipFetchCoordinator(
 
       // Not cached — wait for an explicit user click before hitting CAESAR.
       // No Analytics button until the user actually loads CTECs.
-      deps.renderIdle(target.widget, () => kickTargetFetch(target));
+      deps.renderIdle(target.widget, () => kickTargetFetch(target), caesarUnreachable.has(target.key));
     }
   }
 
@@ -438,6 +452,7 @@ export function createChipFetchCoordinator(
       resolved.clear();
       loadingMessages.clear();
       userActivated.clear();
+      caesarUnreachable.clear();
       visibleKeys.clear();
       targetSources.clear();
     },

@@ -37,6 +37,7 @@ import type {
 } from "./types";
 import type { CtecLinkParams } from "../ctec-links/types";
 import type { CtecReportAggregate } from "../ctec-links/reports";
+import { CaesarConnectionError } from "../../peoplesoft/connection";
 
 function makeWidget(): HTMLElement {
   const el = document.createElement("div");
@@ -270,6 +271,37 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
     if (resolved?.state === "error") {
       expect(resolved.message).toContain("network down");
     }
+  });
+
+  it("lets the user retry the same card after a CAESAR connection failure", async () => {
+    const deps = makeDeps({
+      fetchAggregate: vi.fn()
+        .mockRejectedValueOnce(new CaesarConnectionError())
+        .mockResolvedValueOnce({ state: "found", aggregate: makeAggregate() })
+    });
+    const coord = createChipFetchCoordinator(deps);
+    const target = makeTarget();
+    document.body.appendChild(target.widget);
+    coord.syncTargets([target]);
+    coord.kickTargetFetch(target);
+    await vi.runAllTimersAsync();
+
+    expect(coord.state.resolved.has(target.key)).toBe(false);
+    expect(coord.hasUserActivated(target.key)).toBe(false);
+    expect(deps.showToast).toHaveBeenCalledWith(
+      expect.stringContaining("GlobalProtect VPN"),
+      expect.objectContaining({ action: expect.objectContaining({ label: "VPN setup" }) })
+    );
+
+    coord.syncTargets([target]);
+    expect(deps.fetchAggregate).toHaveBeenCalledTimes(1);
+    expect(deps.renderIdle).toHaveBeenLastCalledWith(target.widget, expect.any(Function), true);
+
+    const [, retry] = vi.mocked(deps.renderIdle).mock.lastCall!;
+    retry();
+    await vi.runAllTimersAsync();
+    expect(deps.fetchAggregate).toHaveBeenCalledTimes(2);
+    expect(coord.state.resolved.get(target.key)?.state).toBe("found");
   });
 
   it("auto-resumes a kick on the next sync if userActivated is set but inFlight + resolved are empty", async () => {
