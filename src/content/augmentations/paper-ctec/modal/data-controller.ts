@@ -1,5 +1,6 @@
 import { ctecCreditPool } from "../../../../shared/credit-pool";
 import { showToast } from "../../../../shared/toast";
+import { CaesarConnectionError, caesarConnectionToastOptions } from "../../../peoplesoft/connection";
 import { getCtecStrategy } from "../../../settings";
 import { getSectionLens } from "../../ctec-links/section-lens";
 import { CTEC_ERROR_TOAST_MESSAGE } from "../../ctec-links/rate-limit";
@@ -379,7 +380,11 @@ export function createModalDataController(
           kind: "error",
           message: error instanceof Error ? error.message : String(error)
         });
-        showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        if (error instanceof CaesarConnectionError) {
+          showToast(error.message, caesarConnectionToastOptions());
+        } else {
+          showToast(CTEC_ERROR_TOAST_MESSAGE, { tone: "warn", durationMs: 9000 });
+        }
       } finally {
         analyticsBackgroundRefresh.delete(context.key);
         callbacks.syncStatusBar();

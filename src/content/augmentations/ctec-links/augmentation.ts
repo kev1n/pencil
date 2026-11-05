@@ -17,6 +17,7 @@ import {
   STYLE_ID
 } from "./constants";
 import { isCtecAccessDenied } from "../../ctec-index/access";
+import { CaesarConnectionError, caesarConnectionToastOptions } from "../../peoplesoft/connection";
 import { fetchCtecLinks, getCtecLinksFromCache } from "./fetcher";
 import {
   extractInstructorFromRow,
@@ -139,7 +140,11 @@ export class CtecLinksAugmentation implements Augmentation {
           // idle and re-paint the fetch button.
           throw err;
         }
-        showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
+        if (err instanceof CaesarConnectionError) {
+          showToast(err.message, caesarConnectionToastOptions());
+        } else {
+          showToast(CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions());
+        }
         throw err;
       }
 
