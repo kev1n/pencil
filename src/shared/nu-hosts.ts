@@ -5,6 +5,10 @@
 
 export const CAESAR_HOSTNAME = "caesar.ent.northwestern.edu";
 export const CAESAR_ORIGIN = `https://${CAESAR_HOSTNAME}`;
+export const CAESAR_SERVICE_URL =
+  "https://services.northwestern.edu/TDClient/30/Portal/Requests/Service/21/CAESAR";
+export const GLOBALPROTECT_HELP_URL =
+  "https://services.northwestern.edu/TDClient/30/Portal/KB/Article/1818/Setting-up-and-using-GlobalProtect-VPN";
 export const BLUERA_HOSTNAME = "northwestern.bluera.com";
 export const BLUERA_ORIGIN = `https://${BLUERA_HOSTNAME}`;
 
