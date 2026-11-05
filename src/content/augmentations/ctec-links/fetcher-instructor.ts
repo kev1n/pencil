@@ -36,6 +36,7 @@ import {
   markCtecAccessDenied
 } from "../../ctec-index/access";
 import { probeCtecAccess } from "../../ctec-index/access-probe";
+import { CaesarConnectionError } from "../../peoplesoft/connection";
 import {
   createEmptySubjectIndex,
   readSubjectIndex,
@@ -181,7 +182,9 @@ async function fetchCtecLinksByInstructorCore(
         break;
       }
     } catch (e) {
-      if (isCaesarAuthRequiredError(e) || isCtecAccessDeniedError(e)) throw e;
+      if (isCaesarAuthRequiredError(e) || isCtecAccessDeniedError(e) || e instanceof CaesarConnectionError) {
+        throw e;
+      }
       lastError = e instanceof Error ? e.message : "Failed to load CTEC page.";
     }
   }
@@ -347,7 +350,7 @@ async function fetchInstructorRows(
       }
       classText = classResponse.text;
     } catch (e) {
-      if (isCaesarAuthRequiredError(e)) throw e;
+      if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
       // Persist a "Fetch failed" marker so the entry isn't silently
       // dropped — combo mode does the same so the modal's load-more
       // button can retry just the failed ones rather than the whole batch.
@@ -585,7 +588,9 @@ async function discoverInstructorRowsCore(
       );
       if (rows.length > 0) return { state: "found", rows };
     } catch (e) {
-      if (isCaesarAuthRequiredError(e) || isCtecAccessDeniedError(e)) throw e;
+      if (isCaesarAuthRequiredError(e) || isCtecAccessDeniedError(e) || e instanceof CaesarConnectionError) {
+        throw e;
+      }
       lastError = e instanceof Error ? e.message : "Failed to load CTEC page.";
     }
   }

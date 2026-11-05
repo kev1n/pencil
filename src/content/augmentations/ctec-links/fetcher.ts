@@ -22,6 +22,7 @@ import {
   markCtecAccessDenied
 } from "../../ctec-index/access";
 import { probeCtecAccess } from "../../ctec-index/access-probe";
+import { CaesarConnectionError } from "../../peoplesoft/connection";
 import { logDebug } from "../../../shared/log";
 import {
   createEmptySubjectIndex,
@@ -509,7 +510,7 @@ async function discoverFromCareer(
     }
     html = response.text;
   } catch (e) {
-    if (isCaesarAuthRequiredError(e)) throw e;
+    if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
     return {
       state: "error",
       message: e instanceof Error ? e.message : "Failed to load CTEC page."
@@ -548,7 +549,7 @@ async function discoverFromCareer(
     }
     courseResponse = response.text;
   } catch (e) {
-    if (isCaesarAuthRequiredError(e)) throw e;
+    if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
     return {
       state: "error",
       message: e instanceof Error ? e.message : "Failed to load course."
@@ -676,7 +677,7 @@ async function fetchCourseEntries(
     }
     html = response.text;
   } catch (e) {
-    if (isCaesarAuthRequiredError(e)) throw e;
+    if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
     return { type: "error", message: e instanceof Error ? e.message : "Failed to load CTEC page." };
   }
 
@@ -715,7 +716,7 @@ async function fetchCourseEntries(
     }
     courseResponse = response.text;
   } catch (e) {
-    if (isCaesarAuthRequiredError(e)) throw e;
+    if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
     return { type: "error", message: e instanceof Error ? e.message : "Failed to load course." };
   }
 
@@ -801,7 +802,7 @@ async function fetchCourseEntries(
       }
       classResponse = response.text;
     } catch (e) {
-      if (isCaesarAuthRequiredError(e)) throw e;
+      if (isCaesarAuthRequiredError(e) || e instanceof CaesarConnectionError) throw e;
       resultEntries.push({
         actionId: row.actionId,
         term: row.term,

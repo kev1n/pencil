@@ -8,6 +8,7 @@
 // CTEC code path.
 
 import { fetchPeopleSoftGetResult } from "../peoplesoft/http";
+import { CaesarConnectionError } from "../peoplesoft/connection";
 import { logDebug, logQuiet } from "../../shared/log";
 
 import {
@@ -54,6 +55,7 @@ async function runProbe(): Promise<void> {
     html = response.text;
     status = response.status;
   } catch (err) {
+    if (err instanceof CaesarConnectionError) throw err;
     // Stay unknown on network failure so the next click re-probes.
     logQuiet("ctec-access:probe", err);
     return;
