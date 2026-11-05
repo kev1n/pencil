@@ -107,6 +107,8 @@ Paper.nu cart adds check this tab's term against the saved schedule and require 
 
 Sharper Search matches section titles and topics as well as course names and numbers; topic searches narrow the result to matching sections, whose topic names appear above their details. The CAESAR navigation's Pencil button opens the same About dialog as Paper.nu's brand mark (`paper-brand/modal.ts`); the dialog owns its Escape listener.
 
+Paper.nu's Markdown schedule copy runs only after the user clicks its Export menu item. The extension does not request clipboard permissions; copying uses the browser's normal user activation.
+
 ## Changelog
 
 The popup's "What's new" panel reads from `src/popup/changelog.json`. When you ship a release (i.e. bump `version` in `src/manifest.base.json` and `package.json`), prepend a new entry to the `entries` array. The file's `$exampleSchema` key documents the shape — leave it in place.

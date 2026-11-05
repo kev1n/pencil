@@ -11,6 +11,14 @@
   },
   "entries": [
     {
+      "version": "0.9.14",
+      "date": "2026-11-05",
+      "headline": "Copy without extra permissions",
+      "items": [
+        { "kind": "fix", "text": "Copy your Paper.nu schedule as Markdown without adding a clipboard permission when Pencil updates." }
+      ]
+    },
+    {
       "version": "0.9.13",
       "date": "2026-11-05",
       "headline": "Consistent CAESAR navigation",

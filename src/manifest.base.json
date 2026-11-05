@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "pencil.nu",
   "description": "Sharpens Paper.nu and CAESAR with inline CTECs, seat counts, and faster term navigation.",
-  "version": "0.9.13",
+  "version": "0.9.14",
   "icons": {
     "16": "assets/icons/pencil-16.png",
     "32": "assets/icons/pencil-32.png",
@@ -37,7 +37,7 @@
       "all_frames": true
     }
   ],
-  "permissions": ["storage", "unlimitedStorage", "clipboardWrite"],
+  "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
     "https://caesar.ent.northwestern.edu/*",
     "https://www.paper.nu/*",
