@@ -94,6 +94,17 @@ export function applyFilters(
       } else if (subjectName && search(fullId, term)) {
         scored.push({ row: { course, sections: course.sections }, bucket: 2, tier });
         placed.add(course);
+      } else {
+        // Special-topics names live on individual sections, not the
+        // generic course title. Match each section separately so words
+        // from unrelated topics cannot combine into a false hit.
+        const sections = course.sections.filter((section) =>
+          search(`${fullId} ${name} ${section.title} ${section.topic ?? ""}`, term)
+        );
+        if (sections.length > 0) {
+          scored.push({ row: { course, sections }, bucket: 1, tier });
+          placed.add(course);
+        }
       }
     }
   }

@@ -21,7 +21,7 @@ export type SearchFilters = {
   termId: string;
   // Free-text query — paper.nu-style. Whitespace-separated tokens, each
   // matched (regex, `x` as digit wildcard) against the combined haystack of
-  // subject display name, subject symbol, catalog number, and title.
+  // subject display name, subject symbol, catalog number, title, and section topic.
   query: string;
   // Weinberg Foundational Discipline narrowing. Empty set = no narrowing;
   // a non-empty set keeps rows tagged with ANY of the selected FD codes
