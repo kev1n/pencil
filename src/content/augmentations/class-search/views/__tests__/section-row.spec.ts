@@ -28,6 +28,21 @@ function makeSection(overrides: Partial<PaperSection> = {}): PaperSection {
 }
 
 describe("renderSectionRow", () => {
+  it("labels special-topics sections with their topic as plain text", () => {
+    const li = renderSectionRow(fresh(), {
+      section: makeSection({ topic: "Health Tech & <Care>" }),
+      sigKey: "K",
+      showActions: true,
+      registerAddButton: vi.fn(),
+      onAddToCart: vi.fn(),
+      onToggleDetails: vi.fn()
+    });
+    const topic = li.querySelector(".bc-cs-section-topic");
+    expect(topic?.textContent).toBe("Health Tech & <Care>");
+    expect(topic?.children).toHaveLength(0);
+    expect(li.firstElementChild).toBe(topic);
+  });
+
   it("renders the section number, component, time, instructor, and room cells", () => {
     const doc = fresh();
     const li = renderSectionRow(doc, {

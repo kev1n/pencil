@@ -40,6 +40,12 @@ export function sectionRowsStyles(): string {
       transition: background-color var(--bc-tx-fast);
     }
     .bc-cs-section:hover { background: var(--bc-color-surface-soft); }
+    .bc-cs-section-topic {
+      grid-column: 1 / -1;
+      color: var(--bc-color-text);
+      font-weight: var(--bc-fw-semibold);
+      overflow-wrap: anywhere;
+    }
     .bc-cs-section-id {
       font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
       font-size: var(--bc-font-12);

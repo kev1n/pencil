@@ -61,6 +61,13 @@ export function renderSectionRow(
     }
   });
 
+  if (section.topic?.trim()) {
+    li.appendChild(el(doc, "div", {
+      class: "bc-cs-section-topic",
+      text: section.topic
+    }));
+  }
+
   li.append(
     buildIdCell(doc, section),
     buildComponentCell(doc, section),
