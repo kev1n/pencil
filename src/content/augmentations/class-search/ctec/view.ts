@@ -6,6 +6,7 @@
 // the other.
 
 import { html, render, type TemplateResult } from "lit-html";
+import { CAESAR_CONNECTION_LABEL, CAESAR_CONNECTION_MESSAGE } from "../../../peoplesoft/connection";
 
 import { getOrCreatePreviewController } from "../../paper-ctec/analytics-preview";
 import { WIDGET_CLASS } from "../../paper-ctec/constants";
@@ -24,22 +25,25 @@ export const CTEC_HOST_CLASS = "bc-cs-ctec-host";
 // without the analytics-anchor side-effect (we render a separate
 // Analytics button via renderFound below). Idle host carries no chips
 // until the user explicitly clicks Load.
-export function renderIdle(host: HTMLElement, onLoad: () => void): void {
+export function renderIdle(host: HTMLElement, onLoad: () => void, caesarUnreachable = false): void {
   host.dataset.state = "idle";
-  host.title = "Click to fetch CTEC summary for this section.";
+  host.title = caesarUnreachable
+    ? CAESAR_CONNECTION_MESSAGE
+    : "Click to fetch CTEC summary for this section.";
 
   render(
     html`<div class="bc-cs-ctec-summary">
       <button
         type="button"
         class="bc-cs-ctec-load-btn"
-        title="Load CTEC summary for this section."
+        title=${host.title}
+        aria-label=${caesarUnreachable ? `${CAESAR_CONNECTION_LABEL}. Retry CTEC` : "Load CTEC"}
         @click=${(event: Event) => {
           event.preventDefault();
           event.stopPropagation();
           onLoad();
         }}
-      >${iconTemplate("spark")}<span>Load CTEC</span></button>
+      >${iconTemplate("spark")}<span>${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
     </div>`,
     host
   );

@@ -22,6 +22,7 @@
 import { ctecCreditPool } from "../../../../shared/credit-pool";
 import { showToast } from "../../../../shared/toast";
 import { isCtecAccessDenied } from "../../../ctec-index/access";
+import { CaesarConnectionError, caesarConnectionToastOptions } from "../../../peoplesoft/connection";
 import {
   fetchCtecReportAggregate,
   getCachedReportAggregate,
@@ -71,6 +72,7 @@ export function createCtecCoordinator(
 ): CtecCoordinator {
   const resolved = new Map<string, PaperCtecWidgetData>();
   const inFlight = new Map<string, Promise<void>>();
+  const caesarUnreachable = new Set<string>();
 
   // Strategy switches invalidate every resolved aggregate (the map is
   // keyed on course identity only; strategy is implicit in the lookup).
@@ -139,7 +141,7 @@ export function createCtecCoordinator(
       renderLoading(host);
       return;
     }
-    renderIdle(host, () => kick(source));
+    renderIdle(host, () => kick(source), caesarUnreachable.has(key));
   }
 
   function kick(identity: AnalyticsModalSource): void {
@@ -160,6 +162,7 @@ export function createCtecCoordinator(
       return;
     }
 
+    caesarUnreachable.delete(identity.key);
     sources.set(identity.key, identity);
     repaintLoading(identity.key, "Connecting to Northwestern CTEC…");
 
@@ -197,6 +200,11 @@ export function createCtecCoordinator(
         }
       })
       .catch((error: unknown) => {
+        if (error instanceof CaesarConnectionError) {
+          caesarUnreachable.add(identity.key);
+          showToast(error.message, caesarConnectionToastOptions());
+          return;
+        }
         const data: PaperCtecWidgetData = {
           state: "error",
           message: error instanceof Error ? error.message : String(error)
@@ -264,6 +272,7 @@ export function createCtecCoordinator(
     stop() {
       resolved.clear();
       inFlight.clear();
+      caesarUnreachable.clear();
       hosts.clear();
       sources.clear();
       unsubscribeStrategy();
