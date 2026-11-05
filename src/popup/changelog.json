@@ -11,6 +11,41 @@
   },
   "entries": [
     {
+      "version": "0.9.13",
+      "date": "2026-11-05",
+      "headline": "Consistent CAESAR navigation",
+      "items": [
+        { "kind": "fix", "text": "Pencil shortcuts stay on the right across CAESAR pages, with a CAESAR home logo on the left when the native branding is missing." }
+      ]
+    },
+    {
+      "version": "0.9.12",
+      "date": "2026-11-05",
+      "headline": "Find special topics by name",
+      "items": [
+        { "kind": "fix", "text": "Find special-topics sections like Health Tech by name in Sharper Search, with topic names shown in the results." },
+        { "kind": "feat", "text": "Click the Pencil icon in CAESAR to learn about Pencil or leave feedback." }
+      ]
+    },
+    {
+      "version": "0.9.11",
+      "date": "2026-11-03",
+      "headline": "Clearer CAESAR connection help",
+      "items": [
+        { "kind": "fix", "text": "If Pencil can’t reach CAESAR, it points you to Northwestern’s VPN setup and lets you retry loading CTECs." }
+      ]
+    },
+    {
+      "version": "0.9.10",
+      "date": "2026-11-03",
+      "headline": "A clearer CAESAR cart",
+      "items": [
+        { "kind": "fix", "text": "Keep Home and Class Search within reach after choosing a term in the Shopping Cart." },
+        { "kind": "feat", "text": "Preview registration dates from the header, then open CAESAR for your assigned time." },
+        { "kind": "feat", "text": "The Shopping Cart and Enrollment Dates pages are easier to scan, and a small Pencil mark identifies the added shortcuts." }
+      ]
+    },
+    {
       "version": "0.9.8",
       "date": "2026-11-03",
       "headline": "Faster trips through CAESAR",
