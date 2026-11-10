@@ -1,10 +1,9 @@
 import { CAESAR_HOSTNAME } from "../../../shared/nu-hosts";
-import { logQuiet } from "../../../shared/log";
 import { PENCIL_SVG_MARKUP } from "../../design/pencil-svg";
 import { el, ensureStyle, type Augmentation } from "../../framework";
 import { openAboutModal, type AboutModalHandle } from "../paper-brand/modal";
 import { removePaperBrandStyles } from "../paper-brand/styles";
-import { APPOINTMENTS_URL, loadEnrollmentDates } from "./appointment-dates";
+import { createEnrollmentDatesPopover } from "../../enrollment-dates/popover";
 import { readBookmarks, type Bookmark } from "./destinations";
 import { STYLE_ID, styles } from "./styles";
 
@@ -43,50 +42,6 @@ function createBookmark(doc: Document, bookmark: Bookmark): HTMLElement {
       }
     }
   });
-}
-
-function createDatesPopover(doc: Document, bar: HTMLElement): HTMLElement {
-  const content = el(doc, "div", { attrs: { "aria-live": "polite" } });
-  const popover = el(doc, "section", {
-    attrs: { id: DATES_ID, popover: "auto", "aria-label": "Enrollment Dates" }
-  }, [
-    el(doc, "h2", { text: "Enrollment Dates" }),
-    content,
-    el(doc, "a", {
-      text: "Open Enrollment Dates →",
-      attrs: { href: APPOINTMENTS_URL }
-    })
-  ]);
-  let loading = false;
-  popover.addEventListener("toggle", () => {
-    if (!popover.matches(":popover-open")) return;
-    const trigger = bar.querySelector(`[popovertarget="${DATES_ID}"]`)?.getBoundingClientRect();
-    if (trigger) {
-      popover.style.top = `${Math.ceil(trigger.bottom) + 8}px`;
-      const width = doc.documentElement.clientWidth;
-      popover.style.right = `${Math.max(12, Math.min(width - trigger.right, width - popover.offsetWidth - 12))}px`;
-    }
-    if (loading) return;
-    loading = true;
-    content.textContent = "Loading registration dates…";
-    void loadEnrollmentDates(doc).then((dates) => {
-      if (!dates) {
-        content.textContent = "Dates are unavailable here. Open the full page to check your term.";
-        return;
-      }
-      content.replaceChildren(
-        el(doc, "p", { class: "bc-dates-term", text: dates.heading }),
-        el(doc, "ul", {}, dates.windows.map((text) => el(doc, "li", { text }))),
-        el(doc, "p", { class: "bc-dates-note", text: "Open the full page for your assigned appointment time." })
-      );
-    }).catch((error: unknown) => {
-      logQuiet("caesar-bookmarks.enrollment-dates", error);
-      content.textContent = "Dates are unavailable here. Open the full page to check your term.";
-    }).finally(() => {
-      loading = false;
-    });
-  });
-  return popover;
 }
 
 export class CaesarBookmarksAugmentation implements Augmentation {
@@ -175,7 +130,10 @@ export class CaesarBookmarksAugmentation implements Augmentation {
       this.header = el(doc, "header", { attrs: { id: HEADER_ID } }, [createLogo(), bar]);
       host.prepend(this.header);
     }
-    const popover = createDatesPopover(doc, bar);
+    const popover = createEnrollmentDatesPopover(doc, {
+      id: DATES_ID,
+      trigger: bar.querySelector(`[popovertarget="${DATES_ID}"]`)!
+    });
     doc.body.append(popover);
     this.host = host;
     this.bar = bar;

@@ -8,6 +8,7 @@ import { enrollmentNavigationAugmentation } from "./enrollment-navigation";
 import { paperBrandAugmentation } from "./paper-brand";
 import { paperCombosAugmentation } from "./paper-combos";
 import { paperCtecAugmentation } from "./paper-ctec";
+import { paperEnrollmentDatesAugmentation } from "./paper-enrollment-dates";
 import { paperExportHelperAugmentation } from "./paper-export-helper";
 import { paperHideTakenAugmentation } from "./paper-hide-taken";
 import { prereqFilterAugmentation } from "./prereq-filter";
@@ -25,6 +26,7 @@ export const augmentationRegistry: Augmentation[] = [
   courseHistoryViewAugmentation,
   ctecLinksAugmentation,
   paperBrandAugmentation,
+  paperEnrollmentDatesAugmentation,
   paperCtecAugmentation,
   paperCombosAugmentation,
   paperExportHelperAugmentation,

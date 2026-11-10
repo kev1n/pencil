@@ -94,6 +94,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Adds a small \"with pencil\" tag next to Paper.nu's logo so you can tell at a glance the extension is active."
       },
       {
+        id: "paper-enrollment-dates",
+        label: "Enrollment Dates",
+        description: "Show CAESAR registration dates and your appointments in the Paper.nu header."
+      },
+      {
         id: "paper-ctec",
         label: "CTEC Integration",
         description: "Loads CTEC summaries into schedule cards and the expanded analytics panel."

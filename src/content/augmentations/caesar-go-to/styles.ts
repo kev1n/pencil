@@ -1,3 +1,5 @@
+import { enrollmentDatesStyles } from "../../enrollment-dates/styles";
+
 export const STYLE_ID = "bc-caesar-bookmarks-style";
 
 export const styles = `
@@ -127,55 +129,7 @@ export const styles = `
     max-width: min(40vw, 34rem);
   }
 
-  #bc-caesar-enrollment-dates {
-    position: fixed;
-    inset: 55px 12px auto auto;
-    box-sizing: border-box;
-    width: min(360px, calc(100vw - 24px));
-    max-height: calc(100dvh - 67px);
-    margin: 0;
-    padding: 16px;
-    overflow: auto;
-    background: var(--bc-color-bg);
-    border: 1px solid var(--bc-color-border);
-    border-radius: var(--bc-radius-xl);
-    box-shadow: var(--bc-shadow-modal);
-    color: var(--bc-color-text);
-    font: 400 13px/1.45 var(--bc-font-body);
-  }
-
-  #bc-caesar-enrollment-dates h2 {
-    margin: 0 0 8px;
-    font: 700 16px/1.25 var(--bc-font-body);
-  }
-
-  #bc-caesar-enrollment-dates .bc-dates-term {
-    margin: 0;
-    font-weight: 650;
-  }
-
-  #bc-caesar-enrollment-dates ul {
-    margin: 8px 0;
-    padding-inline-start: 18px;
-  }
-
-  #bc-caesar-enrollment-dates li + li {
-    margin-top: 6px;
-  }
-
-  #bc-caesar-enrollment-dates .bc-dates-note {
-    margin: 8px 0 0;
-    color: var(--bc-color-text-muted);
-  }
-
-  #bc-caesar-enrollment-dates > a {
-    display: block;
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid var(--bc-color-border);
-    color: var(--bc-color-accent);
-    font-weight: 650;
-  }
+  ${enrollmentDatesStyles}
 
   form#SSR_SSENRL_CART :is([id="SSR_REGFORM_VW$scroll$0"], [id="STDNT_ENRL_SSVW$scroll$0"]) table.PSLEVEL1GRID,
   form#SSR_SSENRL_APPT [id="SSR_SESSDT_VW$scroll$0"] table.PSLEVEL1GRID {

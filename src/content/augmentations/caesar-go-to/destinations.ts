@@ -2,7 +2,7 @@ import { CART_URL } from "../../cart-cache/reconcile";
 import { LANDING_PAGE_URL } from "../../auth/silent-recovery";
 import { COURSE_HISTORY_PAGE_URL } from "../../course-history/reconcile";
 import { SEARCH_ENTRY_URL } from "../../peoplesoft/shared";
-import { APPOINTMENTS_URL } from "./appointment-dates";
+import { APPOINTMENTS_URL } from "../../enrollment-dates/appointment-dates";
 
 export type Bookmark = {
   id: string;

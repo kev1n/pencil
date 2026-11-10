@@ -11,6 +11,14 @@
   },
   "entries": [
     {
+      "version": "0.9.18",
+      "date": "2026-11-10",
+      "headline": "Enrollment dates on Paper.nu",
+      "items": [
+        { "kind": "feat", "text": "See registration dates and your assigned appointments from the Paper.nu and CAESAR headers, and add appointment start times to Google Calendar." }
+      ]
+    },
+    {
       "version": "0.9.17",
       "date": "2026-11-10",
       "headline": "Prereq trees you can trust",
