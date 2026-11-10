@@ -7,6 +7,7 @@
 import type { PaperCourse } from "../augmentations/class-search/paper-data";
 import { logQuiet } from "../../shared/log";
 import { parsePrereq } from "./parser/index";
+import overrides from "./overrides.json";
 import {
   PARSED_PREREQS_TTL_MS,
   PREREQS_PARSED_STORAGE_KEY,
@@ -17,6 +18,13 @@ import {
 export type ParsedPrereqMap = ReadonlyMap<string, PrereqRecord>;
 
 type MemoEntry = { planRev: string; map: ParsedPrereqMap };
+
+// Hardcoded prereq text for courses where paper.nu's `p` string is stale
+// (retired course numbers, old department codes). Snapshot taken
+// 2026-11-10 from CAESAR's Fall 2026 / Winter 2027 enrollment
+// requirements, falling back to the 2026-27 undergraduate catalog. Only
+// courses whose required-course set differs from paper.nu's are listed.
+const PREREQ_OVERRIDES: Readonly<Record<string, string>> = overrides;
 
 let memoCache: MemoEntry | null = null;
 let inFlight: { planRev: string; promise: Promise<ParsedPrereqMap> } | null = null;
@@ -76,7 +84,7 @@ async function parseAll(courses: readonly PaperCourse[]): Promise<Record<string,
     // string for courses with no prereqs. Both mean "no prereqs" per the
     // registrar's data — emit a synthetic `none` record so the UI shows a
     // confident ✓ instead of a "no data" pill.
-    const raw = course.prereqs ?? "";
+    const raw = PREREQ_OVERRIDES[course.id] ?? course.prereqs ?? "";
     if (raw.trim() === "") {
       byCourseId[course.id] = {
         id: course.id,

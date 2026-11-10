@@ -2,6 +2,12 @@ export { parsePrereq } from "./parser";
 export { evaluateEligibility } from "./eligibility";
 export { getParsedPrereqs, clearParsedPrereqs, type ParsedPrereqMap } from "./cache";
 export {
+  aliasCourseId,
+  buildCourseCatalog,
+  canonicalizePrereqs,
+  type CourseCatalog
+} from "./canonicalize";
+export {
   ELIGIBILITY_RANK,
   PARSED_PREREQS_TTL_MS,
   PREREQS_PARSED_STORAGE_KEY,

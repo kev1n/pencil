@@ -11,6 +11,29 @@
   },
   "entries": [
     {
+      "version": "0.9.17",
+      "date": "2026-11-10",
+      "headline": "Prereq trees you can trust",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "Prereq trees on Paper.nu now show current course numbers instead of retired ones, and courses you took under an old number still count."
+        },
+        {
+          "kind": "fix",
+          "text": "Prereqs written as lists, like \"A or B, C or D, and E\", are now grouped the way the registrar means them."
+        },
+        {
+          "kind": "fix",
+          "text": "Sequence courses such as MATH 220-1 now expand to show their own prereqs."
+        },
+        {
+          "kind": "fix",
+          "text": "Prereq trees have a new sideways layout that fits on screen: the course is on the left, and brackets show whether you need all of a group or just one."
+        }
+      ]
+    },
+    {
       "version": "0.9.16",
       "date": "2026-11-10",
       "headline": "Faster CTECs after sign-in",
