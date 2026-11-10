@@ -58,9 +58,25 @@ describe("fetchAggregateWithAuth", () => {
     vi.mocked(fetchCtecLinksBackground).mockClear();
   });
 
-  it("skips the CAESAR search when retrying after the CTECs sign-in", async () => {
+  it.each([
+    ["a 401", { status: 401, text: "", finalUrl: BLUERA_URL }],
+    [
+      "the SSO hand-off page",
+      {
+        status: 200,
+        text: "<form><input name=\"SAMLResponse\"></form>",
+        finalUrl: "https://fed.it.northwestern.edu/idp/profile/SAML2/Redirect/SSO"
+      }
+    ],
+    // remote-fetch rethrows the background's TypeError message as a plain Error.
+    ["a blocked redirect to Duo", new Error("Failed to fetch")]
+  ])("skips the CAESAR search when retrying after %s", async (_label, signedOut) => {
     vi.mocked(fetchTextResultViaBackground)
-      .mockResolvedValueOnce({ status: 401, text: "", finalUrl: BLUERA_URL } as never)
+      .mockReset()
+      .mockImplementationOnce(async () => {
+        if (signedOut instanceof Error) throw signedOut;
+        return signedOut as never;
+      })
       .mockResolvedValueOnce({ status: 200, text: "<html></html>", finalUrl: BLUERA_URL } as never);
     const ensure = vi.fn(async () => undefined);
 

@@ -22,6 +22,7 @@ import {
   fetchCtecLinksByInstructor
 } from "./fetcher-instructor";
 import { CaesarAuthRequiredError } from "../class-search/caesar-search/types";
+import { isBlueraHost } from "../../../shared/nu-hosts";
 import { NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesStrategy, isAuthResponse, termToSortKey } from "./helpers";
 import { CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
@@ -501,12 +502,28 @@ async function ensureReportEntries(
 
     onProgress?.(`Reading evaluation ${index + 1}/${missing.length}…`);
 
-    const response = await fetchTextResultViaBackground(url, {
-      method: "GET",
-      signal: getCurrentPeopleSoftTaskSignal() ?? undefined,
-      timeoutMs: CTEC_FETCH_TIMEOUT_MS
-    });
-    if (isAuthResponse(response.text)) {
+    let response: Awaited<ReturnType<typeof fetchTextResultViaBackground>>;
+    try {
+      response = await fetchTextResultViaBackground(url, {
+        method: "GET",
+        signal: getCurrentPeopleSoftTaskSignal() ?? undefined,
+        timeoutMs: CTEC_FETCH_TIMEOUT_MS
+      });
+    } catch (error) {
+      // When SSO also wants Duo, the redirect chain leaves our host
+      // permissions and the browser blocks it as a network error.
+      if (error instanceof Error && /failed to fetch|networkerror/i.test(error.message)) {
+        throw new CaesarAuthRequiredError(url);
+      }
+      throw error;
+    }
+    // A signed-out report request leaves Bluera for Northwestern SSO.
+    // With SSO still alive it stops on the SAML auto-POST hand-off page,
+    // which carries none of the login-page markers below.
+    if (
+      isAuthResponse(response.text) ||
+      (response.finalUrl && !isBlueraHost(response.finalUrl))
+    ) {
       throw new CaesarAuthRequiredError(url);
     }
     if (response.status === 401 || response.status === 403) {

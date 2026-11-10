@@ -15,6 +15,7 @@
       "date": "2026-11-10",
       "headline": "Faster CTECs after sign-in",
       "items": [
+        { "kind": "fix", "text": "When CTECs signs you out, Pencil asks you to sign in again instead of showing no ratings or \"CTEC unavailable\"." },
         { "kind": "fix", "text": "After you sign in to CTECs, Pencil picks up where it left off instead of searching for your class again." }
       ]
     },
