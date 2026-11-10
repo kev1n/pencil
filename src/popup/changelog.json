@@ -11,6 +11,15 @@
   },
   "entries": [
     {
+      "version": "0.9.15",
+      "date": "2026-11-10",
+      "headline": "Course History by term",
+      "items": [
+        { "kind": "feat", "text": "Course History now groups your finished classes by term, filters by subject like DSGN or COMP_SCI, and downloads what you see as a CSV." },
+        { "kind": "fix", "text": "My courses in the popup shows your grades and lists terms in the right order." }
+      ]
+    },
+    {
       "version": "0.9.14",
       "date": "2026-11-05",
       "headline": "Copy without extra permissions",

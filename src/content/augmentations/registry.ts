@@ -2,6 +2,7 @@ import { CartPageHydrator } from "../cart-cache";
 import type { Augmentation } from "../framework";
 import { caesarBookmarksAugmentation } from "./caesar-go-to";
 import { classSearchAugmentation } from "./class-search";
+import { courseHistoryViewAugmentation } from "./course-history-view";
 import { ctecLinksAugmentation } from "./ctec-links";
 import { enrollmentNavigationAugmentation } from "./enrollment-navigation";
 import { paperBrandAugmentation } from "./paper-brand";
@@ -21,6 +22,7 @@ export const augmentationRegistry: Augmentation[] = [
   caesarBookmarksAugmentation,
   enrollmentNavigationAugmentation,
   classSearchAugmentation,
+  courseHistoryViewAugmentation,
   ctecLinksAugmentation,
   paperBrandAugmentation,
   paperCtecAugmentation,
