@@ -11,6 +11,14 @@
   },
   "entries": [
     {
+      "version": "0.9.16",
+      "date": "2026-11-10",
+      "headline": "Faster CTECs after sign-in",
+      "items": [
+        { "kind": "fix", "text": "After you sign in to CTECs, Pencil picks up where it left off instead of searching for your class again." }
+      ]
+    },
+    {
       "version": "0.9.15",
       "date": "2026-11-10",
       "headline": "Course History by term",

@@ -13,6 +13,7 @@ import {
   fetchCtecCourseAnalytics,
   fetchCtecReportAggregate,
   type CtecCourseAnalyticsResult,
+  type CtecFetchAttempt,
   type CtecReportAggregateResult
 } from "../augmentations/ctec-links/reports";
 import type { CtecLinkParams } from "../augmentations/ctec-links/types";
@@ -32,10 +33,12 @@ export function fetchAggregateWithAuth(
   onProgress: (message: string) => void,
   options: { fetchLimit: number; aggregateLimit: number }
 ): Promise<CtecReportAggregateResult | null> {
+  const attempt: CtecFetchAttempt = { linksFound: false };
   return withAuthRecovery(
     authRecovery,
     isCaesarAuthRequiredError,
-    () => fetchCtecReportAggregate(params, titleHint, onProgress, options),
+    () =>
+      fetchCtecReportAggregate(params, titleHint, onProgress, { ...options, attempt }),
     RECOVERY_OPTIONS
   );
 }
@@ -52,6 +55,7 @@ export function fetchAnalyticsWithAuth(
   fetchLimit: number | undefined,
   forceRefreshLinks: boolean | undefined
 ): Promise<CtecCourseAnalyticsResult> {
+  const attempt: CtecFetchAttempt = { linksFound: false };
   return withAuthRecovery(
     authRecovery,
     isCaesarAuthRequiredError,
@@ -62,7 +66,9 @@ export function fetchAnalyticsWithAuth(
         recentAggregateLimit,
         onProgress,
         fetchLimit,
-        forceRefreshLinks
+        forceRefreshLinks,
+        undefined,
+        attempt
       ),
     RECOVERY_OPTIONS
   ).then((result) =>
