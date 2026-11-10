@@ -84,30 +84,47 @@ Firefox:
 3. Click `Load Temporary Add-on`.
 4. Select `dist/firefox/manifest.json`.
 
+## Shipping a change
+
+Getting work from your machine to students:
+
+1. **Open a PR to `main`.** CI (`.github/workflows/ci.yml`) runs typecheck, lint, tests, and both builds. Keep it green, then merge.
+2. **Cut a release.** On `main`, bump `version` in both `src/manifest.base.json` and `package.json`, and prepend a student-facing entry to `src/popup/changelog.json` (the popup's "What's new" panel). Commit that, then tag and push:
+
+   ```bash
+   git tag v0.9.15        # must match the manifest version exactly
+   git push origin main --tags
+   ```
+
+3. **Let the release workflow publish it.** The tag triggers `.github/workflows/release.yml`, which re-runs the checks, verifies the tag matches the manifest version, builds and zips both targets, attaches them to a GitHub Release, and submits them to the [Chrome Web Store](https://chromewebstore.google.com/detail/klgfglapoogiaggfghlbcbfjhhgebahf) and [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/pencil-nu/).
+4. **Wait for store review.** Each store reviews the new version (usually hours to a few days). Once approved, installed copies update themselves; no one needs to reinstall. Track status in the Chrome Web Store Developer Dashboard and the AMO Developer Hub.
+
+If a publish step fails, check the run in the repo's Actions tab. Store credentials live in the repository's Actions secrets:
+
+| Secret | What it is |
+| --- | --- |
+| `CWS_PUBLISHER_ID` | Chrome Web Store publisher ID |
+| `CWS_CLIENT_ID`, `CWS_CLIENT_SECRET` | OAuth client in the `pencil-cws-publish` Google Cloud project (Chrome Web Store API enabled, consent screen in production) |
+| `CWS_REFRESH_TOKEN` | Refresh token for that client with the `https://www.googleapis.com/auth/chromewebstore` scope, minted via the [OAuth Playground](https://developers.google.com/oauthplayground) |
+| `AMO_JWT_ISSUER`, `AMO_JWT_SECRET` | [AMO API keys](https://addons.mozilla.org/en-US/developers/addon/api/key/) |
+
+If the Chrome token is revoked or a password change invalidates it, mint a new refresh token and update `CWS_REFRESH_TOKEN`. The Firefox build's add-on ID (`pencil@local.dev`, set in `scripts/build.mjs`) must keep matching the AMO listing.
+
 ## Bundle and deploy for NUIT
 
 The preferred managed deployment path is Chrome Web Store or private/domain Chrome Web Store distribution, then Google Admin console policy. Google documents enterprise publishing, private domain publishing, allowlisting, and force-install controls in the [Chrome Enterprise publishing options](https://developer.chrome.com/docs/webstore/cws-enterprise/) and [Chrome Admin apps and extensions](https://support.google.com/chrome/a/answer/6177447) docs.
 
 Recommended Chrome Web Store or private-domain flow:
 
-1. Update `version` in `src/manifest.base.json` for the release.
-2. Run `npm install`, `npm run typecheck`, and `npm run build:chrome`.
-3. Zip the contents of `dist/chrome`, not the parent folder:
-
-   ```bash
-   cd dist/chrome
-   zip -r ../../pencil-chrome.zip .
-   ```
-
-4. Upload `pencil-chrome.zip` in the Chrome Web Store Developer Dashboard.
-5. Choose the appropriate visibility: public, unlisted, trusted testers, or private/domain publishing.
-6. After review/publication, provide NUIT the Chrome Web Store extension ID.
-7. In Google Admin, go to `Devices > Chrome > Apps & extensions > Users & browsers`.
-8. Select the test organizational unit or group first.
-9. Add the extension from the Chrome Web Store or by extension ID.
-10. Accept the listed permissions on behalf of the organization.
-11. Set the installation policy to `Allow install`, `Force install`, or `Force install + pin` depending on the rollout plan.
-12. Verify on a managed test device at `chrome://policy`, then broaden the OU/group only after the behavior is confirmed.
+1. Publish a release as described in [Shipping a change](#shipping-a-change); pushing the tag uploads the build to the Chrome Web Store.
+2. Choose the appropriate visibility: public, unlisted, trusted testers, or private/domain publishing.
+3. After review/publication, provide NUIT the Chrome Web Store extension ID.
+4. In Google Admin, go to `Devices > Chrome > Apps & extensions > Users & browsers`.
+5. Select the test organizational unit or group first.
+6. Add the extension from the Chrome Web Store or by extension ID.
+7. Accept the listed permissions on behalf of the organization.
+8. Set the installation policy to `Allow install`, `Force install`, or `Force install + pin` depending on the rollout plan.
+9. Verify on a managed test device at `chrome://policy`, then broaden the OU/group only after the behavior is confirmed.
 
 Self-hosted CRX flow if NUIT does not want Web Store distribution:
 
