@@ -16,6 +16,7 @@ import {
   COURSE_RE_FULL,
   DEPT_APPROVAL_RE,
   GPA_RE,
+  GRAD_STUDENT_RE,
   GRADE_OF_RE,
   LEVEL_OR_HIGHER_RE,
   LEVEL_WILD_RE,
@@ -146,7 +147,8 @@ export function parseAtom(
 ): PrereqNode | null {
   text = stripTrailingPunct(normalize(text));
   text = text.replace(NUM_LIST_PREFIX_RE, "").trim();
-  text = text.replace(/^(?:or|and)\s+/i, "").trim();
+  // A leading or dangling connective is not a requirement.
+  text = text.replace(/^(?:or|and)(?:\s+|$)/i, "").trim();
   if (!text) return null;
   const low = text.toLowerCase();
   if (NONE_RE.test(text)) return { kind: "none" };
@@ -363,6 +365,15 @@ export function parseAtom(
       subjects: [],
       orHigher: true
     };
+  }
+
+  // Graduate students, optionally of a named program ("BME", "CS Masters").
+  const gs = GRAD_STUDENT_RE.exec(text);
+  if (gs && (!gs[1] || gs[1].split(/\s+/).every((w) => /^[A-Z]/.test(w)))) {
+    const names = gs[1] ? [gs[3] ? `${gs[1]} ${gs[3]}` : gs[1]] : gs[3] ? [gs[3]] : null;
+    const node: PrereqNode = { kind: "standing", level: "graduate" };
+    if (names) node.scope = { type: "program", names };
+    return node;
   }
 
   if (VARY_RE.test(low)) {
