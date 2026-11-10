@@ -12,6 +12,8 @@ export function normalize(s: string): string {
 
 export function stripProse(text: string): [string, string | null] {
   let grade: string | null = null;
+  // A leading "REQ:" / "Requirements:" label, like "Prerequisite:".
+  text = text.replace(/^(?:REQ|Requirements?)\s*:\s*/i, "");
   for (const pat of WRAPPER_PATTERNS) {
     const m = pat.exec(text);
     if (m) {
@@ -43,7 +45,8 @@ export function expandMultiversion(text: string): string {
 export function carrySubjects(text: string): string {
   // Walks "atoms" separated by ", " / " or " / " and " / "; ", carrying
   // the most recently seen subject across bare-number references.
-  const parts = text.split(/(\s+or\s+|\s+and\s+|,\s+|;\s+)/i);
+  // ", or " / ", and " are one separator, so "132-0, 152-0, or 172-0" carries too.
+  const parts = text.split(/(,?\s+or\s+|,?\s+and\s+|,\s+|;\s+)/i);
   const out: string[] = [];
   let currentSubject: string | null = null;
   for (let idx = 0; idx < parts.length; idx++) {

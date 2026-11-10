@@ -30,6 +30,10 @@
         {
           "kind": "fix",
           "text": "Prereq trees have a new sideways layout that fits on screen: the course is on the left, and brackets show whether you need all of a group or just one."
+        },
+        {
+          "kind": "fix",
+          "text": "Prereq trees no longer show stray sentence fragments as requirements, and grade minimums like \"C- or better\" now show on every course they apply to."
         }
       ]
     },

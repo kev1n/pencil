@@ -51,7 +51,12 @@ export const APPLICATION_RE =
 export const PLACEMENT_RE =
   /\bplacement\s+(?:exam|test|score|results)\b|\bqualifying\s+score\b|\bdepartment(?:al)?\s+placement(?:\s+exam)?\b|\bplacement\s+by\s+exam\b|\bbased\s+on\s+(?:test\s+)?placement\b/i;
 
-export const AP_RE = /\bAP\s+(?:exam|score|credit)\b/i;
+export const AP_RE = /\bAP\s+(?:exam|score|credit|(?:of\s+)?\d)\b/i;
+
+// "be a graduate student", "is a BME graduate student", "Graduate Students",
+// "be a CS Masters student": graduate standing, optionally in a named program.
+export const GRAD_STUDENT_RE =
+  /^(?:(?:students?\s+)?(?:must\s+)?(?:be|is)\s+)?(?:an?\s+)?(?:([A-Z][\w&-]*(?:\s+[A-Z][\w&-]*){0,2})\s+)?(?:(graduate|grad)|(masters?|MS|PhD|MS\/PhD))\s+students?(?:\s+standing)?(?:\s+to\s+(?:enroll|register))?$/i;
 
 export const PROGRAM_ENROLL_RE =
   /\b(?:students?\s+(?:must\s+be\s+)?enrolled\s+in|enrollment\s+in|admission\s+to|admitted\s+to|reserved\s+(?:exclusively\s+)?for)\s+(?:the\s+)?(.+?)(?:\s+to\s+register|\.|$|,)/i;
@@ -91,7 +96,7 @@ export const WORD_COUNT: Record<string, number> = {
 export const MULTI_LEVEL_WILDCARD_RE =
   /\b(\d)00\s*-?(?:\s*or\s+(\d)00\s*-?)?\s*level\s+((?:[A-Za-z][\w-]*)(?:\s+or\s+[A-Za-z][\w-]*){1,4})\s+(?:course|class)\b/gi;
 
-export const EQUIV_TOPIC_RE = /^equivalents?(?:\s+\w+){0,5}\.?$/i;
+export const EQUIV_TOPIC_RE = /^equivalents?(?:\s+\w+){0,5}(?:\s*\([^()]*\))?\.?$/i;
 
 export const OR_ABOVE_TOPIC_RE = /^(above|higher)\.?$/i;
 
@@ -108,8 +113,12 @@ export const ONE_COURSE_FROM_RE = /^(?:1|one)\s+course\s+(?:from|in)\s+(.+)$/i;
 // Wrapper patterns stripped from the start before parsing. Captured grade
 // groups feed `leadingGrade` in stripProse.
 export const WRAPPER_PATTERNS: RegExp[] = [
+  // "Student must have received a C- or higher or be currently enrolled in X".
+  /^(?:students?\s+must\s+have\s+)?(?:received|earned)\s+an?\s+(?:grade\s+of\s+)?([A-D][+\-]?)\s+or\s+(?:better|higher|above)\s+(?:in\s+)?(?:or\s+(?:be\s+)?(?:currently\s+)?enrolled\s+in\s+)?/i,
+  // "To register for this course, you must have taken ...".
+  /^(?:in\s+order\s+)?to\s+(?:register|enroll)(?:\s+(?:for|in)\s+this\s+(?:course|class))?,?\s+(?:you|students?)\s+must\s+have\s+(?:completed\s+|taken\s+)?/i,
   /^students\s+must\s+have\s+completed,?\s+with\s+a\s+([A-D][+\-]?)\s*or\s+better,?\s*/i,
-  /^grade\s+of\s+([A-D][+\-]?)\s*or\s+(?:better|higher|above)\s+in\s+/i,
+  /^grades?\s+of\s+([A-D][+\-]?)\s*or\s+(?:better|higher|above)\s+in\s+(?:both\s+)?/i,
   /^([A-D][+\-]?)\s+or\s+(?:better|higher|above)\s+in\s+/i,
   /^students?\s+must\s+have\s+completed,?\s*/i,
   /^students?\s+(?:must|should)\s+have\s+/i,
@@ -119,8 +128,10 @@ export const WRAPPER_PATTERNS: RegExp[] = [
 ];
 
 export const TRAIL_PATTERNS: RegExp[] = [
-  /\s+to\s+register\s+for\s+this\s+course\.?$/i,
-  /\s+to\s+enroll\s+in\s+this\s+course\.?$/i,
+  /\s+(?:in\s+order\s+)?to\s+(?:successfully\s+)?register\s+for\s+(?:this|the)\s+(?:course|class)\.?$/i,
+  /\s+(?:in\s+order\s+)?to\s+(?:successfully\s+)?enroll\s+(?:in|into)\s+(?:this|the)\s+(?:course|class)\.?$/i,
+  // Registration instructions: "Add both classes to the shopping cart and submit together ...".
+  /[\s.;]*\badd\s+(?:both|all)\b[^.]*\bcart\b.*$/i,
   /\.\s*may\s+not\s+receive\s+credit\s+for\s+both.*$/i,
   /\.\s*credit\s+not\s+given\s+for\s+both.*$/i,
   /\.\s*students?\s+who\s+have\s+taken.*$/i,

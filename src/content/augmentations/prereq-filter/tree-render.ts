@@ -328,7 +328,9 @@ function lookupParsedFor(parsedMap: ParsedPrereqMap, node: CourseNode): PrereqNo
 }
 
 function standingLabel(node: Extract<PrereqNode, { kind: "standing" }>): string {
-  return `${node.level} standing${node.orAbove ? "+" : ""}`;
+  // "BME graduate standing": a named program is part of the requirement.
+  const program = node.scope && "names" in node.scope ? `${node.scope.names.join("/")} ` : "";
+  return `${program}${node.level} standing${node.orAbove ? "+" : ""}`;
 }
 
 function levelWildcardLabel(node: Extract<PrereqNode, { kind: "level-wildcard" }>): string {

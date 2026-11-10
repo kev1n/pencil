@@ -16,6 +16,7 @@ import {
   stripProse
 } from "./normalize";
 import {
+  AP_RE,
   BARE_STANDING_RE,
   CONCURRENT_REQUIRED_RE,
   CONDITIONAL_RE,
@@ -92,7 +93,11 @@ export function parseRoot(
     if (courses !== null) {
       courses = annotateCourses(courses, { concurrent: "required" });
       if (courses) concurrentExtras.push(courses);
-      text = (text.slice(0, chunkStart) + text.slice(chunkEnd)).replace(/[\s.,;]+$/g, "").replace(/^[\s.,;]+/g, "");
+      text = (text.slice(0, chunkStart) + text.slice(chunkEnd))
+        .replace(/[\s.,;]+$/g, "")
+        .replace(/^[\s.,;]+/g, "")
+        // "A and B, and must be taken concurrently with C" leaves a dangling "and".
+        .replace(/[\s,;]+(?:and|or)$/i, "");
     }
   }
 
@@ -100,14 +105,55 @@ export function parseRoot(
   for (const pat of TRAIL_PATTERNS) {
     text = text.replace(pat, "");
   }
-  // Strip leftover "to register/enroll for this course" anywhere mid-string.
-  text = text.replace(/\s+to\s+register\s+for\s+this\s+course\.?/gi, ".");
-  text = text.replace(/\s+to\s+enroll\s+in\s+this\s+course\.?/gi, ".");
-  // "with a (grade of) C- or better" is a grade note, not an alternative.
+  // Strip leftover "(in order) to register/enroll for this course" anywhere mid-string.
   text = text.replace(
-    /\s+with\s+an?\s+(?:grade\s+of\s+)?[A-D][+-]?\s+or\s+(?:better|higher|above)\b/gi,
+    /\s+(?:in\s+order\s+)?to\s+(?:register|enroll)\s+(?:for|in|into)\s+this\s+(?:course|class)\.?/gi,
+    "."
+  );
+  // "with a (grade of) C- or better" / "and passed with at least a C-"
+  // is a grade note on the course before it, not an alternative. Grades
+  // the schema can hold become a "(C- or better)" modifier; others drop.
+  text = text.replace(
+    /\s+(?:and\s+passed\s+)?with\s+(?:an?\s+(?:grade\s+of\s+)?([A-D][+-]?)\s+or\s+(?:better|higher|above)\b|at\s+least\s+an?\s+([A-D][+-]?)(?!\w))/gi,
+    (_m, g1: string | undefined, g2: string | undefined) => {
+      const grade = (g1 ?? g2 ?? "").toUpperCase();
+      return grade === "C-" || grade === "B-" ? ` (${grade} or better)` : "";
+    }
+  );
+  // "A and B (C- or better)": the grade covers every course in the "and"
+  // run, so it is copied onto each. The run never crosses an "or" or a
+  // semicolon. After an "or", a comma in the run ("A or B, and C")
+  // closes the alternatives group, so the run is left alone.
+  text = text.replace(
+    /(?<![A-Z_]\s)\b((?:[A-Z][A-Z_]+\s+)?\d{3}(?:-[A-Za-z0-9]+)?(?:(?:,\s*|,?\s+(?:and|AND)\s+)(?:[A-Z][A-Z_]+\s+)?\d{3}(?:-[A-Za-z0-9]+)?)*,?\s+(?:and|AND)\s+(?:[A-Z][A-Z_]+\s+)?\d{3}(?:-[A-Za-z0-9]+)?) (\([CB]- or better\))/g,
+    (m: string, run: string, grade: string, offset: number, all: string) =>
+      run.includes(",") && /\b(?:or|OR)\s+$/.test(all.slice(0, offset))
+        ? m
+        : run.replace(/(\d{3}(?:-[A-Za-z0-9]+)?)(?=,|\s+(?:and|AND)\s)/g, `$1 ${grade}`) + ` ${grade}`
+  );
+  // "an AP of 5 in the Spanish Language and Literature exams" is one
+  // placement clause; its "and" is not a connective.
+  text = text.replace(/\bAP\s+(?:score\s+)?of\s+\d\b[^,;]*/gi, (clause) =>
+    hasCourse(clause) ? clause : clause.split(/\s+or\s+/i).map((c) => c.replace(/\s+and\s+/gi, " & ")).join(" or ")
+  );
+  // "AP 4 in Spanish, French or Italian" is one placement; its subject
+  // list is not a list of requirements.
+  text = text.replace(
+    /\b(AP\s+(?:[Ss]core\s+)?(?:of\s+)?\d\s+in\s+)([A-Z][a-z]+(?:(?:,\s*|,?\s+(?:or|and)\s+)[A-Z][a-z]+)+)\b/g,
+    (_m, head: string, list: string) => head + list.split(/,\s*|,?\s+(?:or|and)\s+/).join("/")
+  );
+  // "completed or currently enrolled in X", "prior completion of or
+  // concurrent enrollment in X", "be enrolled in or have taken and passed
+  // X": either way X is the requirement. Only at the start of a clause, so
+  // a qualifier in front ("ISP students who have completed or...") stays.
+  text = text.replace(
+    /(?<=^|[,;]\s*|\band\s+)(?:(?:have\s+)?(?:prior\s+)?(?:completed|completion\s+of|taken)\s+or\s+(?:be\s+|are\s+)?(?:currently|concurrently|concurrent)\s+(?:enrolled|enrollment|registered|registration)(?:\s+in)?|(?:students?\s+)?(?:must\s+)?(?:currently\s+)?(?:be\s+)?(?:currently\s+)?enrolled(?:\s+in)?\s+or\s+(?:have\s+)?(?:taken|completed|passed)(?:\s+and\s+passed)?|(?:have\s+)?taken\s+and\s+passed)\s+/gi,
     ""
   );
+  // "X or equivalent and Y": the equivalent belongs to X, not a new branch.
+  text = text.replace(/\s+or\s+equivalent(?=,?\s+and\s)/gi, " (or equivalent)");
+  // ", which may be taken concurrently" annotates the course before it.
+  text = text.replace(/,?\s+which\s+(?:may|can)\s+be\s+taken\s+concurrently\b/gi, " (may be taken concurrently)");
   text = normalize(text).replace(/[\s.,;]+$/g, "").replace(/^[\s.,;]+/g, "");
   text = expandMultiversion(text);
   let multiLwildcards: WildcardArr;
@@ -138,6 +184,12 @@ export function parseRoot(
 
 function hasCourse(text: string): boolean {
   return COURSE_RE.test(text) || /^\s*\d{3}\b/.test(text);
+}
+
+// "STAT 210 (B- or better)" -> "STAT 210-0"; null unless the text is one course.
+function courseKey(text: string): string | null {
+  const m = /^([A-Za-z][A-Za-z_]{1,})\s+(\d{3})(?:-([A-Za-z0-9]+))?(?:\s*\([^()]*\))?\.?$/.exec(text.trim());
+  return m ? `${m[1].toUpperCase()} ${m[2]}-${(m[3] ?? "0").toUpperCase()}` : null;
 }
 
 function hasOr(text: string): boolean {
@@ -197,6 +249,20 @@ export function parseOrExpr(
     }
   }
 
+  // "X and either A or B": each either-list is one group of
+  // alternatives. "either:" opens a group that runs to the end, even
+  // across "; or" segments; a bare "either" group stops at a semicolon.
+  const eitherColon = splitTopLevel(text, [", and either: ", " and either: "]);
+  const eitherParts =
+    eitherColon.length === 2
+      ? eitherColon
+      : splitTopLevel(text, [";"]).length === 1
+        ? splitTopLevel(text, [", and either ", " and either "])
+        : [];
+  if (eitherParts.length > 1) {
+    return allOf(eitherParts.map((p) => parseOrExpr(p, warnings, multiLwildcards)));
+  }
+
   // Pair-binding (OR-tighter alternation).
   if (!text.includes(";")) {
     const [leaves, ops] = getOperatorChain(text);
@@ -245,6 +311,34 @@ export function parseOrExpr(
       } else {
         items.push({ op: "and", text: p });
       }
+    }
+    // "A; B; or consent of instructor": a closing non-course escape
+    // hatch covers the whole list, not just the segment before it.
+    const last = items[items.length - 1];
+    if (
+      last.op === "or" &&
+      !hasCourse(last.text) &&
+      items.slice(1, -1).some((it) => it.op === "and")
+    ) {
+      return foldEquivalent(
+        anyOf([
+          buildAndorTree(items.slice(0, -1), warnings, multiLwildcards),
+          parseOrExpr(last.text, warnings, multiLwildcards)
+        ])
+      );
+    }
+    // "AP 4 in X; instructor permission, or placement test": an AP
+    // clause, no course anywhere and a closing ", or" list, so the
+    // semicolons separate items of one list of alternatives.
+    if (
+      items.every((it) => it.op === "first" || it.op === "and") &&
+      items.some((it) => AP_RE.test(it.text)) &&
+      !items.some((it) => hasCourse(it.text)) &&
+      splitTopLevel(last.text, [", or "]).length > 1
+    ) {
+      return foldEquivalent(
+        anyOf(items.map((it) => parseOrExpr(it.text, warnings, multiLwildcards)))
+      );
     }
     return buildAndorTree(items, warnings, multiLwildcards);
   }
@@ -296,8 +390,36 @@ export function parseOrExpr(
         return foldEquivalent(anyOf(parts.map((p) => parseAndExpr(p, warnings, multiLwildcards))));
       }
     } else if (orCount >= 1) {
-      // "A or B, C or D": each comma chunk is its own requirement.
-      return allOf(chunks.map((c) => parseOrExpr(c, warnings, multiLwildcards)));
+      // "A or B, C or D": each comma chunk is its own requirement. A run
+      // of plain courses right before an all-course "or" chunk reads as
+      // "A, B or C" above ("150, 151 or COMP_SCI 150, MATH 220-1"), with
+      // the same sequence and escape-hatch exceptions.
+      const groups: string[][] = [];
+      let run: string[] = [];
+      chunks.forEach((chunk, i) => {
+        if (!withOr[i]) {
+          run.push(chunk);
+          return;
+        }
+        const orParts = splitTopLevel(chunk, [" or "]);
+        if (
+          run.length > 0 &&
+          run.every(hasCourse) &&
+          orParts.every(hasCourse) &&
+          !isOneSequence([...run, orParts[0]])
+        ) {
+          groups.push([...run, chunk]);
+        } else {
+          groups.push(...run.map((r) => [r]), [chunk]);
+        }
+        run = [];
+      });
+      groups.push(...run.map((r) => [r]));
+      return allOf(
+        groups.map((g) =>
+          foldEquivalent(anyOf(g.map((c) => parseOrExpr(c, warnings, multiLwildcards))))
+        )
+      );
     }
   }
 
@@ -305,6 +427,20 @@ export function parseOrExpr(
   const hasOxford = splitTopLevel(text, [", or "]).length > 1;
   if (hasOxford) {
     const parts = splitTopLevel(text, [", or ", " or ", ", "]);
+    // "A, B, C, or AP credit for B": the closing credit names the item it
+    // stands in for. B and the items after it are the alternatives; what
+    // comes before B is required. A trailing sentence after the target is
+    // not part of it.
+    const credit = /^(?:have\s+)?(.*\b(?:AP|placement)\b.*?)\s+for\s+(.+)$/i.exec(parts[parts.length - 1]);
+    const target = credit ? courseKey(credit[2].split(/\.\s/)[0]) : null;
+    const ti = target ? parts.slice(0, -1).findIndex((p) => courseKey(p) === target) : -1;
+    if (credit && ti >= 0 && parts.length > 2) {
+      const parse = (p: string) => parseAndExpr(p, warnings, multiLwildcards);
+      return allOf([
+        ...parts.slice(0, ti).map(parse),
+        anyOf([...parts.slice(ti, -1).map(parse), parseAtom(credit[1], warnings, multiLwildcards)])
+      ]);
+    }
     if (parts.length > 1) {
       return foldEquivalent(anyOf(parts.map((p) => parseAndExpr(p, warnings, multiLwildcards))));
     }

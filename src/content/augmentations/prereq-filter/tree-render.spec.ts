@@ -136,6 +136,13 @@ describe("renderPrereqTree", () => {
     }
   });
 
+  it("names the program on scoped standing", () => {
+    const pill = pills(
+      render({ kind: "standing", level: "graduate", scope: { type: "program", names: ["BME"] } })
+    )[0];
+    expect(pill.textContent).toBe("BME graduate standing");
+  });
+
   it("leads with the target course when one is given", () => {
     const root = renderPrereqTree(document, course("COMP_SCI", "211"), emptyHistory(), {
       target: { subject: "COMP_SCI", number: "214-0", state: "blocked" }
