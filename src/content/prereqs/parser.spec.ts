@@ -14,6 +14,10 @@ function parentSubjectFromId(id: string): string | null {
   return m ? m[1] : null;
 }
 
+// The fixture began as the reference Python parser's output. It is now
+// a regression snapshot of this parser: the and/or grouping rules in
+// parser/parser.ts intentionally diverge from the reference, so
+// regenerate the affected records when the grammar changes on purpose.
 describe("prereqs parser parity", () => {
   let pass = 0;
   let fail = 0;

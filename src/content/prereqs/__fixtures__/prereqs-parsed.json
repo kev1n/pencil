@@ -2157,19 +2157,14 @@
       "kind": "any",
       "of": [
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "topic",
-              "topic": "be currently enrolled in"
-            },
-            {
-              "kind": "course",
-              "subject": "CHEM",
-              "number": "210",
-              "section": "1"
-            }
-          ]
+          "kind": "topic",
+          "topic": "be currently enrolled in"
+        },
+        {
+          "kind": "course",
+          "subject": "CHEM",
+          "number": "210",
+          "section": "1"
         },
         {
           "kind": "course",
@@ -2381,21 +2376,16 @@
       "kind": "any",
       "of": [
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "course",
-              "subject": "BIOL_SCI",
-              "number": "302",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "BIOL_SCI",
-              "number": "325",
-              "section": "0"
-            }
-          ]
+          "kind": "course",
+          "subject": "BIOL_SCI",
+          "number": "302",
+          "section": "0"
+        },
+        {
+          "kind": "course",
+          "subject": "BIOL_SCI",
+          "number": "325",
+          "section": "0"
         },
         {
           "kind": "course",
@@ -2439,49 +2429,64 @@
     "id": "BIOL_SCI 310-0",
     "raw": "Students must have completed BIOL_SCI 201-0 or BIOL_SCI 215-0, BIOL_SCI 202-0 or BIOL_SCI 219-0, and CHEM 132-0, CHEM 152-0, or CHEM 172-0. Credit not allowed for both BIOL_SCI 310-0 and BIOL_SCI 217-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "201",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "201",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "215",
+              "section": "0"
+            }
+          ]
         },
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "215",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "202",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "219",
+              "section": "0"
+            }
+          ]
         },
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "202",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "219",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "CHEM",
-          "number": "132",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "CHEM",
-          "number": "152",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "CHEM",
-          "number": "172",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "CHEM",
+              "number": "132",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "CHEM",
+              "number": "152",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "CHEM",
+              "number": "172",
+              "section": "0"
+            }
+          ]
         }
       ]
     },
@@ -3025,42 +3030,47 @@
     "id": "BIOL_SCI 337-0",
     "raw": "BIOL_SCI 203-0 or BIOL_SCI 215-0 or ENVR_SCI 202-0, and MATH 218-3 or MATH 220-2",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "203",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "215",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "203",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "215",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "ENVR_SCI",
               "number": "202",
               "section": "0"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "course",
               "subject": "MATH",
               "number": "218",
               "section": "3"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "220",
+              "section": "2"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "220",
-          "section": "2"
         }
       ]
     },
@@ -3309,47 +3319,47 @@
     "id": "BIOL_SCI 345-0",
     "raw": "Students must have completed BIOL_SCI 203-0 or BIOL_SCI 215-0 , BIOL_SCI 202-0 or BIOL_SCI 219-0, and BIOL_SCI 234-0 to register for this course",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "203",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "203",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "215",
               "section": "0"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "202",
               "section": "0"
-            }
-          ]
-        },
-        {
-          "kind": "all",
-          "of": [
+            },
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "219",
               "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "BIOL_SCI",
-              "number": "234",
-              "section": "0"
             }
           ]
+        },
+        {
+          "kind": "course",
+          "subject": "BIOL_SCI",
+          "number": "234",
+          "section": "0"
         }
       ]
     },
@@ -3761,37 +3771,47 @@
     "id": "BIOL_SCI 359-0",
     "raw": "Students must have completed BIOL_SCI 201-0 or BIOL_SCI 215-0, and BIOL_SCI 202-0 or BIOL_SCI 219-0, or BIOL_SCI 354-0 to register for this course",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "201",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "201",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "215",
+              "section": "0"
+            }
+          ]
         },
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "215",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "202",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "219",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "354",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "202",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "219",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "354",
+              "section": "0"
+            }
+          ]
         }
       ]
     },
@@ -3906,47 +3926,47 @@
     "id": "BIOL_SCI 377-0",
     "raw": "BIOL_SCI 202-0 or BIOL_SCI 219-0, BIOL_SCI 203-0 or BIOL_SCI 215-0, and BIOL_SCI 301-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "202",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "202",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "219",
               "section": "0"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "203",
               "section": "0"
-            }
-          ]
-        },
-        {
-          "kind": "all",
-          "of": [
+            },
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "215",
               "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "BIOL_SCI",
-              "number": "301",
-              "section": "0"
             }
           ]
+        },
+        {
+          "kind": "course",
+          "subject": "BIOL_SCI",
+          "number": "301",
+          "section": "0"
         }
       ]
     },
@@ -4405,28 +4425,28 @@
     "id": "BIOL_SCI 397-0",
     "raw": "BIOL_SCI 398-0 or BIOL_SCI 399-0, plus permission of instructor",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "BIOL_SCI",
-          "number": "398",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "BIOL_SCI",
+              "number": "398",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "BIOL_SCI",
               "number": "399",
               "section": "0"
-            },
-            {
-              "kind": "consent",
-              "source": "instructor"
             }
           ]
+        },
+        {
+          "kind": "consent",
+          "source": "instructor"
         }
       ]
     },
@@ -5363,46 +5383,33 @@
     "id": "BUS_INST 331-0",
     "raw": "ECON 201-0, ECON 202-0, STAT 210-0 or equivalent, BUS_INST 304-0 or equivalent",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "course",
-              "subject": "ECON",
-              "number": "201",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "ECON",
-              "number": "202",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "STAT",
-              "number": "210",
-              "section": "0"
-            }
-          ]
+          "kind": "course",
+          "subject": "ECON",
+          "number": "201",
+          "section": "0"
         },
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "topic",
-              "topic": "equivalent"
-            },
-            {
-              "kind": "course",
-              "subject": "BUS_INST",
-              "number": "304",
-              "section": "0",
-              "equivalentOk": true
-            }
-          ]
+          "kind": "course",
+          "subject": "ECON",
+          "number": "202",
+          "section": "0"
+        },
+        {
+          "kind": "course",
+          "subject": "STAT",
+          "number": "210",
+          "section": "0",
+          "equivalentOk": true
+        },
+        {
+          "kind": "course",
+          "subject": "BUS_INST",
+          "number": "304",
+          "section": "0",
+          "equivalentOk": true
         }
       ]
     },
@@ -7058,7 +7065,12 @@
                   "minGrade": "C-"
                 }
               ]
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "consent",
               "source": "department"
@@ -8369,29 +8381,25 @@
               "kind": "course",
               "subject": "CHEM",
               "number": "215",
-              "section": "3"
+              "section": "3",
+              "equivalentOk": true
             },
             {
-              "kind": "all",
-              "of": [
-                {
-                  "kind": "course",
-                  "subject": "CHEM",
-                  "number": "212",
-                  "section": "3",
-                  "equivalentOk": true
-                },
-                {
-                  "kind": "course",
-                  "subject": "CHEM",
-                  "number": "235",
-                  "section": "3",
-                  "minGrade": "C-",
-                  "equivalentOk": true
-                }
-              ]
+              "kind": "course",
+              "subject": "CHEM",
+              "number": "212",
+              "section": "3",
+              "equivalentOk": true
             }
           ]
+        },
+        {
+          "kind": "course",
+          "subject": "CHEM",
+          "number": "235",
+          "section": "3",
+          "minGrade": "C-",
+          "equivalentOk": true
         }
       ]
     },
@@ -17141,37 +17149,42 @@
     "id": "FRENCH 111-C",
     "raw": "FRENCH 111-A or FRENCH 101-A, FRENCH 111-B or FRENCH 101-B or equivalent",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "FRENCH",
-          "number": "111",
-          "section": "A"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
             {
               "kind": "course",
               "subject": "FRENCH",
-              "number": "101",
+              "number": "111",
               "section": "A"
             },
             {
               "kind": "course",
               "subject": "FRENCH",
-              "number": "111",
-              "section": "B"
+              "number": "101",
+              "section": "A"
             }
           ]
         },
         {
-          "kind": "course",
-          "subject": "FRENCH",
-          "number": "101",
-          "section": "B",
-          "equivalentOk": true
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "FRENCH",
+              "number": "111",
+              "section": "B"
+            },
+            {
+              "kind": "course",
+              "subject": "FRENCH",
+              "number": "101",
+              "section": "B",
+              "equivalentOk": true
+            }
+          ]
         }
       ]
     },
@@ -21185,38 +21198,38 @@
     "id": "IEMS 459-0",
     "raw": "IEMS 202-0, IEMS 303-0 (or equivalent), and  IEMS 450-1 or IEMS 450-2 (or equivalent)",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "course",
+          "subject": "IEMS",
+          "number": "202",
+          "section": "0"
+        },
+        {
+          "kind": "course",
+          "subject": "IEMS",
+          "number": "303",
+          "section": "0",
+          "equivalentOk": true
+        },
+        {
+          "kind": "any",
           "of": [
-            {
-              "kind": "course",
-              "subject": "IEMS",
-              "number": "202",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "IEMS",
-              "number": "303",
-              "section": "0",
-              "equivalentOk": true
-            },
             {
               "kind": "course",
               "subject": "IEMS",
               "number": "450",
               "section": "1"
+            },
+            {
+              "kind": "course",
+              "subject": "IEMS",
+              "number": "450",
+              "section": "2",
+              "equivalentOk": true
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "IEMS",
-          "number": "450",
-          "section": "2",
-          "equivalentOk": true
         }
       ]
     },
@@ -23570,19 +23583,14 @@
       "kind": "any",
       "of": [
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "topic",
-              "topic": "Basic programming experience is required"
-            },
-            {
-              "kind": "course",
-              "subject": "LING",
-              "number": "300",
-              "section": "0"
-            }
-          ]
+          "kind": "topic",
+          "topic": "Basic programming experience is required"
+        },
+        {
+          "kind": "course",
+          "subject": "LING",
+          "number": "300",
+          "section": "0"
         },
         {
           "kind": "course",
@@ -25136,66 +25144,71 @@
     "id": "MATH 235-0",
     "raw": "MATH 218‐3 or MATH 220‐2, and MATH 228‐1 or MATH 230‐1 or MATH 281‐1 or MATH 285‐2 or MATH 290‐2 or MATH 291‐2 or ES_APPM 252‐1",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "218",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
             {
               "kind": "course",
               "subject": "MATH",
-              "number": "220",
+              "number": "218",
               "section": "0"
             },
             {
               "kind": "course",
               "subject": "MATH",
-              "number": "228",
+              "number": "220",
               "section": "0"
             }
           ]
         },
         {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "230",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "281",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "285",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "290",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "291",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "ES_APPM",
-          "number": "252",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "228",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "230",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "281",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "285",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "290",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "291",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "ES_APPM",
+              "number": "252",
+              "section": "0"
+            }
+          ]
         }
       ]
     },
@@ -26808,30 +26821,30 @@
     "id": "MATH 344-2",
     "raw": "MATH 344-1, and either MATH 330-1 or MATH 331-1",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "course",
+          "subject": "MATH",
+          "number": "344",
+          "section": "1"
+        },
+        {
+          "kind": "any",
           "of": [
-            {
-              "kind": "course",
-              "subject": "MATH",
-              "number": "344",
-              "section": "1"
-            },
             {
               "kind": "course",
               "subject": "MATH",
               "number": "330",
               "section": "1"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "331",
+              "section": "1"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "331",
-          "section": "1"
         }
       ]
     },
@@ -28788,40 +28801,45 @@
     "id": "NEUROSCI 202-0",
     "raw": "Must be a neuroscience major, and BIOL_SCI 201-0 and either CHEM 132-0 or co-enrollment in CHEM 152-0 or CHEM 172-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "topic",
+          "topic": "Must be a neuroscience major"
+        },
+        {
+          "kind": "any",
           "of": [
             {
-              "kind": "topic",
-              "topic": "Must be a neuroscience major"
+              "kind": "all",
+              "of": [
+                {
+                  "kind": "course",
+                  "subject": "BIOL_SCI",
+                  "number": "201",
+                  "section": "0"
+                },
+                {
+                  "kind": "course",
+                  "subject": "CHEM",
+                  "number": "132",
+                  "section": "0"
+                }
+              ]
             },
             {
               "kind": "course",
-              "subject": "BIOL_SCI",
-              "number": "201",
+              "subject": "CHEM",
+              "number": "152",
               "section": "0"
             },
             {
               "kind": "course",
               "subject": "CHEM",
-              "number": "132",
+              "number": "172",
               "section": "0"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "CHEM",
-          "number": "152",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "CHEM",
-          "number": "172",
-          "section": "0"
         }
       ]
     },
@@ -30642,17 +30660,17 @@
     "id": "PHYSICS 339-2",
     "raw": "PHYSICS 339-1, second-year standing in ISP or PHYSICS 311-2 or MATH 250-0, MATH 351-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "course",
+          "subject": "PHYSICS",
+          "number": "339",
+          "section": "1"
+        },
+        {
+          "kind": "any",
           "of": [
-            {
-              "kind": "course",
-              "subject": "PHYSICS",
-              "number": "339",
-              "section": "1"
-            },
             {
               "kind": "standing",
               "level": "second-year",
@@ -30662,31 +30680,26 @@
                   "ISP"
                 ]
               }
-            }
-          ]
-        },
-        {
-          "kind": "course",
-          "subject": "PHYSICS",
-          "number": "311",
-          "section": "2"
-        },
-        {
-          "kind": "all",
-          "of": [
+            },
+            {
+              "kind": "course",
+              "subject": "PHYSICS",
+              "number": "311",
+              "section": "2"
+            },
             {
               "kind": "course",
               "subject": "MATH",
               "number": "250",
               "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "MATH",
-              "number": "351",
-              "section": "0"
             }
           ]
+        },
+        {
+          "kind": "course",
+          "subject": "MATH",
+          "number": "351",
+          "section": "0"
         }
       ]
     },
@@ -33942,36 +33955,36 @@
     "id": "DSGN 346-0",
     "raw": "DSGN 106-1 and 106-2, and MECH_ENG 240 or instructor approval of previous CAD experience. MaDE students may petition for this course to count in place of the of the ME 340-1 degree requirement",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "course",
+          "subject": "DSGN",
+          "number": "106",
+          "section": "1"
+        },
+        {
+          "kind": "course",
+          "subject": "DSGN",
+          "number": "106",
+          "section": "2"
+        },
+        {
+          "kind": "any",
           "of": [
-            {
-              "kind": "course",
-              "subject": "DSGN",
-              "number": "106",
-              "section": "1"
-            },
-            {
-              "kind": "course",
-              "subject": "DSGN",
-              "number": "106",
-              "section": "2"
-            },
             {
               "kind": "course",
               "subject": "MECH_ENG",
               "number": "240",
               "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "ME",
+              "number": "340",
+              "section": "1"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "ME",
-          "number": "340",
-          "section": "1"
         }
       ]
     },
@@ -34920,27 +34933,22 @@
       "kind": "any",
       "of": [
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "course",
-              "subject": "SPANISH",
-              "number": "200",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "SPANISH",
-              "number": "201",
-              "section": "0"
-            },
-            {
-              "kind": "course",
-              "subject": "SPANISH",
-              "number": "203",
-              "section": "0"
-            }
-          ]
+          "kind": "course",
+          "subject": "SPANISH",
+          "number": "200",
+          "section": "0"
+        },
+        {
+          "kind": "course",
+          "subject": "SPANISH",
+          "number": "201",
+          "section": "0"
+        },
+        {
+          "kind": "course",
+          "subject": "SPANISH",
+          "number": "203",
+          "section": "0"
         },
         {
           "kind": "course",
@@ -36000,66 +36008,71 @@
     "id": "STAT 228-0",
     "raw": "MATH 218‐3 or MATH 220‐2, and MATH 228‐1 or MATH 230‐1 or MATH 281‐1 or MATH 285‐2 or MATH 290‐2 or MATH 291‐2 or ES_APPM 252‐1",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "218",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
             {
               "kind": "course",
               "subject": "MATH",
-              "number": "220",
+              "number": "218",
               "section": "0"
             },
             {
               "kind": "course",
               "subject": "MATH",
-              "number": "228",
+              "number": "220",
               "section": "0"
             }
           ]
         },
         {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "230",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "281",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "285",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "290",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "MATH",
-          "number": "291",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "ES_APPM",
-          "number": "252",
-          "section": "0"
+          "kind": "any",
+          "of": [
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "228",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "230",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "281",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "285",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "290",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "MATH",
+              "number": "291",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "ES_APPM",
+              "number": "252",
+              "section": "0"
+            }
+          ]
         }
       ]
     },
@@ -36251,42 +36264,47 @@
     "id": "STAT 304-0",
     "raw": "STAT 202-0 or STAT 210-0 or STAT 232-0, and COMP_SCI 110-0 or COMP_SCI 111-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "STAT",
-          "number": "202",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "STAT",
-          "number": "210",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "STAT",
+              "number": "202",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "STAT",
+              "number": "210",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "STAT",
               "number": "232",
               "section": "0"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "course",
               "subject": "COMP_SCI",
               "number": "110",
               "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "COMP_SCI",
+              "number": "111",
+              "section": "0"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "COMP_SCI",
-          "number": "111",
-          "section": "0"
         }
       ]
     },
@@ -36296,42 +36314,47 @@
     "id": "STAT 305-0",
     "raw": "STAT 202-0 or STAT 210-0 or STAT 232-0, and COMP_SCI 110-0 or COMP_SCI 111-0",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "course",
-          "subject": "STAT",
-          "number": "202",
-          "section": "0"
-        },
-        {
-          "kind": "course",
-          "subject": "STAT",
-          "number": "210",
-          "section": "0"
-        },
-        {
-          "kind": "all",
+          "kind": "any",
           "of": [
+            {
+              "kind": "course",
+              "subject": "STAT",
+              "number": "202",
+              "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "STAT",
+              "number": "210",
+              "section": "0"
+            },
             {
               "kind": "course",
               "subject": "STAT",
               "number": "232",
               "section": "0"
-            },
+            }
+          ]
+        },
+        {
+          "kind": "any",
+          "of": [
             {
               "kind": "course",
               "subject": "COMP_SCI",
               "number": "110",
               "section": "0"
+            },
+            {
+              "kind": "course",
+              "subject": "COMP_SCI",
+              "number": "111",
+              "section": "0"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "COMP_SCI",
-          "number": "111",
-          "section": "0"
         }
       ]
     },
@@ -39535,26 +39558,18 @@
     "id": "MEM 407-0",
     "raw": "IEMS 301 or equivalent, a course in Linear Algebra",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
           "kind": "course",
           "subject": "IEMS",
           "number": "301",
-          "section": "0"
+          "section": "0",
+          "equivalentOk": true
         },
         {
-          "kind": "all",
-          "of": [
-            {
-              "kind": "topic",
-              "topic": "equivalent"
-            },
-            {
-              "kind": "topic",
-              "topic": "a course in Linear Algebra"
-            }
-          ]
+          "kind": "topic",
+          "topic": "a course in Linear Algebra"
         }
       ]
     },
@@ -40714,7 +40729,7 @@
         },
         {
           "kind": "gpa",
-          "min": 3.0
+          "min": 3
         }
       ]
     },
@@ -41136,36 +41151,36 @@
     "id": "MSDS 422-DL",
     "raw": "MSDS 400-DL, MSDS 401-DL, and MSDS 402-DL or MSDS 403-DL",
     "parsed": {
-      "kind": "any",
+      "kind": "all",
       "of": [
         {
-          "kind": "all",
+          "kind": "course",
+          "subject": "MSDS",
+          "number": "400",
+          "section": "DL"
+        },
+        {
+          "kind": "course",
+          "subject": "MSDS",
+          "number": "401",
+          "section": "DL"
+        },
+        {
+          "kind": "any",
           "of": [
-            {
-              "kind": "course",
-              "subject": "MSDS",
-              "number": "400",
-              "section": "DL"
-            },
-            {
-              "kind": "course",
-              "subject": "MSDS",
-              "number": "401",
-              "section": "DL"
-            },
             {
               "kind": "course",
               "subject": "MSDS",
               "number": "402",
               "section": "DL"
+            },
+            {
+              "kind": "course",
+              "subject": "MSDS",
+              "number": "403",
+              "section": "DL"
             }
           ]
-        },
-        {
-          "kind": "course",
-          "subject": "MSDS",
-          "number": "403",
-          "section": "DL"
         }
       ]
     },

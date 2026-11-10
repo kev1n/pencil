@@ -182,7 +182,7 @@ const CSS = `
 }
 
 /* Info-tooltip body styles — same column layout as the prereq tooltip
-   but no SVG, just stacked lines. */
+   but no tree, just stacked lines. */
 #${TOOLTIP_ID} .bc-prereq-info-tip {
   display: flex;
   flex-direction: column;
@@ -193,11 +193,9 @@ const CSS = `
 #${TOOLTIP_ID} {
   position: fixed;
   z-index: 2147483646;
-  /* Tree renderer caps SVG natural width at MAX_WIDTH (~1200px) via
-     viewBox scaling, so the tooltip wraps content tightly without ever
-     escaping the viewport. max-width is a safety net for absurdly wide
-     viewports + height stays bounded so very deep trees scroll
-     vertically instead of pushing the box off-screen. */
+  /* The tree grows sideways by depth and downward by breadth, so it
+     normally fits; both axes scroll as a safety net for the widest and
+     tallest courses. */
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   width: max-content;
@@ -214,14 +212,106 @@ const CSS = `
   display: none;
 }
 
-#${TOOLTIP_ID} svg {
-  display: block;
-  margin: 6px 0 2px;
-  /* Final safety net — even if a tree somehow survives MAX_WIDTH it
-     can't exceed its container. Height auto preserves the aspect ratio
-     so the visual layout doesn't squash. */
-  max-width: 100%;
-  height: auto;
+/* Prereq tree: target on the left, each requirement group on a bracket
+   to its right. Solid bracket = need all, dashed bracket = need one. */
+.bc-prereq-tree {
+  margin: 8px 0 4px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.bc-prereq-tree__node {
+  display: flex;
+  align-items: center;
+}
+
+.bc-prereq-tree__pill {
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 7px;
+  border: 1.5px solid var(--bc-color-border-strong);
+  background: var(--bc-color-bg-app);
+  color: var(--bc-color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bc-prereq-tree__pill--ok {
+  background: var(--bc-color-gate-ok-bg);
+  border-color: var(--bc-color-gate-ok-border);
+  color: var(--bc-color-gate-ok-text);
+}
+
+.bc-prereq-tree__pill--warn {
+  background: var(--bc-color-gate-warn-bg);
+  border-color: var(--bc-color-gate-warn-border);
+  color: var(--bc-color-gate-warn-text);
+}
+
+.bc-prereq-tree__pill--lock {
+  background: var(--bc-color-gate-lock-bg);
+  border-color: var(--bc-color-gate-lock-border);
+  color: var(--bc-color-gate-lock-text);
+}
+
+.bc-prereq-tree__pill--soft {
+  border-style: dashed;
+  font-style: italic;
+  font-weight: 500;
+  white-space: normal;
+  max-width: 160px;
+}
+
+.bc-prereq-tree__pill--neutral.bc-prereq-tree__pill--soft {
+  background: transparent;
+}
+
+.bc-prereq-tree__pill--target {
+  padding: 6px 12px;
+  border-width: 2px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.bc-prereq-tree__link {
+  flex: none;
+  display: flex;
+  align-items: center;
+  color: var(--bc-color-text-muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.bc-prereq-tree__link::before,
+.bc-prereq-tree__link::after {
+  content: "";
+  width: 8px;
+  border-top: 1.5px solid var(--bc-color-border-strong);
+}
+
+.bc-prereq-tree__link--any::before,
+.bc-prereq-tree__link--any::after {
+  border-top-style: dashed;
+}
+
+.bc-prereq-tree__op {
+  padding: 0 4px;
+}
+
+.bc-prereq-tree__kids {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 3px 0 3px 10px;
+  border-left: 1.5px solid var(--bc-color-border-strong);
+  border-radius: 9px 0 0 9px;
+}
+
+.bc-prereq-tree__kids--any {
+  border-left-style: dashed;
 }
 
 #${TOOLTIP_ID}[data-visible="1"] {
@@ -235,7 +325,7 @@ const CSS = `
   margin-bottom: 6px;
   display: block;
   /* Cap the raw enrl_req string so a long single line wraps even when
-     the SVG below makes the tooltip very wide. Without this, the raw
+     the tree below makes the tooltip very wide. Without this, the raw
      text stretches the full tooltip width and reads as one giant line
      across the entire viewport. */
   max-width: 520px;

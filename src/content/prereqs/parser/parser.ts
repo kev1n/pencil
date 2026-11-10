@@ -19,6 +19,7 @@ import {
   BARE_STANDING_RE,
   CONCURRENT_REQUIRED_RE,
   CONDITIONAL_RE,
+  COURSE_RE,
   EQUIV_RE,
   NONE_RE,
   RECOMMENDED_RE,
@@ -102,6 +103,11 @@ export function parseRoot(
   // Strip leftover "to register/enroll for this course" anywhere mid-string.
   text = text.replace(/\s+to\s+register\s+for\s+this\s+course\.?/gi, ".");
   text = text.replace(/\s+to\s+enroll\s+in\s+this\s+course\.?/gi, ".");
+  // "with a (grade of) C- or better" is a grade note, not an alternative.
+  text = text.replace(
+    /\s+with\s+an?\s+(?:grade\s+of\s+)?[A-D][+-]?\s+or\s+(?:better|higher|above)\b/gi,
+    ""
+  );
   text = normalize(text).replace(/[\s.,;]+$/g, "").replace(/^[\s.,;]+/g, "");
   text = expandMultiversion(text);
   let multiLwildcards: WildcardArr;
@@ -114,6 +120,11 @@ export function parseRoot(
     );
   }
   text = carrySubjects(text);
+  // "one of A, B, C" with no and/or in the list: the commas are alternatives.
+  const oneOf = /^(.*?\b)(?:at least |any )?one of (?:the following(?: courses)?:?\s*)?([^;:]+)$/i.exec(text);
+  if (oneOf && !hasCourse(oneOf[1]) && !/\b(?:and|or)\b/i.test(oneOf[2])) {
+    text = oneOf[2].split(/\s*,\s*/).join(" or ");
+  }
 
   let node = parseOrExpr(text, warnings, multiLwildcards);
   if (leadingGrade && node !== null) {
@@ -123,6 +134,36 @@ export function parseRoot(
     node = combineAll([node, ...concurrentExtras]);
   }
   return { parsed: node, warnings };
+}
+
+function hasCourse(text: string): boolean {
+  return COURSE_RE.test(text) || /^\s*\d{3}\b/.test(text);
+}
+
+function hasOr(text: string): boolean {
+  return splitTopLevel(text, [" or "]).length > 1;
+}
+
+// True when a segment's commas clearly separate alternatives groups:
+// no commas at all, an Oxford list ("A, B, or C"), or every comma chunk
+// carrying its own " or " ("A or B, C or D").
+function isOrGroupList(text: string): boolean {
+  const chunks = splitTopLevel(text, [","]);
+  if (chunks.length === 1) return true;
+  if (splitTopLevel(text, [", or "]).length > 1) return true;
+  return chunks.every(hasOr);
+}
+
+// "PHYSICS 135-1", "PHYSICS 135-2", "135-3": parts of one multi-quarter
+// course, which a student needs all of.
+function isOneSequence(items: readonly string[]): boolean {
+  const numbers = new Set<string>();
+  for (const item of items) {
+    const m = /(\d{3})-[A-Za-z0-9]+/.exec(item);
+    if (!m) return false;
+    numbers.add(m[1]);
+  }
+  return numbers.size === 1 && items.length > 1;
 }
 
 export function parseOrExpr(
@@ -206,6 +247,58 @@ export function parseOrExpr(
       }
     }
     return buildAndorTree(items, warnings, multiLwildcards);
+  }
+
+  // ", and " binds looser than " or ": "A or B, and C or D" is two
+  // groups of alternatives that are both required.
+  const commaAnd = splitTopLevel(text, [", and "]);
+  if (
+    commaAnd.length > 1 &&
+    commaAnd.some(hasOr) &&
+    commaAnd.every((p) => !hasOr(p) || isOrGroupList(p))
+  ) {
+    // "A, B, and C or graduate standing": a closing escape hatch covers
+    // the whole list, not just its last item.
+    const last = commaAnd[commaAnd.length - 1];
+    const lastOr = splitTopLevel(last, [" or "]);
+    const tail = lastOr[lastOr.length - 1];
+    if (lastOr.length > 1 && !hasCourse(tail) && hasCourse(lastOr[0])) {
+      const body = [...commaAnd.slice(0, -1), lastOr.slice(0, -1).join(" or ")];
+      return foldEquivalent(
+        anyOf([
+          allOf(body.map((p) => parseOrExpr(p, warnings, multiLwildcards))),
+          parseAndExpr(tail, warnings, multiLwildcards)
+        ])
+      );
+    }
+    return allOf(commaAnd.map((p) => parseOrExpr(p, warnings, multiLwildcards)));
+  }
+
+  // Comma lists that mix in " or " without any "and" or Oxford comma.
+  const chunks = splitTopLevel(text, [","]);
+  if (
+    chunks.length > 1 &&
+    splitTopLevel(text, [" and "]).length === 1 &&
+    splitTopLevel(text, [", or "]).length === 1
+  ) {
+    const withOr = chunks.map(hasOr);
+    const orCount = withOr.filter(Boolean).length;
+    if (orCount === 1 && withOr[withOr.length - 1]) {
+      // "A, B, C or D" is one list of alternatives — unless the comma
+      // items are parts of one sequence ("135-1, 135-2, 135-3 or X"),
+      // which are all required, or the tail is an escape hatch
+      // ("A, B or consent of instructor"). Those keep the default
+      // reading below.
+      const orParts = splitTopLevel(chunks[chunks.length - 1], [" or "]);
+      const tailIsCourse = orParts.every(hasCourse);
+      if (tailIsCourse && !isOneSequence([...chunks.slice(0, -1), orParts[0]])) {
+        const parts = splitTopLevel(text, [" or ", ","]);
+        return foldEquivalent(anyOf(parts.map((p) => parseAndExpr(p, warnings, multiLwildcards))));
+      }
+    } else if (orCount >= 1) {
+      // "A or B, C or D": each comma chunk is its own requirement.
+      return allOf(chunks.map((c) => parseOrExpr(c, warnings, multiLwildcards)));
+    }
   }
 
   // Oxford-comma OR list.

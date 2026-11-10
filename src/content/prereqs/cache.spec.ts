@@ -16,6 +16,12 @@ vi.mock("./parser/index", () => ({
   }))
 }));
 
+// Pin the override table so the fixtures below aren't rewritten by the
+// shipped snapshot.
+vi.mock("./overrides.json", () => ({
+  default: { "TEST_SUBJ 300-0": "TEST_SUBJ 200-0", "TEST_SUBJ 301-0": "TEST_SUBJ 201-0" }
+}));
+
 import { parsePrereq } from "./parser/index";
 import { clearParsedPrereqs, getParsedPrereqs } from "./cache";
 
@@ -42,6 +48,16 @@ describe("getParsedPrereqs", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("hardcoded overrides replace paper.nu's prereq text, including a missing one", async () => {
+    const map = await getParsedPrereqs("rev-override", [
+      makeCourse("TEST_SUBJ 300-0", "OLD_SUBJ 100-0"),
+      makeCourse("TEST_SUBJ 301-0")
+    ]);
+
+    expect(map.get("TEST_SUBJ 300-0")?.raw).toBe("TEST_SUBJ 200-0");
+    expect(map.get("TEST_SUBJ 301-0")?.raw).toBe("TEST_SUBJ 201-0");
   });
 
   it("cold cache: parses every course with prereqs and persists the result", async () => {

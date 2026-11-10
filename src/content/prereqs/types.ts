@@ -123,7 +123,9 @@ export type EligibilityResult = {
 // plan.json snapshot that pointed at retired course codes (e.g.
 // COMP_SCI 308). Shape is unchanged — bumping the key drops the old
 // payload and the next session re-parses fresh data.
-export const PREREQS_PARSED_STORAGE_KEY = "better-caesar:prereqs-parsed:v3";
+// v4: drops parses made before the hardcoded prereq overrides
+// (overrides.json) existed.
+export const PREREQS_PARSED_STORAGE_KEY = "better-caesar:prereqs-parsed:v4";
 
 // Re-parse triggers: planRev change, OR parsedAt + TTL_MS < now. plan.json
 // is "static" (paper.nu publishes new revisions infrequently), so the TTL

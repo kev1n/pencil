@@ -1,17 +1,6 @@
-import { beforeAll, describe, expect, it } from "vitest";
-import type { EligibilityHistoryEntry, PrereqNode } from "../../prereqs";
+import { describe, expect, it } from "vitest";
+import type { EligibilityHistoryEntry, PrereqNode, PrereqRecord } from "../../prereqs";
 import { renderPrereqTree } from "./tree-render";
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-// jsdom logs a noisy "Not implemented" message every time we touch
-// HTMLCanvasElement#getContext. The tree renderer's canvas-based text
-// measurer is wrapped in try/catch and falls back to an estimate in
-// jsdom, but the warning leaks to stderr anyway. Override the prototype
-// to return null silently so the test output stays clean.
-beforeAll(() => {
-  (HTMLCanvasElement.prototype as unknown as { getContext: () => null }).getContext = () => null;
-});
 
 function emptyHistory(): ReadonlyMap<string, EligibilityHistoryEntry> {
   return new Map();
@@ -21,336 +10,192 @@ function takenWith(grade: string | null = null): EligibilityHistoryEntry {
   return { status: "Taken", grade };
 }
 
-function rectsByFill(svg: SVGSVGElement): string[] {
-  const rects = svg.querySelectorAll("rect");
-  return Array.from(rects).map((r) => r.getAttribute("fill") ?? "");
+const course = (subject: string, number: string, section = ""): PrereqNode => ({
+  kind: "course",
+  subject,
+  number,
+  section
+});
+
+function render(
+  node: PrereqNode | null,
+  history: ReadonlyMap<string, EligibilityHistoryEntry> = emptyHistory()
+): HTMLElement {
+  return renderPrereqTree(document, node, history).el;
 }
 
-function leafRectAt(svg: SVGSVGElement, label: string): SVGRectElement | null {
-  const texts = Array.from(svg.querySelectorAll("text"));
-  const t = texts.find((node) => (node.textContent ?? "").includes(label));
-  if (!t) return null;
-  const tx = parseFloat(t.getAttribute("x") ?? "");
-  const ty = parseFloat(t.getAttribute("y") ?? "");
-  let best: SVGRectElement | null = null;
-  let bestArea = Infinity;
-  for (const r of Array.from(svg.querySelectorAll("rect"))) {
-    const x = parseFloat(r.getAttribute("x") ?? "");
-    const y = parseFloat(r.getAttribute("y") ?? "");
-    const w = parseFloat(r.getAttribute("width") ?? "");
-    const h = parseFloat(r.getAttribute("height") ?? "");
-    if (Number.isNaN(x) || Number.isNaN(y) || Number.isNaN(w) || Number.isNaN(h)) continue;
-    if (tx < x || tx > x + w || ty < y - 4 || ty > y + h + 4) continue;
-    const area = w * h;
-    if (area < bestArea) {
-      bestArea = area;
-      best = r as SVGRectElement;
-    }
-  }
-  return best;
+function pills(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(".bc-prereq-tree__pill"));
 }
 
-function fillOf(rect: SVGRectElement | null): string {
-  return rect?.getAttribute("fill") ?? "";
+function pillFor(root: HTMLElement, label: string): HTMLElement | undefined {
+  return pills(root).find((p) => (p.textContent ?? "").includes(label));
+}
+
+function ops(root: HTMLElement): string[] {
+  return Array.from(root.querySelectorAll(".bc-prereq-tree__op")).map((o) => o.textContent ?? "");
 }
 
 describe("renderPrereqTree", () => {
-  it("renders a 'No prerequisites' ready-styled pill for a null node", () => {
-    const result = renderPrereqTree(document, null, emptyHistory());
-    expect(result.svg.namespaceURI).toBe(SVG_NS);
-    expect(result.width).toBeGreaterThan(0);
-    expect(result.height).toBeGreaterThan(0);
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/No prerequisites/i);
-    // Null prereq data really means "no prereqs needed" — paint it green.
-    const fills = rectsByFill(result.svg);
-    expect(fills.some((f) => f.includes("gate-ok-bg"))).toBe(true);
+  it("renders a ready 'No prerequisites' pill for a null or none node", () => {
+    for (const node of [null, { kind: "none" } as PrereqNode]) {
+      const root = render(node);
+      expect(root.className).toBe("bc-prereq-tree");
+      const only = pills(root);
+      expect(only).toHaveLength(1);
+      expect(only[0].textContent).toMatch(/No prerequisites/);
+      expect(only[0].className).toContain("--ok");
+    }
   });
 
-  it("renders a 'No prerequisites' pill for a none node", () => {
-    const node: PrereqNode = { kind: "none" };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/No prerequisites/i);
-    const fills = rectsByFill(result.svg);
-    expect(fills.some((f) => f.includes("gate-ok-bg"))).toBe(true);
+  it("colors a course by whether it has been taken", () => {
+    const node = course("COMP_SCI", "211");
+    expect(pillFor(render(node), "COMP_SCI 211")?.className).toContain("--lock");
+    const history = new Map([["COMP_SCI 211", takenWith("A")]]);
+    expect(pillFor(render(node, history), "COMP_SCI 211")?.className).toContain("--ok");
   });
 
-  it("renders a satisfied course with the ok gate fill", () => {
+  it("respects minGrade", () => {
+    const node: PrereqNode = { ...course("MATH", "228", "1"), kind: "course", minGrade: "C-" } as PrereqNode;
+    const pass = new Map([["MATH 228-1", takenWith("B")]]);
+    const fail = new Map([["MATH 228-1", takenWith("D")]]);
+    expect(pillFor(render(node, pass), "MATH 228-1 (≥ C-)")?.className).toContain("--ok");
+    expect(pillFor(render(node, fail), "MATH 228-1 (≥ C-)")?.className).toContain("--lock");
+  });
+
+  it("paints in-progress courses warn and transferred courses ok", () => {
+    const node = course("COMP_SCI", "211");
+    const inProgress = new Map([["COMP_SCI 211", { status: "In Progress", grade: null }]]);
+    const transferred = new Map([["COMP_SCI 211", { status: "Transferred", grade: null }]]);
+    expect(pillFor(render(node, inProgress), "COMP_SCI 211")?.className).toContain("--warn");
+    expect(pillFor(render(node, transferred), "COMP_SCI 211")?.className).toContain("--ok");
+  });
+
+  it("renders recommended courses as soft ok pills", () => {
     const node: PrereqNode = {
       kind: "course",
       subject: "COMP_SCI",
       number: "211",
-      section: ""
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["COMP_SCI 211", takenWith("A")]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const rect = leafRectAt(result.svg, "COMP_SCI 211");
-    expect(fillOf(rect)).toContain("gate-ok-bg");
-  });
-
-  it("renders a missing course with the lock fill", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "COMP_SCI",
-      number: "211",
-      section: ""
-    };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const rect = leafRectAt(result.svg, "COMP_SCI 211");
-    expect(fillOf(rect)).toContain("gate-lock-bg");
-  });
-
-  it("respects minGrade: sufficient grade passes", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "MATH",
-      number: "220",
-      section: "",
-      minGrade: "B-"
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["MATH 220", takenWith("A-")]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const rect = leafRectAt(result.svg, "MATH 220");
-    expect(fillOf(rect)).toContain("gate-ok-bg");
-  });
-
-  it("respects minGrade: insufficient grade fails", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "MATH",
-      number: "220",
-      section: "",
-      minGrade: "B-"
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["MATH 220", takenWith("C+")]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const rect = leafRectAt(result.svg, "MATH 220");
-    expect(fillOf(rect)).toContain("gate-lock-bg");
-  });
-
-  it("paints in-progress courses with the warn fill", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "EECS",
-      number: "230",
-      section: ""
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["EECS 230", { status: "In Progress", grade: null }]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const rect = leafRectAt(result.svg, "EECS 230");
-    expect(fillOf(rect)).toContain("gate-warn-bg");
-  });
-
-  it("paints transferred courses with the ok fill", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "COMP_SCI",
-      number: "111",
-      section: ""
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["COMP_SCI 111", { status: "Transferred", grade: null }]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const rect = leafRectAt(result.svg, "COMP_SCI 111");
-    expect(fillOf(rect)).toContain("gate-ok-bg");
-  });
-
-  it("renders recommended courses as satisfied with a dashed stroke", () => {
-    const node: PrereqNode = {
-      kind: "course",
-      subject: "MATH",
-      number: "300",
       section: "",
       recommended: true
     };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const rect = leafRectAt(result.svg, "MATH 300");
-    expect(fillOf(rect)).toContain("gate-ok-bg");
-    expect(rect?.getAttribute("stroke-dasharray")).toBeTruthy();
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/rec\./);
+    const pill = pillFor(render(node), "COMP_SCI 211 (rec.)");
+    expect(pill?.className).toContain("--ok");
+    expect(pill?.className).toContain("--soft");
   });
 
-  it("renders an AND composition with two satisfied courses and edge convergence", () => {
-    const node: PrereqNode = {
-      kind: "all",
-      of: [
-        { kind: "course", subject: "COMP_SCI", number: "111", section: "" },
-        { kind: "course", subject: "COMP_SCI", number: "150", section: "" }
-      ]
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["COMP_SCI 111", takenWith("A")],
-      ["COMP_SCI 150", takenWith("B")]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const compLabel = Array.from(result.svg.querySelectorAll("text")).find(
-      (t) => t.textContent === "AND"
+  it("labels an AND group 'all' with a solid bracket", () => {
+    const root = render({ kind: "all", of: [course("COMP_SCI", "111"), course("COMP_SCI", "150")] });
+    expect(ops(root)).toEqual(["all"]);
+    expect(root.querySelector(".bc-prereq-tree__kids")?.className).not.toContain("--any");
+    expect(pills(root)).toHaveLength(2);
+  });
+
+  it("labels an OR group 'one of' with a dashed bracket", () => {
+    const history = new Map([["COMP_SCI 111", takenWith("A")]]);
+    const root = render(
+      { kind: "any", of: [course("COMP_SCI", "111"), course("COMP_SCI", "150")] },
+      history
     );
-    expect(compLabel).toBeTruthy();
-    expect(fillOf(leafRectAt(result.svg, "COMP_SCI 111"))).toContain("gate-ok-bg");
-    expect(fillOf(leafRectAt(result.svg, "COMP_SCI 150"))).toContain("gate-ok-bg");
-    expect(result.width).toBeLessThanOrEqual(900);
-    expect(result.height).toBeGreaterThan(40);
-    // Edges to the convergence point should be solid (no dasharray) for AND.
-    const edges = Array.from(result.svg.querySelectorAll("path.bc-prereq-tree__edge"));
-    expect(edges.length).toBeGreaterThanOrEqual(2);
-    for (const edge of edges) {
-      expect(edge.getAttribute("stroke-dasharray")).toBeNull();
-    }
-    // The convergence dot is the visual anchor for the AND label.
-    expect(result.svg.querySelector("circle.bc-prereq-tree__junction")).toBeTruthy();
+    expect(ops(root)).toEqual(["one of"]);
+    expect(root.querySelector(".bc-prereq-tree__kids")?.className).toContain("--any");
+    expect(pillFor(root, "COMP_SCI 111")?.className).toContain("--ok");
+    expect(pillFor(root, "COMP_SCI 150")?.className).toContain("--lock");
   });
 
-  it("renders an OR composition where only one child is satisfied", () => {
-    const node: PrereqNode = {
-      kind: "any",
+  it("nests groups", () => {
+    const root = render({
+      kind: "all",
       of: [
-        { kind: "course", subject: "COMP_SCI", number: "211", section: "" },
-        { kind: "course", subject: "COMP_SCI", number: "212", section: "" },
-        { kind: "course", subject: "COMP_SCI", number: "213", section: "" }
+        course("COMP_SCI", "211"),
+        { kind: "any", of: [course("COMP_SCI", "213"), course("COMP_ENG", "205")] }
       ]
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["COMP_SCI 212", takenWith("A")]
-    ]);
-    const result = renderPrereqTree(document, node, history);
-    const compLabel = Array.from(result.svg.querySelectorAll("text")).find(
-      (t) => t.textContent === "OR"
+    });
+    expect(ops(root)).toEqual(["all", "one of"]);
+    expect(root.querySelectorAll(".bc-prereq-tree__kids .bc-prereq-tree__kids")).toHaveLength(1);
+  });
+
+  it("collapses single-child and empty groups", () => {
+    const single = render({ kind: "all", of: [course("COMP_SCI", "211")] });
+    expect(ops(single)).toEqual([]);
+    expect(pills(single)).toHaveLength(1);
+    expect(pills(render({ kind: "all", of: [] }))[0].textContent).toMatch(/Trivially satisfied/);
+  });
+
+  it("renders consent as warn and free-text requirements as soft neutral pills", () => {
+    expect(pills(render({ kind: "consent", source: "instructor" }))[0].className).toContain(
+      "--warn"
     );
-    expect(compLabel).toBeTruthy();
-    expect(fillOf(leafRectAt(result.svg, "COMP_SCI 212"))).toContain("gate-ok-bg");
-    expect(fillOf(leafRectAt(result.svg, "COMP_SCI 211"))).toContain("gate-lock-bg");
-    expect(fillOf(leafRectAt(result.svg, "COMP_SCI 213"))).toContain("gate-lock-bg");
-    // Edges for OR should be dashed.
-    const edges = Array.from(result.svg.querySelectorAll("path.bc-prereq-tree__edge"));
-    for (const edge of edges) {
-      expect(edge.getAttribute("stroke-dasharray")).toBeTruthy();
+    for (const node of [
+      { kind: "topic", topic: "linear algebra" },
+      { kind: "standing", level: "junior" }
+    ] as PrereqNode[]) {
+      const pill = pills(render(node))[0];
+      expect(pill.className).toContain("--neutral");
+      expect(pill.className).toContain("--soft");
     }
   });
 
-  it("renders nested all-of-any-of-course with both AND and OR labels", () => {
-    const node: PrereqNode = {
-      kind: "all",
-      of: [
-        { kind: "course", subject: "MATH", number: "220", section: "" },
-        {
-          kind: "any",
-          of: [
-            { kind: "course", subject: "COMP_SCI", number: "211", section: "" },
-            { kind: "course", subject: "COMP_SCI", number: "212", section: "" }
-          ]
-        }
-      ]
-    };
-    const history = new Map<string, EligibilityHistoryEntry>([
-      ["MATH 220", takenWith("A")],
-      ["COMP_SCI 212", takenWith("B")]
+  it("leads with the target course when one is given", () => {
+    const root = renderPrereqTree(document, course("COMP_SCI", "211"), emptyHistory(), {
+      target: { subject: "COMP_SCI", number: "214-0", state: "blocked" }
+    }).el;
+    const all = pills(root);
+    expect(all[0].textContent).toBe("COMP_SCI 214");
+    expect(all[0].className).toContain("--target");
+    expect(all[1].textContent).toBe("COMP_SCI 211");
+  });
+});
+
+describe("renderPrereqTree expansion", () => {
+  const c = (number: string): PrereqNode => course("MATH", number, "0");
+  const record = (id: string, parsed: PrereqNode): [string, PrereqRecord] => [
+    `MATH ${id}-0`,
+    { id: `MATH ${id}-0`, raw: "", parsed, warnings: [] }
+  ];
+  // 300 and 310 both need 200, which needs 100.
+  const parsedMap = new Map([
+    record("300", c("200")),
+    record("310", c("200")),
+    record("200", c("100")),
+    record("100", c("300"))
+  ]);
+  const labels = (node: PrereqNode, history = emptyHistory()): string[] =>
+    pills(renderPrereqTree(document, node, history, { parsedMap }).el).map((p) =>
+      (p.textContent ?? "").replace(/^✓ /, "")
+    );
+
+  it("draws the prereqs of only one OR alternative", () => {
+    expect(labels({ kind: "any", of: [c("300"), c("310")] })).toEqual([
+      "MATH 300",
+      "MATH 200",
+      "MATH 100",
+      "MATH 310"
     ]);
-    const result = renderPrereqTree(document, node, history);
-    const labels = Array.from(result.svg.querySelectorAll("text")).map((t) => t.textContent ?? "");
-    expect(labels.some((l) => l === "AND")).toBe(true);
-    expect(labels.some((l) => l === "OR")).toBe(true);
-    expect(labels.some((l) => l.includes("MATH 220"))).toBe(true);
-    expect(labels.some((l) => l.includes("COMP_SCI 211"))).toBe(true);
-    expect(labels.some((l) => l.includes("COMP_SCI 212"))).toBe(true);
-    expect(result.width).toBeLessThanOrEqual(900);
   });
 
-  it("collapses single-child composites into the child directly (no AND/OR label)", () => {
-    const node: PrereqNode = {
-      kind: "all",
-      of: [{ kind: "course", subject: "MATH", number: "220", section: "" }]
-    };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const labels = Array.from(result.svg.querySelectorAll("text")).map((t) => t.textContent ?? "");
-    expect(labels.some((l) => l === "AND")).toBe(false);
-    expect(labels.some((l) => l.includes("MATH 220"))).toBe(true);
+  it("draws a repeated course's prereqs once", () => {
+    expect(labels({ kind: "all", of: [c("300"), c("310")] })).toEqual([
+      "MATH 300",
+      "MATH 200",
+      "MATH 100",
+      "MATH 310",
+      "MATH 200"
+    ]);
   });
 
-  it("pill widths grow with label length (no textLength stretching)", () => {
-    const short: PrereqNode = { kind: "topic", topic: "math" };
-    const long: PrereqNode = { kind: "topic", topic: "advanced multivariable calculus with linear algebra" };
-    const shortR = renderPrereqTree(document, short, emptyHistory());
-    const longR = renderPrereqTree(document, long, emptyHistory());
-    expect(longR.width).toBeGreaterThan(shortR.width);
-    // None of the text nodes should carry a textLength attribute that would
-    // stretch glyphs.
-    for (const text of Array.from(longR.svg.querySelectorAll("text"))) {
-      expect(text.getAttribute("textLength")).toBeNull();
-      expect(text.getAttribute("lengthAdjust")).toBeNull();
-    }
+  it("draws nothing under a course already taken", () => {
+    const history = new Map([["MATH 300", takenWith("A")]]);
+    expect(labels({ kind: "all", of: [c("300"), c("310")] }, history)).toEqual([
+      "MATH 300",
+      "MATH 310",
+      "MATH 200",
+      "MATH 100"
+    ]);
   });
 
-  it("renders consent as a warn leaf labeled with consent", () => {
-    const node: PrereqNode = { kind: "consent", source: "instructor" };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/consent/i);
-    const fills = rectsByFill(result.svg);
-    expect(fills.some((f) => f.includes("gate-warn-bg"))).toBe(true);
-  });
-
-  it("renders topic as a dashed neutral leaf", () => {
-    const node: PrereqNode = { kind: "topic", topic: "calculus" };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const rect = result.svg.querySelector("rect");
-    expect(rect?.getAttribute("stroke-dasharray")).toBeTruthy();
-    expect(rect?.getAttribute("fill")).toContain("bg-app");
-  });
-
-  it("renders standing as a dashed neutral leaf", () => {
-    const node: PrereqNode = { kind: "standing", level: "junior", orAbove: true };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const rect = result.svg.querySelector("rect");
-    expect(rect?.getAttribute("stroke-dasharray")).toBeTruthy();
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/junior standing\+/);
-  });
-
-  it("handles empty all/any as 'trivially satisfied'", () => {
-    const node: PrereqNode = { kind: "all", of: [] };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    const text = result.svg.querySelector("text");
-    expect(text?.textContent).toMatch(/Trivially satisfied/);
-  });
-
-  it("returns dimensions within bounds for all-of-two layout", () => {
-    const node: PrereqNode = {
-      kind: "all",
-      of: [
-        { kind: "course", subject: "COMP_SCI", number: "111", section: "" },
-        { kind: "course", subject: "COMP_SCI", number: "150", section: "" }
-      ]
-    };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    expect(result.width).toBeGreaterThan(0);
-    expect(result.width).toBeLessThanOrEqual(900);
-    expect(result.height).toBeGreaterThanOrEqual(40);
-  });
-
-  it("scales deep trees via viewBox to stay under MAX_WIDTH", () => {
-    const node: PrereqNode = {
-      kind: "any",
-      of: Array.from({ length: 8 }, (_, i) => ({
-        kind: "course",
-        subject: "SUBJ",
-        number: String(100 + i),
-        section: ""
-      })) as PrereqNode[]
-    };
-    const result = renderPrereqTree(document, node, emptyHistory());
-    expect(result.width).toBeLessThanOrEqual(900);
-    expect(result.svg.getAttribute("viewBox")).toMatch(/^0 0 \d+(?:\.\d+)? \d+(?:\.\d+)?$/);
+  it("stops at the depth cap and never loops back to an ancestor", () => {
+    // 300 → 200 → 100 is two levels down; 100's own prereq (300) is not drawn.
+    expect(labels(c("300"))).toEqual(["MATH 300", "MATH 200", "MATH 100"]);
   });
 });

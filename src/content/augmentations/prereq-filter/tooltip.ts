@@ -80,7 +80,7 @@ export function buildPrereqTooltipBody(
   // same information plus AND/OR composition cues. Keep notes (consent
   // hints, concurrent annotations, "recommended:" lines) as text.
   const tree = renderPrereqTree(doc, parsed, history, treeCtx);
-  wrap.appendChild(tree.svg);
+  wrap.appendChild(tree.el);
   for (const note of result.notes) {
     wrap.appendChild(el(doc, "span", { class: "bc-tip-line", text: note }));
   }

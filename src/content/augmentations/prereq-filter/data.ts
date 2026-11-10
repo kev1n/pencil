@@ -5,6 +5,9 @@
 import { logQuiet } from "../../../shared/log";
 import { readCourseHistory } from "../../course-history";
 import {
+  aliasCourseId,
+  buildCourseCatalog,
+  canonicalizePrereqs,
   evaluateEligibility,
   getParsedPrereqs,
   parsePrereq,
@@ -38,7 +41,10 @@ export function ensureParsedPrereqs(): Promise<ParsedPrereqMap> {
     const courses = await getPlanCourses();
     prereqsRev = info.plan;
     const base = await getParsedPrereqs(info.plan, courses);
-    return enrichWithEnrlReqs(base, info);
+    const enriched = await enrichWithEnrlReqs(base, info);
+    // Rewrite retired numbers, old department codes and misparsed
+    // "N 200-level courses" references against the live catalog.
+    return canonicalizePrereqs(enriched, buildCourseCatalog(courses));
   })();
   return prereqsPromise;
 }
@@ -223,15 +229,10 @@ const SUBJECT_ABBREV: Record<string, string> = {
   IE: "IND_ENG",
   CHE: "CHEM_ENG",
   CHEME: "CHEM_ENG",
-  MSE: "MAT_SCI",
-  // EECS is the legacy combined department, now split into COMP_SCI +
-  // ELEC_ENG. Map to COMP_SCI as the modal default; a parsed `EECS 203`
-  // (signals/systems territory) would technically be ELEC_ENG, but
-  // mapping to COMP_SCI keeps the data-structures cases right and
-  // surfaces a still-recognizable course pill instead of a freeform
-  // topic. The user's tree will be slightly off for EE-flavored EECS
-  // references, which is better than being wrong for everyone.
-  EECS: "COMP_SCI"
+  MSE: "MAT_SCI"
+  // EECS (the legacy combined department) is left alone here:
+  // canonicalizePrereqs resolves each number to COMP_SCI, COMP_ENG or
+  // ELEC_ENG, whichever still carries it.
 };
 
 function normalizeSubjectAliases(text: string): string {
@@ -278,8 +279,10 @@ const STATUS_PRIORITY: Record<string, number> = {
 // subdivision, so we drop it). Sequence courses ("MATH 220-1", "220-2")
 // keep the suffix because they're distinct courses.
 function historyKey(subject: string, number: string): string {
-  const bare = number.replace(/-0$/, "");
-  return `${subject} ${bare}`;
+  // A course taken under a retired number counts as its current one
+  // (CHEM 210-1 -> CHEM 215-1), matching the aliased prereq nodes.
+  const section = number.includes("-") ? "" : "-0";
+  return aliasCourseId(`${subject} ${number}${section}`).replace(/-0$/, "");
 }
 
 export function buildHistoryMap(): Map<string, EligibilityHistoryEntry> {
