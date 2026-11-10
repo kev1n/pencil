@@ -35,7 +35,7 @@ npm run test:watch     # vitest watch mode
 Before pushing a user-facing feature or fix, complete both automated checks and live browser QA on the build you intend to ship.
 
 1. **Run regression checks.** Build the extension, run typecheck and lint, and run the tests that cover the changed behavior and nearby flows.
-2. **Test with the patched extension active.** Have a Terra subagent use Computer Use to smoke-test the actual user flow in Chrome on the affected site. Reload the unpacked build and confirm the patch is active before testing. For flows that write data, use an authorized, reversible sample and verify the result in the destination UI. Remove any test data and confirm the original state is restored.
+2. **Test with the patched extension active.** Have a Terra subagent use Computer Use to smoke-test the actual user flow in Chrome on the affected site. Alternatively, drive the Aside browser (Chromium, signed in) with the unpacked build loaded there. Control it yourself through the `aside` MCP `repl` tool (Playwright-style); don't hand the flow to Aside's own agent (`aside exec`), which hides what it did. Reload the unpacked build and confirm the patch is active before testing. For flows that write data, use an authorized, reversible sample and verify the result in the destination UI. Remove any test data and confirm the original state is restored.
 3. **Hold the push if verification is incomplete.** Fixtures and passing CI do not replace live QA. Fix failures and rerun the affected checks on the revised build. If a login, extension reload, or test setup blocks live QA, report the blocker and wait for help or an explicit waiver before pushing.
 
 ## Top-level layout
@@ -134,7 +134,7 @@ paper.nu schedule cards only carry instructor last names. `paper-ctec/instructor
 
 ## User preferences
 
-- Use a Terra subagent for live browser verification of user-facing changes, including local review builds.
+- Use a Terra subagent for live browser verification of user-facing changes, including local review builds. Aside (see the pre-push checks above) is an accepted alternative.
 - Bump the extension version and update the popup changelog when preparing a build with user-facing changes for review.
 - Build after every change — `npm run build:chrome` must pass before considering work done.
 - Keep solutions minimal — don't add abstractions, error handling, or features beyond what's asked.
