@@ -28,7 +28,7 @@ npm run test           # vitest run (jsdom env)
 npm run test:watch     # vitest watch mode
 ```
 
-**Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and both target builds on every push to main and every PR — keep all five green.
+**Always run `npm run build:chrome` after every change** and confirm it passes. Load `dist/chrome` as an unpacked extension. CI (`.github/workflows/ci.yml`) runs typecheck, lint, test, and both target builds on every push to main and every PR — keep all five green. Pushing a `v*` tag runs `.github/workflows/release.yml`, which builds, attaches zips to a GitHub Release, and submits both builds to the Chrome Web Store and Firefox Add-ons (credentials live in the repo's `CWS_*` / `AMO_*` Actions secrets).
 
 ## Required pre-push checks for feature changes
 
