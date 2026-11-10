@@ -22,6 +22,7 @@ import {
   fetchCtecLinksByInstructor
 } from "./fetcher-instructor";
 import { CaesarAuthRequiredError } from "../class-search/caesar-search/types";
+import { isBlueraHost } from "../../../shared/nu-hosts";
 import { NOT_FOUND_ACTION_ID } from "./constants";
 import { entryMatchesStrategy, isAuthResponse, termToSortKey } from "./helpers";
 import { CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
@@ -100,10 +101,16 @@ export type CtecCourseAnalyticsResult =
   | { state: "not-found" }
   | { state: "error"; message: string };
 
+// Shared across the withAuthRecovery retries of one user action. Once
+// CAESAR discovery succeeds, a retry after the Bluera sign-in goes
+// straight to the report reads instead of searching CAESAR again.
+export type CtecFetchAttempt = { linksFound: boolean };
+
 type FetchCtecReportAggregateOptions = {
   fetchLimit?: number;
   aggregateLimit?: number;
   strategy?: CtecAnalyticsStrategy;
+  attempt?: CtecFetchAttempt;
 };
 
 // Auth-required is signaled via thrown CaesarAuthRequiredError and handled
@@ -126,7 +133,8 @@ export async function fetchCtecReportAggregate(
   const strategy = resolveLens(params, options.strategy);
   const result = await ensureReportEntries(params, titleHint, onProgress, {
     fetchLimit: options.fetchLimit,
-    strategy
+    strategy,
+    attempt: options.attempt
   });
   if (result.state !== "found") return result;
 
@@ -145,14 +153,16 @@ export async function fetchCtecCourseAnalytics(
   onProgress?: (message: string) => void,
   fetchLimit?: number,
   forceRefreshLinks?: boolean,
-  strategy?: CtecAnalyticsStrategy
+  strategy?: CtecAnalyticsStrategy,
+  attempt?: CtecFetchAttempt
 ): Promise<CtecCourseAnalyticsResult> {
   if (isCtecAccessDenied()) return { state: "no-access" };
   const lens = resolveLens(params, strategy);
   const result = await ensureReportEntries(params, titleHint, onProgress, {
     fetchLimit,
     forceRefreshLinks,
-    strategy: lens
+    strategy: lens,
+    attempt
   });
   if (result.state !== "found") return result;
 
@@ -427,8 +437,9 @@ function getIndexedEntriesForCourse(
 // CAESAR-side discovery runs once per call (its own withSilentAuthRecovery
 // lives inside fetchCtecLinksInternal). The Bluera fetch loop throws
 // CaesarAuthRequiredError on SSO bounce; callers wrap this whole function
-// in withAuthRecovery so the popup-and-retry flow restarts only the
-// Bluera loop on each attempt — not the entire CAESAR discovery.
+// in withAuthRecovery and pass one `attempt` across retries, so the
+// popup-and-retry flow skips discovery once it has succeeded and restarts
+// only the Bluera loop.
 async function ensureReportEntries(
   params: CtecLinkParams,
   titleHint: string | undefined,
@@ -437,9 +448,10 @@ async function ensureReportEntries(
     fetchLimit?: number;
     forceRefreshLinks?: boolean;
     strategy: CtecAnalyticsStrategy;
+    attempt?: CtecFetchAttempt;
   }
 ): Promise<EnsureReportEntriesResult> {
-  const { strategy } = options;
+  const { strategy, attempt } = options;
   // Combo and course lenses both use the catalog-keyed fetcher. The trick
   // for course mode: pass instructor="" so `instructorMatches` treats it
   // as a wildcard and every section under the catalog gets discovered +
@@ -448,24 +460,27 @@ async function ensureReportEntries(
   // state so the two lenses don't shadow each other's cache decisions.
   // Instructor mode walks a different CAESAR surface (NW_CTEC_SRCH_CHOIC=T)
   // that enumerates instructors in the subject, so it gets its own fetcher.
-  const fetchParams =
-    strategy === "course" ? { ...params, instructor: "" } : params;
-  const links =
-    strategy === "instructor"
-      ? await fetchCtecLinksByInstructor(
-          params,
-          options.forceRefreshLinks ?? false,
-          onProgress
-        )
-      : await fetchCtecLinksBackground(
-          fetchParams,
-          options.forceRefreshLinks ?? false,
-          onProgress
-        );
-  if (links.state === "auth-required") {
-    throw new CaesarAuthRequiredError(links.loginUrl);
+  if (!attempt?.linksFound) {
+    const fetchParams =
+      strategy === "course" ? { ...params, instructor: "" } : params;
+    const links =
+      strategy === "instructor"
+        ? await fetchCtecLinksByInstructor(
+            params,
+            options.forceRefreshLinks ?? false,
+            onProgress
+          )
+        : await fetchCtecLinksBackground(
+            fetchParams,
+            options.forceRefreshLinks ?? false,
+            onProgress
+          );
+    if (links.state === "auth-required") {
+      throw new CaesarAuthRequiredError(links.loginUrl);
+    }
+    if (links.state !== "found") return links;
+    if (attempt) attempt.linksFound = true;
   }
-  if (links.state !== "found") return links;
 
   let entries = sortEntries(getIndexedEntriesForCourse(params, titleHint, strategy));
   if (entries.length === 0) {
@@ -487,12 +502,28 @@ async function ensureReportEntries(
 
     onProgress?.(`Reading evaluation ${index + 1}/${missing.length}…`);
 
-    const response = await fetchTextResultViaBackground(url, {
-      method: "GET",
-      signal: getCurrentPeopleSoftTaskSignal() ?? undefined,
-      timeoutMs: CTEC_FETCH_TIMEOUT_MS
-    });
-    if (isAuthResponse(response.text)) {
+    let response: Awaited<ReturnType<typeof fetchTextResultViaBackground>>;
+    try {
+      response = await fetchTextResultViaBackground(url, {
+        method: "GET",
+        signal: getCurrentPeopleSoftTaskSignal() ?? undefined,
+        timeoutMs: CTEC_FETCH_TIMEOUT_MS
+      });
+    } catch (error) {
+      // When SSO also wants Duo, the redirect chain leaves our host
+      // permissions and the browser blocks it as a network error.
+      if (error instanceof Error && /failed to fetch|networkerror/i.test(error.message)) {
+        throw new CaesarAuthRequiredError(url);
+      }
+      throw error;
+    }
+    // A signed-out report request leaves Bluera for Northwestern SSO.
+    // With SSO still alive it stops on the SAML auto-POST hand-off page,
+    // which carries none of the login-page markers below.
+    if (
+      isAuthResponse(response.text) ||
+      (response.finalUrl && !isBlueraHost(response.finalUrl))
+    ) {
       throw new CaesarAuthRequiredError(url);
     }
     if (response.status === 401 || response.status === 403) {

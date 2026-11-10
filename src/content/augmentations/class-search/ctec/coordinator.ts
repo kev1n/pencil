@@ -27,6 +27,7 @@ import {
   fetchCtecReportAggregate,
   getCachedReportAggregate,
   getCtecCourseAnalyticsSnapshot,
+  type CtecFetchAttempt,
   type CtecReportAggregate
 } from "../../ctec-links/reports";
 import { CTEC_ERROR_TOAST_MESSAGE, ctecErrorToastOptions } from "../../ctec-links/rate-limit";
@@ -167,6 +168,7 @@ export function createCtecCoordinator(
     repaintLoading(identity.key, "Connecting to Northwestern CTEC…");
 
     const aggregateLimit = getRecentAggregationTerms();
+    const attempt: CtecFetchAttempt = { linksFound: false };
     const job = withAuthRecovery(
       deps.authRecovery,
       isCaesarAuthRequiredError,
@@ -175,7 +177,7 @@ export function createCtecCoordinator(
           identity.params,
           identity.titleHint,
           (message) => repaintLoading(identity.key, message),
-          { fetchLimit: aggregateLimit, aggregateLimit }
+          { fetchLimit: aggregateLimit, aggregateLimit, attempt }
         ),
       { confirmBeforePopup: (loginUrl) => confirmLoginPrompt(loginUrl) }
     )
