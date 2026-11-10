@@ -13,7 +13,8 @@ const FIELD_RE =
 
 const ROW_ID_RE = /^CRSE_HIST2\$0_row_(\d+)$/;
 const CATALOG_RE = /^([A-Z][A-Z_]*)\s+(.+)$/;
-const TERM_DATE_COMMENT_RE = /<!--\s*(\d{4}-\d{2}-\d{2})\s*-->/;
+// Matched against a comment node's nodeValue, which excludes the <!-- -->.
+const TERM_DATE_COMMENT_RE = /^\s*(\d{4}-\d{2}-\d{2})\s*$/;
 
 export function parseCourseHistoryAjax(xmlText: string): CourseHistoryEntry[] | null {
   const match = FIELD_RE.exec(xmlText);
@@ -32,13 +33,13 @@ export function parseCourseHistoryHtml(html: string): CourseHistoryEntry[] | nul
 
   const entries: CourseHistoryEntry[] = [];
   for (const row of rows) {
-    const entry = parseRow(row);
+    const entry = parseCourseHistoryRow(row);
     if (entry) entries.push(entry);
   }
   return entries;
 }
 
-function parseRow(row: HTMLTableRowElement): CourseHistoryEntry | null {
+export function parseCourseHistoryRow(row: HTMLTableRowElement): CourseHistoryEntry | null {
   const idMatch = ROW_ID_RE.exec(row.id);
   if (!idMatch) return null;
   const idx = idMatch[1];
@@ -70,10 +71,14 @@ function parseRow(row: HTMLTableRowElement): CourseHistoryEntry | null {
   const termLabel = (termCell?.textContent ?? "").replace(/\s+/g, " ").trim();
   const termStartDate = readTermStartDate(termCell);
 
-  const gradeAnchor = row.querySelector<HTMLElement>(
-    `#VIEW_HOLDS_LINK\\$${idx} .ps-text`
-  );
-  const gradeText = (gradeAnchor?.textContent ?? "").trim();
+  // Grades render either as a link or, on the current CAESAR grid, as
+  // plain text in the SSR_GRADE_LONG htmlarea.
+  const gradeNode =
+    row.querySelector<HTMLElement>(`#VIEW_HOLDS_LINK\\$${idx} .ps-text`) ??
+    row.querySelector<HTMLElement>(
+      `[id='win5divDERIVED_SSS_HST_SSR_GRADE_LONG$${idx}'] .ps_box-value`
+    );
+  const gradeText = (gradeNode?.textContent ?? "").trim();
   const grade = gradeText.length > 0 ? gradeText : null;
 
   const unitsText = textById(row, `DERIVED_SSS_HST_UNT_TAKEN$${idx}`);

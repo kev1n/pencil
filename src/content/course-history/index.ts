@@ -9,6 +9,7 @@ export { runOpportunisticCourseHistoryReconcile } from "./reconcile";
 
 export {
   parseCourseHistoryAjax,
+  parseCourseHistoryRow,
   parseCourseHistoryHtml
 } from "./parse";
 

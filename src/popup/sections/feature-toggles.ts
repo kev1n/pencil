@@ -75,6 +75,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         id: "class-search",
         label: "Class Search",
         description: "Replaces CAESAR's class search with a paper.nu-powered UI that adds sections to your cart in place."
+      },
+      {
+        id: "course-history-view",
+        label: "Course History",
+        description: "Groups your Course History by term, filters it by subject, and downloads what you see as a CSV. Hides classes still in progress unless you ask."
       }
     ]
   },
