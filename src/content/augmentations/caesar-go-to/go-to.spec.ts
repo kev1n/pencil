@@ -42,6 +42,36 @@ describe("CAESAR bookmarks", () => {
     expect(slot.hasAttribute("data-bc-bookmark-slot")).toBe(false);
   });
 
+  it("opens Class Search as a Manage Classes tab, keeping CAESAR's sidebar", () => {
+    const tab = `<div class="ps_ag-step-button" onclick="void 'ADMN_S201708141120276178777428'"></div>`;
+    document.body.innerHTML = '<div id="win0hdrdivPT_CUSTOM_RIGHT"></div>';
+    augmentation.run(document);
+    const link = document.querySelector<HTMLAnchorElement>("a[aria-label='Class Search']")!;
+    expect(link.href).toContain("NW_MANAGE_CLASSES_CLASSIC_NAV");
+
+    // On Manage Classes the bookmark picks the tab in place.
+    document.body.insertAdjacentHTML("beforeend", tab);
+    const picked = vi.fn();
+    document.querySelector(".ps_ag-step-button")!.addEventListener("click", picked);
+    link.click();
+    expect(picked).toHaveBeenCalledOnce();
+
+    // Arriving from another page, the link's fragment names the tab, and
+    // the pick repeats until CAESAR shows the tab selected.
+    vi.useFakeTimers();
+    history.replaceState(null, "", new URL(link.href).hash);
+    augmentation.run(document);
+    expect(picked).toHaveBeenCalledTimes(2);
+    vi.advanceTimersByTime(1500);
+    expect(picked).toHaveBeenCalledTimes(3);
+    document.querySelector(".ps_ag-step-button")!.classList.add("psc_selected");
+    vi.advanceTimersByTime(1500);
+    expect(location.hash).toBe("");
+    vi.advanceTimersByTime(3000);
+    expect(picked).toHaveBeenCalledTimes(3);
+    vi.useRealTimers();
+  });
+
   it("opens the Pencil About dialog once, supports dismiss/reopen, and cleans up", () => {
     vi.stubGlobal("chrome", {
       ...chrome,
