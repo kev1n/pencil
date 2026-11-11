@@ -1,6 +1,7 @@
 import { CartPageHydrator } from "../cart-cache";
 import type { Augmentation } from "../framework";
 import { caesarBookmarksAugmentation } from "./caesar-go-to";
+import { caesarHistoryAugmentation } from "./caesar-history";
 import { classSearchAugmentation } from "./class-search";
 import { courseHistoryViewAugmentation } from "./course-history-view";
 import { ctecLinksAugmentation } from "./ctec-links";
@@ -20,6 +21,8 @@ import { seatsNotesAugmentation } from "./seats-notes";
 const cartPageHydrator = new CartPageHydrator();
 
 export const augmentationRegistry: Augmentation[] = [
+  // First, so it copies each new CAESAR page before the others add to it.
+  caesarHistoryAugmentation,
   caesarBookmarksAugmentation,
   enrollmentNavigationAugmentation,
   classSearchAugmentation,

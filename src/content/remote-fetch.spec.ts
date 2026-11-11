@@ -11,6 +11,36 @@ beforeEach(() => {
   vi.stubGlobal("chrome", { runtime: { sendMessage } });
 });
 
+describe("CAESAR background window", () => {
+  it("keeps background requests out of the window the user is browsing in", async () => {
+    sendMessage.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: "<form name='win37'><div id='win37divPAGECONTAINER'>submitAction_win37(document.win37,'X')</div></form>",
+      finalUrl: `${CAESAR_ORIGIN}/psc/csnu_37/EMPLOYEE/SA/c/X.GBL`
+    });
+
+    const response = await fetchTextResultViaBackground(
+      `${CAESAR_ORIGIN}/psc/csnu/EMPLOYEE/SA/c/X.GBL?Page=Y`
+    );
+
+    expect(sendMessage.mock.calls[0][0].url).toBe(
+      `${CAESAR_ORIGIN}/psc/csnu_37/EMPLOYEE/SA/c/X.GBL?Page=Y`
+    );
+    expect(response.text).toBe(
+      "<form name='win0'><div id='win0divPAGECONTAINER'>submitAction_win0(document.win0,'X')</div></form>"
+    );
+  });
+
+  it("leaves other windows and other hosts alone", async () => {
+    sendMessage.mockResolvedValue({ ok: true, status: 200, text: "win37", finalUrl: BLUERA_ORIGIN });
+
+    await fetchTextResultViaBackground(`${CAESAR_ORIGIN}/psc/csnu_5/EMPLOYEE/SA/c/X.GBL`);
+    expect(sendMessage.mock.calls[0][0].url).toBe(`${CAESAR_ORIGIN}/psc/csnu_5/EMPLOYEE/SA/c/X.GBL`);
+    await expect(fetchTextResultViaBackground(BLUERA_ORIGIN)).resolves.toMatchObject({ text: "win37" });
+  });
+});
+
 describe("CAESAR connection failures", () => {
   it("recognizes Northwestern's access-page redirect as a connection failure", async () => {
     sendMessage.mockResolvedValue({
