@@ -14,17 +14,19 @@ const TIMESTAMP_REFRESH_INTERVAL_MS = 30_000;
 export const FETCHED_AT_DATA_ATTR = "data-bc-fetched-at";
 
 export const SEATS_NOTES_STYLES = `
+    /* The two columns give up width on a narrow page so Notes stays on
+       screen; 790px is roughly what the rest of CAESAR's cart page takes. */
     .${SEATS_HEADER_CLASS},
     .${NOTES_HEADER_CLASS} {
-      min-width: 220px;
+      min-width: clamp(140px, calc((100vw - 790px) / 2), 220px);
       color: var(--bc-color-accent-on);
       background: var(--bc-color-accent);
       border-color: var(--bc-color-accent-pressed);
     }
     .${SEATS_CELL_CLASS},
     .${NOTES_CELL_CLASS} {
-      min-width: 220px;
-      width: 220px;
+      min-width: clamp(140px, calc((100vw - 790px) / 2), 220px);
+      width: clamp(140px, calc((100vw - 790px) / 2), 220px);
       max-width: 320px;
       padding: 4px 6px;
       border-left: 2px solid var(--bc-color-accent-mid-border);

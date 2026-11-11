@@ -40,9 +40,11 @@ export const styles = `
     font-size: 12px;
   }
 
+  /* The chips don't stretch: the grid can be wider than the window, and
+     a stretched row would push Download CSV off-screen. */
   #bc-course-history-toolbar .bc-ch-chips {
     display: flex;
-    flex: 1;
+    flex: 0 1 auto;
     flex-wrap: wrap;
     gap: 6px;
     min-width: 0;

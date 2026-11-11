@@ -13,6 +13,7 @@ import { WIDGET_CLASS } from "../../paper-ctec/constants";
 import type { ModalDisplayData } from "../../paper-ctec/modal-data";
 import {
   globalChip,
+  errorChip,
   makeChip,
   metricChip
 } from "../../paper-ctec/widget-chips";
@@ -140,7 +141,7 @@ function buildSummary(
   }
 
   if (data.state === "error") {
-    return makeChip("spark", "CTEC unavailable", "is-muted");
+    return errorChip(data.message);
   }
 
   const { aggregate } = data;

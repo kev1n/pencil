@@ -1,6 +1,7 @@
 import {
   fetchCtecCourseAnalytics,
   getCachedChipAggregate,
+  getCachedReportAggregate,
   getCtecCourseAnalyticsSnapshot,
   hasStrategyBeenExplored,
   selectEntriesForTitle
@@ -199,6 +200,22 @@ export class ModalController {
     // Re-arm the dry-run auto-open on every fresh open.
     const existing = this.modalStates.get(source.key);
     if (existing) existing.dryRunDismissed = false;
+
+    // The card shows this professor's own reports for this course whenever
+    // some are loaded, so the sheet opens on them too. A broader view
+    // remembered from before those reports existed would open on different
+    // numbers than the card.
+    if (
+      (getSectionLens(source.params) ?? getCtecStrategy()) !== "combo" &&
+      getCachedReportAggregate(
+        source.params,
+        source.titleHint,
+        PAPER_CTEC_CONFIG.aggregate.recentTerms,
+        "combo"
+      )
+    ) {
+      setSectionLens(source.params, "combo");
+    }
 
     const sectionLens = getSectionLens(source.params);
     const lens = sectionLens ?? getCtecStrategy();

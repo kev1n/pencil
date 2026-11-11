@@ -192,11 +192,15 @@ function groupByCourse(
         courseId: section.courseId,
         label: `${section.subject} ${section.number}`,
         units: unitsByCourse.get(planKey) ?? DEFAULT_UNITS,
+        components: [],
         sections: []
       };
       byCourse.set(section.courseId, group);
     }
     group.sections.push(section);
+    if (!group.components?.includes(section.component)) {
+      group.components?.push(section.component);
+    }
   }
   return Array.from(byCourse.values()).sort((a, b) =>
     a.label.localeCompare(b.label)

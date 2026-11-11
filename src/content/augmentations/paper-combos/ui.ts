@@ -1,5 +1,6 @@
 import { el } from "../../framework";
 import { PAPER_CARD_ROLE, paperRoleSelector } from "../paper-ctec/dom";
+import { pinSlot } from "./combinations";
 import { PAPER_COMBOS_CONFIG } from "./config";
 import {
   CARD_PIN_BUTTON_CLASS,
@@ -997,10 +998,10 @@ function restoreOriginalLayout(card: HTMLElement): void {
 }
 
 // Pin button mounts as a direct child of the outer `.absolute` card,
-// sibling to paper-ctec's analytics-anchor (which overhangs at
-// `bottom: -15px`). That places the pin just above the analytics
-// pill in the bottom-right and lets it escape the dense-card
-// overflow:hidden the same way paper-ctec's actions wrapper does.
+// sibling to paper-ctec's actions anchor, and sits in the same row of
+// buttons along the card's bottom edge (see styles.ts). Being outside
+// the dense card lets it escape that card's overflow:hidden the same
+// way paper-ctec's actions wrapper does.
 // Idempotent: re-uses the existing button if one's already there.
 function ensurePinButton(
   card: HTMLElement,
@@ -1021,7 +1022,7 @@ function ensurePinButton(
   }
 
   button.dataset.pinned = String(isPinned);
-  button.setAttribute(COURSE_ID_DATASET_ATTR, section.courseId);
+  button.setAttribute(COURSE_ID_DATASET_ATTR, pinSlot(section));
   button.dataset.bcCombosCardSection = section.sectionId;
   button.title = isPinned
     ? `${section.subject} ${section.number} section ${section.section} is pinned. Click to unpin.`

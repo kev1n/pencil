@@ -7,7 +7,7 @@ import { WIDGET_CLASS } from "./constants";
 import type { ModalDisplayData } from "./modal-data";
 import type { PaperCtecWidgetData } from "./types";
 import { createIcon, preventAndStop, type IconName } from "./ui-shared";
-import { globalChip, makeChip, metricChip } from "./widget-chips";
+import { errorChip, globalChip, makeChip, metricChip } from "./widget-chips";
 
 export type AnalyticsPreviewSource = () => ModalDisplayData | null;
 
@@ -149,7 +149,7 @@ function buildWidgetSummary(
   }
 
   if (data.state === "error") {
-    return makeChip("spark", "CTEC unavailable", "is-muted");
+    return errorChip(data.message);
   }
 
   const { aggregate } = data;

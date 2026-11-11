@@ -58,6 +58,12 @@ button[${HOST_MARKER_ATTR}="1"] {
   white-space: nowrap;
 }
 
+@media (max-width: 1250px) {
+  .bc-paper-brand-mark__text {
+    display: none;
+  }
+}
+
 .bc-paper-brand-mark__icon {
   width: 24px;
   height: 24px;

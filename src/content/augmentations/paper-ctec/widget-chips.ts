@@ -43,6 +43,20 @@ export function makeChip(
 // metric that's missing). Returns null when none of the three contribute.
 // Honors the stars-mode toggle just like metricChip so the schedule-card
 // chip set stays visually consistent.
+// Chip for a failed load. A page left open across an extension update
+// can't reach Pencil any more; only a refresh fixes that, so say so.
+export function errorChip(message: string): TemplateResult {
+  if (/extension context invalidated/i.test(message)) {
+    return makeChip(
+      "spark",
+      "Refresh page",
+      "is-muted",
+      "Pencil was updated. Refresh this page to load CTECs."
+    );
+  }
+  return makeChip("spark", "CTEC unavailable", "is-muted");
+}
+
 export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
   const components: Array<{ label: string; mean: number; n: number }> = [];
   for (const [kind, label] of [
@@ -60,7 +74,18 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
   const overallMean =
     components.reduce((sum, c) => sum + c.mean, 0) / components.length;
 
+  // A rating borrowed from a broader view gets a "≈" in front and says
+  // where it came from, so it can't pass for this class's own.
+  const borrowed =
+    aggregate.lens === "instructor"
+      ? "No CTECs for this professor in this class. This is from their other classes."
+      : aggregate.lens === "course"
+        ? "No CTECs for this professor in this class. This is from other professors who taught it."
+        : "";
+  const mark = borrowed ? "≈" : "";
+
   const tooltipParts = [
+    ...(borrowed ? [borrowed] : []),
     `Rating ${formatRatingDetail(overallMean)}: average of ${components
       .map((c) => `${c.label} ${formatRatingDetail(c.mean)}`)
       .join(", ")}.`
@@ -69,7 +94,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
 
   const starMode = isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID);
   if (starMode) {
-    return makeMetricStarsChip("", overallMean, tooltip);
+    return makeMetricStarsChip(mark, overallMean, tooltip);
   }
 
   const tone = buildCompactChipTone(
@@ -78,7 +103,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
     false
   );
   return makeMetricValueChip(
-    "",
+    mark,
     formatChipRating(overallMean),
     "is-rating",
     tooltip,

@@ -38,7 +38,7 @@ export const styles = `
     height: 18px;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1150px) {
     #bc-caesar-bookmarks[data-banner="true"] .bc-caesar-bookmarks-credit {
       display: none;
     }

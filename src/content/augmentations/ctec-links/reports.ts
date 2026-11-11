@@ -57,6 +57,9 @@ export type CtecReportAggregate = {
   latestUrl: string | null;
   allFetched: boolean;
   partial: boolean;
+  // Which reports this averages. Anything but "combo" is a stand-in for
+  // this professor's own sections of this course, and the card marks it.
+  lens?: CtecAnalyticsStrategy;
   metrics: {
     instruction?: CtecAggregateMetric;
     course?: CtecAggregateMetric;
@@ -140,9 +143,12 @@ export async function fetchCtecReportAggregate(
 
   return {
     state: "found",
-    aggregate: buildReportAggregate(result.entries, {
-      aggregateLimit: options.aggregateLimit
-    })
+    aggregate: {
+      ...buildReportAggregate(result.entries, {
+        aggregateLimit: options.aggregateLimit
+      }),
+      lens: strategy
+    }
   };
 }
 
@@ -264,7 +270,7 @@ export function getCachedReportAggregate(
   const hasAnyParsed = window.some((entry) => entry.reportSummary !== undefined);
   if (!hasAnyParsed) return null;
 
-  return buildReportAggregate(entries, { aggregateLimit: recentTerms });
+  return { ...buildReportAggregate(entries, { aggregateLimit: recentTerms }), lens };
 }
 
 // Chip-flavored read: combo > section preference > global. The schedule
