@@ -11,6 +11,15 @@
   },
   "entries": [
     {
+      "version": "0.9.20",
+      "date": "2026-11-10",
+      "headline": "Course History fixes",
+      "items": [
+        { "kind": "fix", "text": "Course History groups by term and filters by status when you open it from Academic Records, instead of lumping every class under Other." },
+        { "kind": "fix", "text": "Course History now shows classes in progress and hides the ones still in your cart until you turn them on." }
+      ]
+    },
+    {
       "version": "0.9.19",
       "date": "2026-11-10",
       "headline": "CTECs for renumbered courses",
