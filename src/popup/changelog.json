@@ -11,6 +11,25 @@
   },
   "entries": [
     {
+      "version": "1.0.1",
+      "date": "2026-11-11",
+      "headline": "Tidier search, smaller screens",
+      "items": [
+        { "kind": "feat", "text": "In CAESAR class search, CTEC, Details and Add to cart sit together at the end of each class. Once a CTEC loads, its rating and hours become the button that opens the full report." },
+        { "kind": "feat", "text": "Open seats show as one coloured number: green when there is room, red when a class is nearly full." },
+        { "kind": "feat", "text": "On Paper.nu, the Paper.nu and CTECs tabs moved into the top row of the class panel, so the report starts higher up." },
+        { "kind": "feat", "text": "A class card's rating now shows \"≈\" when it comes from the professor's other classes or from other professors, so you can tell it apart from a rating for that exact class." },
+        { "kind": "fix", "text": "The Positive, Mixed, Neutral and Critical labels on CTEC comments are more accurate, and the Critical filter now catches about twice as many critical comments." },
+        { "kind": "fix", "text": "Schedule combinations now keep a class's lecture and discussion together instead of treating them as either-or." },
+        { "kind": "fix", "text": "When no schedule fits your credit range, Combinations says so instead of showing a bare \"0 of 0\"." },
+        { "kind": "fix", "text": "The CTEC panel now opens on the same rating the class card shows, instead of a broader view you picked earlier." },
+        { "kind": "fix", "text": "On smaller laptop screens, Paper.nu class cards no longer hide the rating behind their buttons, CAESAR's header and Shopping Cart columns fit better, and Course History's Download CSV stays in view." },
+        { "kind": "fix", "text": "Class search no longer squeezes each class into a cramped stack in a normal-sized CAESAR window." },
+        { "kind": "fix", "text": "After Pencil updates, pages you left open ask you to refresh instead of saying CTECs are unavailable."
+        }
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2026-11-10",
       "headline": "Pencil 1.0",

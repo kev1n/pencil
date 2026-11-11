@@ -91,6 +91,23 @@ describe("sectionsConflict", () => {
 });
 
 describe("enumerateCombinations", () => {
+  it("takes a lecture and a discussion of the same course together", () => {
+    const lec = makeSection("L", "A", [block(0, 9, 0, 10, 0)]);
+    const d1 = { ...makeSection("D1", "A", [block(3, 9, 0, 10, 0)]), component: "DIS" };
+    const d2 = { ...makeSection("D2", "A", [block(3, 11, 0, 12, 0)]), component: "DIS" };
+    const b1 = makeSection("B1", "B", [block(3, 9, 0, 10, 0)]);
+    const result = enumerateCombinations(pool([lec, d1, d2, b1]), {
+      maxCredits: 2,
+      minCredits: 1,
+      pinnedSectionIds: new Set(["D2"])
+    });
+    const ids = result.combinations.map((c) => [...c.sectionIds].sort().join("+"));
+    // The pinned discussion comes with its lecture, never alone, and the
+    // course still counts once toward credits.
+    expect(ids.sort()).toEqual(["B1+D2+L", "D2+L"]);
+    expect(result.combinations.map((c) => c.totalUnits).sort()).toEqual([1, 2]);
+  });
+
   it("returns one combination per (one-section-per-course) tuple when nothing conflicts", () => {
     const a1 = makeSection("A1", "A", [block(0, 9, 0, 10, 0)]);
     const a2 = makeSection("A2", "A", [block(0, 13, 0, 14, 0)]);

@@ -10,12 +10,13 @@ import {
 // lives in side-card-panel.ts.
 export function sideCardStyles(): string {
   return `
-    /* Two quiet text tabs under Paper.nu's own header; the selected one
+    /* Two quiet text tabs in Paper.nu's own header row; the selected one
        is ink-filled. */
     .${SIDECARD_TABS_CLASS} {
       display: flex;
+      flex: 0 0 auto;
       gap: 2px;
-      margin: 0 0 12px;
+      margin: 0 4px 0 0;
       font-family: var(--bc-font-body);
       position: relative;
       z-index: 2;
@@ -94,6 +95,10 @@ export function sideCardStyles(): string {
        is showing. */
     [data-bc-ctec-wide] {
       max-width: min(100vw, 520px) !important;
+    }
+    /* The report brings its own heading, so the header row sits closer. */
+    [data-bc-ctec-wide] :has(> .${SIDECARD_TABS_CLASS}) {
+      margin-bottom: 10px !important;
     }
   `;
 }

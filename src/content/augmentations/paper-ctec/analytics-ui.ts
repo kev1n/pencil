@@ -8,7 +8,8 @@ import {
 import type { PaperCtecSideCardContext } from "./types";
 import { preventAndStop } from "./ui-shared";
 
-// Paper.nu's Section Info panel gets a Paper.nu / CTECs tab pair. The CTECs
+// Paper.nu's Section Info panel gets a Paper.nu / CTECs tab pair, placed in
+// the panel's own header row beside its link and close buttons. The CTECs
 // tab hides Paper.nu's own content, widens the panel, and returns an empty
 // host element that the analytics sheet (modal/view.ts) renders into, so
 // there is one side panel on the page instead of two.
@@ -38,7 +39,10 @@ export function renderSideCardAnalytics(
   }
 
   const tabsRoot = ensureSideCardTabs(context.panel, header);
-  const panelRoot = ensureSideCardAnalyticsPanel(context.panel, tabsRoot);
+  const panelRoot = ensureSideCardAnalyticsPanel(
+    context.panel,
+    tabsRoot.parentElement === context.panel ? tabsRoot : header
+  );
 
   renderSideCardTabs(tabsRoot, data.selectedTab, onSelectTab);
   applySideCardMode(context.panel, header, tabsRoot, panelRoot, data.selectedTab);
@@ -73,30 +77,35 @@ function ensureSideCardHeader(panel: HTMLElement): HTMLElement | null {
 }
 
 function ensureSideCardTabs(panel: HTMLElement, header: HTMLElement | null): HTMLElement {
-  const existing = panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`);
-  if (existing) {
-    insertAfter(panel, existing, header);
-    return existing;
+  let tabsRoot = panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`);
+  if (!tabsRoot) {
+    tabsRoot = panel.ownerDocument.createElement("div");
+    tabsRoot.className = SIDECARD_TABS_CLASS;
+    tabsRoot.setAttribute("role", "tablist");
   }
 
-  const tabsRoot = panel.ownerDocument.createElement("div");
-  tabsRoot.className = SIDECARD_TABS_CLASS;
-  tabsRoot.setAttribute("role", "tablist");
+  // In the header row, right after Paper.nu's "Section Info" label, which
+  // grows to push the tabs against the link and close buttons.
+  const label = header?.firstElementChild;
+  if (header && label) {
+    if (label.nextSibling !== tabsRoot) header.insertBefore(tabsRoot, label.nextSibling);
+    return tabsRoot;
+  }
 
   insertAfter(panel, tabsRoot, header);
   return tabsRoot;
 }
 
-function ensureSideCardAnalyticsPanel(panel: HTMLElement, tabsRoot: HTMLElement): HTMLElement {
+function ensureSideCardAnalyticsPanel(panel: HTMLElement, after: HTMLElement | null): HTMLElement {
   const existing = panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`);
   if (existing) {
-    insertAfter(panel, existing, tabsRoot);
+    insertAfter(panel, existing, after);
     return existing;
   }
 
   const root = panel.ownerDocument.createElement("section");
   root.className = SIDECARD_ANALYTICS_PANEL_CLASS;
-  insertAfter(panel, root, tabsRoot);
+  insertAfter(panel, root, after);
   return root;
 }
 

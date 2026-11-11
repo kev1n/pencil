@@ -11,7 +11,9 @@ import type { ModalDisplayData } from "./modal-data";
 
 export const PAPER_CTEC_MODAL_CACHE_KEY = "bc_paper_ctec_modal_cache";
 
-const STORAGE_VERSION = 1;
+// Bump when cached results would differ for the same CTEC entries, e.g. a
+// change to how comment tone is scored. Older records are then ignored.
+const STORAGE_VERSION = 2;
 const MAX_ENTRIES = 16;
 const PERSIST_DEBOUNCE_MS = 800;
 

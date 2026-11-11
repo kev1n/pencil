@@ -55,7 +55,7 @@ describe("renderSectionDetail — success", () => {
     const labels = Array.from(stats).map(
       (s) => s.querySelector(".bc-cs-stat-label")?.textContent
     );
-    expect(labels).toEqual(["Capacity", "Enrolled", "Open seats", "Waitlist size", "On waitlist"]);
+    expect(labels).toEqual(["Open seats", "Capacity", "Enrolled", "Waitlist size", "On waitlist"]);
   });
 
   it("renders class notes / attributes / requirements blocks", () => {

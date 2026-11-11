@@ -35,6 +35,10 @@ export type CourseGroup = {
   // have a usable units field — most courses are 1.0 anyway, so the
   // fallback is conservative and keeps the budget meaningful.
   units: number;
+  // Every component (LEC, DIS, LAB…) the user scheduled for this course.
+  // A combination takes one section of each, so a course whose only
+  // discussions were filtered out drops out instead of losing them.
+  components?: string[];
   sections: ComboSection[];
 };
 

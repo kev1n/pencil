@@ -1,4 +1,5 @@
 import { ensureStyle } from "../../framework";
+import { WIDGET_CLASS } from "../paper-ctec/constants";
 import {
   CARD_PIN_BUTTON_CLASS,
   FEATURE_TOGGLE_CLASS,
@@ -318,7 +319,12 @@ const CSS = `
   color: var(--bc-color-text-muted);
 }
 
-@media (max-width: 700px) {
+/* Below this width Paper.nu's header buttons fill the row, and a full
+ * chip would be pushed left under the logo. */
+@media (max-width: 1150px) {
+  .bc-paper-combos-hours {
+    padding: 0 8px;
+  }
   .bc-paper-combos-hours-label {
     display: none;
   }
@@ -688,7 +694,7 @@ const CSS = `
 
 #${TOP_BAR_ID} .bc-paper-combos-status {
   order: -1;
-  flex: 1 1 0;
+  flex: 4 1 0;
   min-width: 0;
   color: var(--bc-color-text-muted);
   font-size: var(--bc-font-12);
@@ -913,14 +919,16 @@ const CSS = `
 
 
 /* Pin button: direct child of the card, sibling of paper-ctec's
- * actions anchor. Sits just above the Analytics button in the bottom
- * right so the user always finds it in the same spot. Same small white
- * control as the card's other buttons; pinned is ink-filled. */
+ * actions anchor. It joins that row of buttons along the card's bottom
+ * edge, to their left, so nothing sits on top of the card's text. Same
+ * small white control as the card's other buttons; pinned is ink-filled. */
 .${CARD_PIN_BUTTON_CLASS} {
   position: absolute;
-  bottom: 14px;
+  bottom: -13px;
   right: 6px;
-  z-index: 13;
+  /* Under the actions row, so a cart label that opens on hover covers
+     the pin instead of colliding with it. */
+  z-index: 11;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -937,6 +945,31 @@ const CSS = `
   transition: background var(--bc-tx-fast) var(--bc-easing),
               border-color var(--bc-tx-fast) var(--bc-easing),
               color var(--bc-tx-fast) var(--bc-easing);
+}
+
+/* Next to the cart and Analytics buttons when the card has them. With
+ * three buttons in the row, Analytics stays an icon and the rating line
+ * gives up its hours sooner. */
+:has(> .${WIDGET_CLASS}-actions-anchor) > .${CARD_PIN_BUTTON_CLASS} {
+  right: 66px;
+}
+:has(> .${CARD_PIN_BUTTON_CLASS}) .${WIDGET_CLASS}-analytics-btn-label {
+  max-width: 0;
+  opacity: 0;
+  margin-left: 0;
+}
+@container (max-width: 205px) {
+  :has(> .${CARD_PIN_BUTTON_CLASS}) .${WIDGET_CLASS}-chip.is-hours {
+    display: none;
+  }
+}
+/* Too narrow for three buttons beside the rating (two classes side by
+ * side, or a small window): the pin goes back above the row. */
+@container (max-width: 150px) {
+  :has(> .${WIDGET_CLASS}-actions-anchor) > .${CARD_PIN_BUTTON_CLASS} {
+    right: 6px;
+    bottom: 14px;
+  }
 }
 
 .${CARD_PIN_BUTTON_CLASS}:hover {

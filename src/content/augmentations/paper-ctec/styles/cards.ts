@@ -222,9 +222,10 @@ export function cardStyles(): string {
       z-index: 12;
       pointer-events: auto;
     }
-    /* On a half-width card (two classes side by side) the Analytics label
-       would spill onto the neighbouring card's buttons, so it collapses to
-       its icon there. */
+    /* The buttons share the card's bottom edge with the rating line, so on
+       a narrow card (a small window, or two classes side by side) the
+       Analytics label collapses to its icon, then the hours go, then the
+       "/6", leaving the rating readable beside the buttons. */
     ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-actions-anchor) {
       container-type: inline-size;
     }
@@ -281,11 +282,21 @@ export function cardStyles(): string {
       opacity: 1;
       margin-left: 4px;
     }
-    @container (max-width: 150px) {
+    @container (max-width: 240px) {
       .${WIDGET_CLASS}-analytics-btn-label {
         max-width: 0;
         opacity: 0;
         margin-left: 0;
+      }
+    }
+    @container (max-width: 155px) {
+      .${WIDGET_CLASS}-chip.is-hours {
+        display: none;
+      }
+    }
+    @container (max-width: 130px) {
+      .${WIDGET_CLASS}-chip.is-rating .${WIDGET_CLASS}-chip-scale {
+        display: none;
       }
     }
     button.${WIDGET_CLASS}-cart-btn:hover .${WIDGET_CLASS}-cart-btn-label,

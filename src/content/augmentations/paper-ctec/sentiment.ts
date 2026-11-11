@@ -1,286 +1,286 @@
-// Sentence-scoped sentiment scorer for CTEC student comments.
+// Tone scorer for CTEC student comments: positive, mixed, neutral or critical.
 //
-// What this is and isn't:
-//   - This is a tiny lexicon + rule scorer. It is *not* a real NLP model.
-//     Treat the labels (positive / mixed / neutral / critical) as a rough
-//     filter, not an authoritative emotional analysis.
-//   - The previous implementation counted positive/negative keyword hits
-//     across the whole comment, which mis-tagged "Very good intro level
-//     class. ... Racket is a very frustrating language to write in, but
-//     thankfully ..." as critical because "frustrating" outweighed
-//     everything else. This pass fixes that with three rules:
-//       1. score per *sentence*, not per comment
-//       2. handle negation (`not bad` flips, scoped within a sentence)
-//       3. handle concession (`X but Y` weights Y more, but only within
-//          the same sentence — Codex flagged whole-comment concession as
-//          a footgun for multi-paragraph comments)
-//   - We also keep a CTEC-specific override layer because in this domain
-//     `challenging` / `hard` / `demanding` are not negative — they're
-//     often praise — and a generic AFINN-style lexicon misses that.
+// Everything runs in the page: a word-and-rule scorer, then a small fitted
+// table that turns its output into a label. There is no language model
+// here, so it has no idea what "like setting $5000 on fire" means. Treat
+// the labels as a rough filter, not an authoritative reading.
+//
+// Step 1, rules (`scoreByRules`):
+//   - Each sentence is scored on its own. Praise and complaint are added up
+//     separately, so "great lecturer, but the textbook is useless" counts
+//     on both sides instead of cancelling out.
+//   - Known phrases are scored as one unit before single words are ("would
+//     recommend this", "waste of time").
+//   - Negation flips the next few words and weakens them: "not great" is a
+//     complaint, but a milder one than "terrible".
+//   - Around "but" and "although", the main clause counts more than the
+//     conceded one.
+//   - The first and last sentences count more, because that is where
+//     students put their verdict.
+//
+// Step 2, the fitted table (`sentiment-model.ts`): a weight per tone for
+// each feature from `toneFeatures`. The features are the rule totals, the
+// course's own rating for that term, and whether each of about 60 common
+// words appears. The rating matters because the rules cannot see a
+// complaint written without complaint words ("the exams did not match the
+// lectures"), and such comments are far more common in a course rated 3
+// out of 6 than in one rated 5.5.
+//
+// The table is produced by `scripts/fit-sentiment-model.mjs` from labeled
+// comments; see that file for how to refit. Measured against labels two
+// readers agreed on, on seven courses neither the rules nor the table had
+// seen: 79% agreement, against 67% for the keyword counter this replaced.
+// When labels drift, fix the lexicon or refit rather than adding a rule
+// for one example.
+
+import {
+  CONCESSION_CUES,
+  CONTRAST_CUES,
+  IGNORE,
+  LEXICON,
+  MODIFIERS,
+  NEGATION_CUES,
+  PHRASES,
+  SOFTEN
+} from "./sentiment-lexicon";
+import { TONE_MODEL } from "./sentiment-model";
 
 export type SentimentTone = "pos" | "neu" | "mix" | "neg";
 
-export function classifySentiment(text: string): SentimentTone {
+// Complaints count this much more than praise. Students soften criticism
+// and pad it with polite praise, so equal word weight under-reads it.
+const COMPLAINT_WEIGHT = 2;
+// Share of the total that must be praise for the rules to call a comment
+// positive, and the share at or below which they call it critical.
+const POSITIVE_SHARE = 0.55;
+const CRITICAL_SHARE = 0.15;
+
+const FIRST_SENTENCE_WEIGHT = 1.5;
+const LAST_SENTENCE_WEIGHT = 1.25;
+
+const CONCEDED_CLAUSE_WEIGHT = 0.5;
+const MAIN_CLAUSE_WEIGHT = 1.5;
+
+// Words after a negation cue that it still applies to. A comma ends it.
+const NEGATION_WINDOW = 3;
+// "not great" is weaker than "terrible"; "not bad" is faint praise.
+const NEGATED_PRAISE_FACTOR = 0.75;
+const NEGATED_COMPLAINT_FACTOR = 0.5;
+
+const SOFTEN_FACTOR = 0.6;
+
+// Stand-ins for a matched phrase inside a sentence, so the word loop can
+// treat the phrase as one token.
+const PHRASE_TOKEN_PREFIX = "zzph";
+const COMMA = ",";
+
+// Course ratings run 1 to 6. Centered near the typical course so an
+// unrated comment (no rating features at all) reads as an average one.
+const RATING_CENTER = 4.6;
+const RATING_SCALE = 1.5;
+
+// Prefix of the "this word appears" features, and of the same word when it
+// follows a negation ("not helpful" is `w:!helpful`).
+export const WORD_FEATURE_PREFIX = "w:";
+const NEGATED_WORD_MARK = "!";
+
+// `courseRating` is the course's own 1-to-6 rating for the term the comment
+// comes from (see `courseRatingOf` in modal-comments.ts), when known.
+export function classifySentiment(text: string, courseRating?: number | null): SentimentTone {
   if (!text.trim()) return "neu";
 
-  const sentences = splitSentences(text);
-
-  let posMass = 0;
-  let negMass = 0;
-  // Praise and complaint are added up separately, so one sentence that
-  // holds both ("great lecturer, but the textbook is useless") counts on
-  // both sides instead of cancelling out to nothing.
-  for (const sentence of sentences) {
-    const { pos, neg } = scoreSentence(sentence);
-    posMass += pos;
-    negMass += neg;
+  const totals = TONE_MODEL.tones.map(() => 0);
+  for (const [feature, value] of toneFeatures(text, courseRating)) {
+    const weights = TONE_MODEL.weights[feature];
+    if (!weights) continue;
+    for (let tone = 0; tone < totals.length; tone++) totals[tone]! += weights[tone]! * value;
   }
-
-  // Mixed beats positive/negative when both sides carry meaningful mass.
-  // Threshold scales with comment length so a single negative aside in a
-  // long positive comment doesn't flip the label to mixed.
-  const total = posMass + negMass;
-  if (total === 0) return "neu";
-
-  const mixedThreshold = 0.15;
-  const posShare = posMass / total;
-  const negShare = negMass / total;
-  const isMixed = posShare >= mixedThreshold && negShare >= mixedThreshold;
-
-  if (isMixed) return "mix";
-  if (posShare > negShare) return "pos";
-  if (negShare > posShare) return "neg";
-  return "neu";
+  return TONE_MODEL.tones[totals.indexOf(Math.max(...totals))]!;
 }
 
-// Splits on sentence-ending punctuation. Newlines also count — students
-// occasionally write multi-paragraph comments without terminal periods.
+// Every feature the fitted table may weigh. Word features are emitted for
+// every word in the comment; the table only holds weights for the few it
+// kept, and the fitting script reads this same function, so the two cannot
+// disagree about what a feature means.
+export function toneFeatures(text: string, courseRating?: number | null): Map<string, number> {
+  const normalized = normalize(text);
+  const rules = scoreByRules(normalized);
+  const total = rules.praise + COMPLAINT_WEIGHT * rules.complaint;
+  const share = total === 0 ? 0.5 : rules.praise / total;
+
+  const features = new Map<string, number>([
+    ["bias", 1],
+    ["praise", Math.log1p(rules.praise) / 3],
+    ["complaint", Math.log1p(rules.complaint) / 3],
+    ["share", share],
+    ["noSignal", total === 0 ? 1 : 0],
+    [`rules:${rules.tone}`, 1]
+  ]);
+
+  if (typeof courseRating === "number" && Number.isFinite(courseRating)) {
+    const centered = (courseRating - RATING_CENTER) / RATING_SCALE;
+    features.set("rating", centered);
+    features.set("ratingTimesShare", centered * share);
+    features.set("lowRating", Math.max(0, RATING_CENTER - courseRating));
+  }
+
+  let wordCount = 0;
+  let negationRemaining = 0;
+  for (const token of wordTokens(normalized)) {
+    if (token === SENTENCE_END || token === COMMA) {
+      negationRemaining = 0;
+      continue;
+    }
+    wordCount += 1;
+    if (NEGATION_CUES.has(token)) {
+      negationRemaining = NEGATION_WINDOW;
+      features.set(WORD_FEATURE_PREFIX + token, 1);
+      continue;
+    }
+    const mark = negationRemaining > 0 ? NEGATED_WORD_MARK : "";
+    features.set(WORD_FEATURE_PREFIX + mark + token, 1);
+    if (negationRemaining > 0) negationRemaining -= 1;
+  }
+  features.set("length", Math.log1p(wordCount) / 6);
+
+  return features;
+}
+
+const SENTENCE_END = ".";
+
+function wordTokens(normalized: string): string[] {
+  return normalized
+    .replace(/'/g, "")
+    .replace(/[.!?;:\n]+/g, ` ${SENTENCE_END} `)
+    .replace(/,/g, ` ${COMMA} `)
+    .replace(/[^a-z0-9.,\s]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+type RuleScore = { praise: number; complaint: number; tone: SentimentTone };
+
+function scoreByRules(normalized: string): RuleScore {
+  const sentences = splitSentences(normalized);
+  const last = sentences.length - 1;
+
+  let praise = 0;
+  let complaint = 0;
+  sentences.forEach((sentence, index) => {
+    const score = scoreSentence(sentence);
+    let weight = 1;
+    if (last > 0 && index === 0) weight *= FIRST_SENTENCE_WEIGHT;
+    if (last > 0 && index === last) weight *= LAST_SENTENCE_WEIGHT;
+    praise += score.praise * weight;
+    complaint += score.complaint * weight;
+  });
+
+  const total = praise + COMPLAINT_WEIGHT * complaint;
+  let tone: SentimentTone = "mix";
+  if (total === 0) tone = "neu";
+  else if (praise / total >= POSITIVE_SHARE) tone = "pos";
+  else if (praise / total <= CRITICAL_SHARE) tone = "neg";
+  return { praise, complaint, tone };
+}
+
+// CTEC text comes with curly apostrophes and en dashes. Left alone, "wasn’t"
+// splits into "wasn" + "t" and the negation is lost.
+function normalize(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[‘’ʼ`]/g, "'")
+    .replace(/[–—]/g, " - ");
+}
+
+// Newlines also end a sentence: students write multi-paragraph comments
+// without closing periods.
 function splitSentences(text: string): string[] {
   return text
-    .split(/(?<=[.!?;])\s+|\n+/u)
+    .split(/(?<=[.!?;:])\s+|\n+/u)
     .map((s) => s.trim())
     .filter(Boolean);
 }
 
-// Concession cues split a sentence into a "before" half and an "after"
-// half; the after-half is weighted more heavily because it usually carries
-// the writer's main claim. Only applied within a single sentence so we
-// don't accidentally stitch unrelated thoughts across periods.
-const CONCESSION_CUES = ["but", "however", "although", "though", "thankfully", "overall"];
-const CONCESSION_BEFORE_WEIGHT = 0.5;
-const CONCESSION_AFTER_WEIGHT = 1.5;
+function tokenize(sentence: string): string[] {
+  let cleaned = sentence.replace(/'/g, "").replace(/[^a-z0-9,\s]+/g, " ");
+  PHRASES.forEach(([pattern], index) => {
+    cleaned = cleaned.replace(pattern, ` ${PHRASE_TOKEN_PREFIX}${index} `);
+  });
+  return cleaned.replace(/,/g, ` ${COMMA} `).split(/\s+/).filter(Boolean);
+}
 
-const NEGATION_CUES = new Set([
-  "not", "no", "never", "none", "nothing", "nobody", "neither", "nor",
-  "cant", "cannot", "dont", "didnt", "doesnt", "wasnt", "werent", "isnt",
-  "arent", "wont", "couldnt", "shouldnt", "wouldnt", "havent", "hasnt"
-]);
-const NEGATION_WINDOW = 3; // tokens after a negation cue get sign-flipped
+// How much each position in the sentence counts, given where its contrast
+// or concession cue sits.
+function clauseWeights(tokens: string[]): (index: number) => number {
+  const contrast = tokens.findIndex((t) => CONTRAST_CUES.has(t));
+  if (contrast >= 0) {
+    return (i) => (i < contrast ? CONCEDED_CLAUSE_WEIGHT : MAIN_CLAUSE_WEIGHT);
+  }
 
-const INTENSIFIERS: Record<string, number> = {
-  very: 1.5,
-  really: 1.4,
-  extremely: 1.7,
-  incredibly: 1.6,
-  super: 1.4,
-  highly: 1.4,
-  totally: 1.4,
-  absolutely: 1.5,
-  completely: 1.4,
-  truly: 1.3,
-  quite: 1.2,
-  pretty: 1.15,
-  fairly: 1.1
-};
-const DOWNTONERS: Record<string, number> = {
-  slightly: 0.6,
-  somewhat: 0.7,
-  barely: 0.5,
-  hardly: 0.5,
-  bit: 0.7,
-  little: 0.7,
-  kinda: 0.7,
-  sorta: 0.7
-};
+  const concession = tokens.findIndex((t) => CONCESSION_CUES.has(t));
+  if (concession < 0) return () => 1;
 
-function scoreSentence(sentence: string): { pos: number; neg: number } {
+  // "Although X, Y": X runs up to the comma. "Y, although X": X runs to
+  // the end.
+  if (concession <= 1) {
+    const comma = tokens.indexOf(COMMA, concession);
+    const end = comma < 0 ? tokens.length : comma;
+    return (i) => (i < end ? CONCEDED_CLAUSE_WEIGHT : MAIN_CLAUSE_WEIGHT);
+  }
+  return (i) => (i < concession ? MAIN_CLAUSE_WEIGHT : CONCEDED_CLAUSE_WEIGHT);
+}
+
+function scoreSentence(sentence: string): { praise: number; complaint: number } {
   const tokens = tokenize(sentence);
-  if (tokens.length === 0) return { pos: 0, neg: 0 };
+  const weightAt = clauseWeights(tokens);
 
-  // Find concession cue index (first occurrence). Halve weight before,
-  // amplify after. Sentence-scoped only.
-  const cueIndex = tokens.findIndex((t) => CONCESSION_CUES.includes(t));
-  const positionalWeight = (i: number): number => {
-    if (cueIndex < 0) return 1;
-    if (i < cueIndex) return CONCESSION_BEFORE_WEIGHT;
-    if (i === cueIndex) return 1;
-    return CONCESSION_AFTER_WEIGHT;
-  };
-
-  let pos = 0;
-  let neg = 0;
+  let praise = 0;
+  let complaint = 0;
   let negationRemaining = 0;
-  let pendingMultiplier = 1;
+  let multiplier = 1;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i]!;
 
+    if (token === COMMA) {
+      negationRemaining = 0;
+      continue;
+    }
     if (NEGATION_CUES.has(token)) {
       negationRemaining = NEGATION_WINDOW;
       continue;
     }
 
-    if (INTENSIFIERS[token] != null) {
-      pendingMultiplier *= INTENSIFIERS[token]!;
-      continue;
-    }
-    if (DOWNTONERS[token] != null) {
-      pendingMultiplier *= DOWNTONERS[token]!;
-      continue;
+    let base = LEXICON.get(token);
+    if (token.startsWith(PHRASE_TOKEN_PREFIX)) {
+      const effect = PHRASES[Number(token.slice(PHRASE_TOKEN_PREFIX.length))]?.[1];
+      if (effect === SOFTEN) {
+        multiplier *= SOFTEN_FACTOR;
+        continue;
+      }
+      if (effect === IGNORE) continue;
+      base = effect;
     }
 
-    const baseScore = LEXICON[token];
-    if (baseScore != null) {
-      let signed = baseScore * pendingMultiplier;
-      if (negationRemaining > 0) signed = -signed;
-      const weighted = signed * positionalWeight(i);
-      if (weighted > 0) pos += weighted;
-      else neg -= weighted;
-      pendingMultiplier = 1;
+    if (base == null) {
+      const modifier = MODIFIERS.get(token);
+      if (modifier != null) {
+        multiplier *= modifier;
+        continue;
+      }
+    } else {
+      let score = base * multiplier;
+      if (negationRemaining > 0) {
+        score *= -(score > 0 ? NEGATED_PRAISE_FACTOR : NEGATED_COMPLAINT_FACTOR);
+      }
+      score *= weightAt(i);
+      if (score > 0) praise += score;
+      else complaint -= score;
+      multiplier = 1;
     }
 
     if (negationRemaining > 0) negationRemaining -= 1;
   }
 
-  return { pos, neg };
+  return { praise, complaint };
 }
-
-function tokenize(text: string): string[] {
-  return text
-    .toLowerCase()
-    .replace(/['']/g, "")
-    .replace(/[^a-z0-9\s]+/g, " ")
-    .split(/\s+/)
-    .filter(Boolean);
-}
-
-// ─────────────────────────────────────────────────────────
-// Lexicon
-//
-// Two layers:
-//   - GENERIC_LEXICON: small AFINN-style base (~150 words) covering
-//     common positive/negative vocabulary.
-//   - CTEC_OVERRIDES: ~40 words that need to behave differently in the
-//     course-eval domain. Generic AFINN treats `challenging` as -2 (it's
-//     an obstacle word), but in CTEC comments students mean it as praise:
-//     "challenging but rewarding" is a recurring positive frame.
-//
-// The merge is "overrides win" — anything in CTEC_OVERRIDES replaces the
-// generic value. Keep this list short and inspectable. If the labels
-// start drifting, fix the lexicon entry rather than adding more rules.
-// ─────────────────────────────────────────────────────────
-
-const GENERIC_LEXICON: Record<string, number> = {
-  // strong positives
-  amazing: 3, awesome: 3, excellent: 3, fantastic: 3, brilliant: 3,
-  wonderful: 3, incredible: 3, perfect: 3, outstanding: 3, phenomenal: 3,
-  // moderate positives
-  great: 2, good: 2, love: 2, loved: 2, enjoy: 2, enjoyed: 2,
-  enjoyable: 2, fun: 2, helpful: 2, kind: 2, patient: 2, caring: 2,
-  passionate: 2, recommended: 2, recommend: 2, smart: 2, engaged: 2,
-  // mild positives
-  nice: 1, fine: 1, ok: 1, okay: 1, decent: 1, solid: 1, glad: 1,
-  thankful: 1, appreciate: 1, appreciated: 1, like: 1, liked: 1,
-  approachable: 1, friendly: 1,
-  // strong negatives
-  terrible: -3, awful: -3, horrible: -3, worst: -3, hated: -3, hate: -3,
-  miserable: -3, useless: -3, atrocious: -3, dreadful: -3,
-  // moderate negatives
-  bad: -2, boring: -2, frustrating: -2, frustrated: -2, annoying: -2,
-  annoyed: -2, painful: -2, upset: -2, disappointing: -2, disappointed: -2,
-  unfair: -2, unhelpful: -2, sucks: -2, sucked: -2, avoid: -2,
-  // mild negatives
-  meh: -1, weak: -1, slow: -1, dull: -1, repetitive: -1, dry: -1,
-  rough: -1, lacking: -1, missing: -1, shaky: -1,
-  // CTEC complaint vocabulary — these recur often enough in student
-  // comments that omitting them would meaningfully under-count negatives.
-  brutal: -2, stressful: -2, harsh: -2, punishing: -2, waste: -2,
-  // Everyday praise and complaints the base list missed. Without these,
-  // plainly positive comments ("best class I've taken", "office hours
-  // saved me") came out neutral.
-  best: 3, favorite: 3, favourite: 3,
-  rewarding: 2, worthwhile: 2, effective: 2, supportive: 2, accessible: 2,
-  knowledgeable: 2, funny: 2, hilarious: 2, entertaining: 2,
-  enthusiastic: 2, thoughtful: 2, responsive: 2, generous: 2,
-  straightforward: 2, reasonable: 2, valuable: 2, cares: 2, cared: 2,
-  saved: 2, relevant: 1, practical: 1, steady: 1, lenient: 1, worth: 1,
-  learned: 1, improved: 1,
-  nightmare: -3, condescending: -3, rude: -3,
-  arbitrary: -2, vague: -2, unprepared: -2, unresponsive: -2,
-  dismissive: -2, unreasonable: -2, impossible: -2, excessive: -2,
-  worse: -2, poorly: -2, poor: -2, irrelevant: -2, regret: -2,
-  outdated: -1, unnecessary: -1, struggled: -1, struggle: -1, lost: -1,
-  clearer: -1
-};
-
-// CTEC-domain adjustments. These reflect what students actually mean in
-// course-eval comments. If you tweak this list, run a pass over a real
-// course's comments to verify the deltas — small lexicons are easy to
-// over-tune to a single example.
-const CTEC_OVERRIDES: Record<string, number> = {
-  // "Hard" words are NOT negative in CTEC context. Students often praise
-  // courses for being challenging — the negativity comes from `unfair`,
-  // `unclear`, `disorganized`, etc., not from difficulty itself.
-  challenging: 0,
-  challenge: 0,
-  hard: 0,
-  difficult: 0,
-  demanding: 0,
-  rigorous: 1,
-  tough: 0,
-  // "Easy" isn't always positive either — `easy A` is praise, but
-  // "too easy" is dismissive. Score it neutral; the surrounding
-  // intensifiers/concessions handle the swing.
-  easy: 0,
-
-  // CTEC-specific positives that AFINN underweights or misses.
-  clear: 2,
-  organized: 2,
-  fair: 2,
-  engaging: 2,
-  interesting: 2,
-  manageable: 2,
-  useful: 2,
-  insightful: 2,
-  understandable: 2,
-  approachable: 2,
-  doable: 2,
-
-  // CTEC-specific negatives. These are the actual complaints students
-  // voice, distinct from generic "this is bad."
-  busywork: -2,
-  unclear: -2,
-  disorganized: -3,
-  unorganized: -3,
-  rushed: -2,
-  tedious: -2,
-  inconsistent: -2,
-  overwhelming: -2,
-  confusing: -2,
-  pointless: -2,
-  monotonous: -1,
-
-  // Common modifiers that aren't really sentiment — neutralize so we
-  // don't add noise.
-  course: 0,
-  class: 0,
-  professor: 0,
-  prof: 0,
-  lecture: 0,
-  homework: 0,
-  exam: 0,
-  midterm: 0,
-  final: 0
-};
-
-const LEXICON: Record<string, number> = { ...GENERIC_LEXICON, ...CTEC_OVERRIDES };

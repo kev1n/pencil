@@ -82,6 +82,10 @@ function statusFromLoadState(
   if (enumerate?.conflictingPins) {
     return "Pinned sections conflict with each other. Unpin one to continue.";
   }
+  if (enumerate && enumerate.combinations.length === 0) {
+    // Short on purpose: the bar leaves this text little room.
+    return `Nothing fits ${enumerate.requestedMinCredits}–${enumerate.requestedCredits} credits`;
+  }
   if (enumerate && enumerate.combinations.length === 1) {
     return "Only one schedule fits. Add another section of a class, or lower the credit maximum, to see more.";
   }
@@ -450,25 +454,18 @@ export class PaperCombosAugmentation implements Augmentation {
     };
   }
 
-  // Pins evict themselves when (a) the section is gone from the canvas
-  // pool entirely, (b) the course is no longer represented, or (c) the
-  // pinned section now falls inside a prohibited zone. Cleanest UX —
-  // drawing a zone over a pinned section silently unpins it instead of
-  // leaving the user staring at "0 / 0".
+  // Pins evict themselves when the section is gone from the canvas pool
+  // or now falls inside a prohibited zone, so drawing a zone over a
+  // pinned section unpins it instead of leaving no combinations.
   private pruneStalePins(): void {
     if (!this.pool) {
       this.pinnedByCourseId.clear();
       return;
     }
-    for (const [courseId, sectionId] of Array.from(this.pinnedByCourseId)) {
-      const group = this.pool.groups.find((g) => g.courseId === courseId);
-      if (!group || !group.sections.some((s) => s.sectionId === sectionId)) {
-        this.pinnedByCourseId.delete(courseId);
-        continue;
-      }
+    for (const [slot, sectionId] of Array.from(this.pinnedByCourseId)) {
       const section = this.pool.byId.get(sectionId);
-      if (section && sectionConflictsWithZones(section, this.zones)) {
-        this.pinnedByCourseId.delete(courseId);
+      if (!section || sectionConflictsWithZones(section, this.zones)) {
+        this.pinnedByCourseId.delete(slot);
       }
     }
   }
