@@ -1,3 +1,4 @@
+import { caesarHistoryAugmentation } from "./augmentations/caesar-history";
 import { augmentationRegistry } from "./augmentations/registry";
 import { initModalCache } from "./augmentations/paper-ctec/modal-cache";
 import { initCartCache, runOpportunisticReconcile } from "./cart-cache";
@@ -22,6 +23,7 @@ void initCartCache();
 const courseHistoryReady = initCourseHistoryCache();
 initModalCache();
 const augmentationRunner = new AugmentationRunner(augmentationRegistry);
+caesarHistoryAugmentation.onRestore = () => augmentationRunner.reset();
 augmentationRunner.start();
 // First augmentation tick fires before storage hydration finishes; once
 // the course-history cache lands, kick the runner so the prereq-filter

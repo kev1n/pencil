@@ -17,6 +17,27 @@ type FetchTextOptions = {
   timeoutMs?: number;
 };
 
+// CAESAR keeps only the last few page states per PeopleSoft "window", and
+// every request in a window uses one up. Background requests therefore run
+// in their own window (`csnu_<n>`), otherwise a handful of lookups expires
+// the page the user is looking at ("This page is no longer available") and
+// every page the Back button could return to. Responses name their form and
+// helpers after the window (`win37`), so they are renamed back to `win0`
+// for the parsers.
+const BACKGROUND_WINDOW = "37";
+const MAIN_WINDOW_PATH = /^\/ps([cp])\/csnu\//;
+const BACKGROUND_WINDOW_TOKEN = new RegExp(`win${BACKGROUND_WINDOW}(?!\\d)`, "g");
+
+export function toBackgroundWindowUrl(url: string): string {
+  if (safeHostname(url) !== CAESAR_HOSTNAME) return url;
+  const parsed = new URL(url);
+  parsed.pathname = parsed.pathname.replace(
+    MAIN_WINDOW_PATH,
+    `/ps$1/csnu_${BACKGROUND_WINDOW}/`
+  );
+  return parsed.toString();
+}
+
 let requestSequence = 0;
 function nextRequestId(): string {
   requestSequence += 1;
@@ -27,6 +48,7 @@ export async function fetchTextResultViaBackground(
   url: string,
   options?: FetchTextOptions
 ): Promise<Extract<FetchTextResponse, { ok: true }>> {
+  url = toBackgroundWindowUrl(url);
   const requestId = nextRequestId();
   const signal = options?.signal;
 
@@ -63,7 +85,8 @@ export async function fetchTextResultViaBackground(
       throw new Error(response?.error || "Background fetch failed.");
     }
 
-    return response;
+    if (safeHostname(url) !== CAESAR_HOSTNAME) return response;
+    return { ...response, text: response.text.replace(BACKGROUND_WINDOW_TOKEN, "win0") };
   } finally {
     if (signal) {
       signal.removeEventListener("abort", onAbort);

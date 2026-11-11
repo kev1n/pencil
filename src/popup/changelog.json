@@ -11,6 +11,21 @@
   },
   "entries": [
     {
+      "version": "0.9.21",
+      "date": "2026-11-10",
+      "headline": "A Back button that works",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "Your browser's Back and Forward buttons now move between CAESAR pages, like search results and class details, instead of leaving CAESAR."
+        },
+        {
+          "kind": "fix",
+          "text": "Loading seats or searching with Pencil no longer makes CAESAR say \"This page is no longer available\" on your next click."
+        }
+      ]
+    },
+    {
       "version": "0.9.19",
       "date": "2026-11-10",
       "headline": "CTECs for renumbered courses",

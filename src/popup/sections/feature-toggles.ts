@@ -72,6 +72,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Shows shortcuts to common pages in the CAESAR header."
       },
       {
+        id: "caesar-history",
+        label: "Back Button",
+        description: "Makes your browser's Back and Forward buttons move between CAESAR pages instead of leaving CAESAR."
+      },
+      {
         id: "class-search",
         label: "Class Search",
         description: "Replaces CAESAR's class search with a paper.nu-powered UI that adds sections to your cart in place."
