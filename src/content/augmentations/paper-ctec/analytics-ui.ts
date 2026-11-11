@@ -74,13 +74,10 @@ function restoreDefaultPanelChildren(
 
 function renderLauncher(onOpenModal: () => void) {
   return html`<div class="bc-paper-ctec-analytics-body">
-    <div class="bc-paper-ctec-analytics-head">
-      <div class="bc-paper-ctec-analytics-title">pencil.nu CTEC Analytics</div>
-    </div>
     <div class="bc-paper-ctec-analytics-launcher">
       <div class="bc-paper-ctec-analytics-launcher-copy">
-        Open the full analytics view to see term-by-term metrics,
-        distributions, and student comments.
+        Ratings, hours per week and student comments for this class, term
+        by term.
       </div>
       <button
         type="button"
@@ -90,7 +87,7 @@ function renderLauncher(onOpenModal: () => void) {
           onOpenModal();
         }}
         @click=${preventAndStop}
-      >Open Analytics ↗</button>
+      >Open analytics</button>
     </div>
   </div>`;
 }
@@ -150,7 +147,7 @@ function renderSideCardTabs(
 ): void {
   const tabs: Array<{ key: "paper" | "analytics"; label: string }> = [
     { key: "paper", label: "Paper.nu" },
-    { key: "analytics", label: "CTEC Analytics" }
+    { key: "analytics", label: "CTECs" }
   ];
 
   render(

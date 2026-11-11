@@ -6,10 +6,9 @@ export function relatedPickerStyles(): string {
       display: block;
       padding: 0;
       border-top: 1px solid var(--bc-color-border-divider);
-      background: var(--bc-color-accent-surface-tile);
     }
     .bc-cs-related {
-      padding: 12px 16px 14px;
+      padding: 12px 0 14px 88px;
       display: flex;
       flex-direction: column;
       gap: 10px;
@@ -22,8 +21,8 @@ export function relatedPickerStyles(): string {
     }
     .bc-cs-related-title {
       font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-bold);
-      color: var(--bc-color-accent-pressed);
+      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-strong);
     }
     .bc-cs-related-sub {
       font-size: var(--bc-font-12);
@@ -32,31 +31,34 @@ export function relatedPickerStyles(): string {
     }
     .bc-cs-related-cancel {
       appearance: none;
+      height: 28px;
+      padding: 0 9px;
       background: transparent;
-      border: 1px solid var(--bc-color-border-strong);
-      color: var(--bc-color-text-muted);
-      font-size: var(--bc-font-12);
-      padding: 4px 10px;
-      border-radius: var(--bc-radius-md);
+      border: 0;
+      border-radius: 7px;
+      color: var(--bc-color-text-soft);
+      font: inherit;
+      font-size: 12.5px;
       cursor: pointer;
     }
     .bc-cs-related-cancel:hover {
-      background: var(--bc-color-surface-soft);
-      color: var(--bc-color-text);
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text-strong);
     }
     .bc-cs-related-list {
       display: flex;
       flex-direction: column;
-      gap: 6px;
     }
     .bc-cs-related-option {
       appearance: none;
       width: 100%;
       text-align: left;
-      background: var(--bc-color-bg);
-      border: 1px solid var(--bc-color-border-divider);
-      border-radius: var(--bc-radius-lg);
-      padding: 10px 12px;
+      background: transparent;
+      border: 0;
+      border-radius: 7px;
+      padding: 8px 10px;
+      margin-left: -10px;
+      font-family: inherit;
       cursor: pointer;
       display: grid;
       grid-template-columns: minmax(80px, auto) minmax(160px, 1fr) minmax(120px, auto);
@@ -67,8 +69,7 @@ export function relatedPickerStyles(): string {
       transition: border-color 0.12s, box-shadow 0.12s, transform 0.04s;
     }
     .bc-cs-related-option:hover:not(:disabled) {
-      border-color: var(--bc-color-accent);
-      box-shadow: var(--bc-shadow-input-focus-ring);
+      background: var(--bc-color-surface-hover);
     }
     .bc-cs-related-option:active:not(:disabled) {
       transform: translateY(1px);
@@ -77,7 +78,7 @@ export function relatedPickerStyles(): string {
       cursor: progress;
     }
     .bc-cs-related-option[data-status="Closed"] {
-      background: var(--bc-color-surface-soft);
+      color: var(--bc-color-text-muted);
     }
     .bc-cs-related-option-left {
       display: flex;
@@ -85,8 +86,8 @@ export function relatedPickerStyles(): string {
       gap: 2px;
     }
     .bc-cs-related-option-section {
-      font-weight: var(--bc-fw-bold);
-      color: var(--bc-color-accent);
+      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-strong);
     }
     .bc-cs-related-option-mid {
       display: flex;
@@ -109,9 +110,8 @@ export function relatedPickerStyles(): string {
     }
     .bc-cs-related-option-progress {
       margin-left: 8px;
-      font-size: var(--bc-font-11);
-      color: var(--bc-color-accent);
-      font-weight: var(--bc-fw-semibold);
+      font-size: var(--bc-font-12);
+      color: var(--bc-color-text-muted);
     }
   `;
 }

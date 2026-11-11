@@ -4,9 +4,8 @@
 
 import { html, render } from "lit-html";
 
-import { ensureStyle, el } from "../framework/dom";
+import { el } from "../framework/dom";
 import { injectModalStyles } from "../framework/modal";
-import { iconTemplate } from "../augmentations/paper-ctec/ui-shared";
 import {
   CAESAR_HOSTNAME,
   isBlueraHost,
@@ -14,7 +13,6 @@ import {
 } from "../../shared/nu-hosts";
 
 const MODAL_ID = "bc-login-prompt-modal";
-const STYLE_ID = "bc-login-prompt-style";
 
 let inFlight: Promise<boolean> | null = null;
 
@@ -25,9 +23,8 @@ let inFlight: Promise<boolean> | null = null;
 // fallback for anything else still gated by NetID SSO.
 type LoginTarget = {
   service: string;        // "CAESAR" | "CTECs" | "Northwestern"
-  whatWeNeed: string;     // body fragment after "pencil.nu needs a"
+  why: string;            // one sentence on what the login is for
   buttonLabel: string;    // primary CTA
-  noteSubject: string;    // possessive used in the "you'll need to repeat" note
 };
 
 function detectLoginTarget(loginUrl: string | undefined): LoginTarget {
@@ -36,9 +33,8 @@ function detectLoginTarget(loginUrl: string | undefined): LoginTarget {
   if (isBlueraHost(loginUrl)) {
     return {
       service: "CTECs",
-      whatWeNeed: "CTECs login to read evaluation reports on your behalf",
-      buttonLabel: "Open CTECs login",
-      noteSubject: "CTECs"
+      why: "Pencil reads evaluation reports through your own Northwestern login.",
+      buttonLabel: "Open CTECs login"
     };
   }
 
@@ -47,17 +43,15 @@ function detectLoginTarget(loginUrl: string | undefined): LoginTarget {
   if (host === CAESAR_HOSTNAME) {
     return {
       service: "CAESAR",
-      whatWeNeed: "CAESAR login so it can act on your behalf",
-      buttonLabel: "Open CAESAR login",
-      noteSubject: "CAESAR"
+      why: "Pencil works through your own CAESAR session.",
+      buttonLabel: "Open CAESAR login"
     };
   }
 
   return {
     service: "Northwestern",
-    whatWeNeed: "Northwestern login to continue",
-    buttonLabel: "Open Northwestern login",
-    noteSubject: "Northwestern"
+    why: "Pencil needs your Northwestern login to continue.",
+    buttonLabel: "Open Northwestern login"
   };
 }
 
@@ -78,7 +72,6 @@ export function confirmLoginPrompt(
 
 function renderModal(doc: Document, target: LoginTarget): Promise<boolean> {
   injectModalStyles(doc);
-  ensureStyle(doc, STYLE_ID, EXTRA_CSS);
 
   const root = doc.getElementById(MODAL_ID) ?? el(doc, "div", {
     attrs: {
@@ -132,34 +125,29 @@ function renderModal(doc: Document, target: LoginTarget): Promise<boolean> {
             finish(false);
           }}
         >×</button>
-        <div class="bc-modal-icon">${iconTemplate("lock")}</div>
         <h2 id=${`${MODAL_ID}-title`} class="bc-modal-title">
-          ${target.service} login required
+          Sign in to ${target.service}
         </h2>
         <p class="bc-modal-body">
-          pencil.nu needs a ${target.whatWeNeed}.
-          <strong>It opens a new tab to Northwestern's login page so you can
-          authorize access.</strong>
+          ${target.why} The login page opens in a new tab.
         </p>
         <p class="bc-modal-note">
-          You'll need to repeat this any time ${target.noteSubject} signs you
-          out (typically every few hours).
-        </p>
-        <p class="bc-modal-trust">
-          pencil.nu is open source. If you'd like, you may review the code at
+          Your password goes to Northwestern, never to Pencil.
+          ${target.service} signs you out every few hours, so you'll see this
+          again.
           <a
             class="bc-modal-link"
             href="https://github.com/kev1n/pencil"
             target="_blank"
             rel="noopener noreferrer"
             @click=${(event: Event) => event.stopPropagation()}
-            >github.com/kev1n/pencil</a
+            >View the source</a
           >.
         </p>
         <div class="bc-modal-actions">
           <button
             type="button"
-            class="bc-btn bc-btn--primary bc-btn--soft bc-btn--fill"
+            class="bc-btn bc-btn--primary bc-btn--soft"
             @click=${(event: Event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -168,7 +156,7 @@ function renderModal(doc: Document, target: LoginTarget): Promise<boolean> {
           >${target.buttonLabel}</button>
           <button
             type="button"
-            class="bc-btn bc-btn--secondary-accent"
+            class="bc-btn bc-btn--secondary"
             @click=${(event: Event) => {
               event.preventDefault();
               event.stopPropagation();
@@ -181,13 +169,3 @@ function renderModal(doc: Document, target: LoginTarget): Promise<boolean> {
     );
   });
 }
-
-// Anchor the modal above paper.nu's own React portals; bc-modal already
-// z-indexes very high but doesn't pin pointer events on the strong tag
-// that wraps the body emphasis.
-const EXTRA_CSS = `
-  #${MODAL_ID} .bc-modal-body strong {
-    color: var(--bc-color-accent-soft);
-    font-weight: var(--bc-fw-bold);
-  }
-`;

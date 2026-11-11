@@ -84,19 +84,15 @@ describe("classSearchStyles zone split", () => {
     expect(responsiveStart).toBeGreaterThan(sectionStart);
   });
 
-  it("section-row Add button paints persistent cart-state with the canonical mini-viewer tokens", () => {
-    // Regression guard for the "In cart" / "Enrolled" badge unification:
-    // the add CTA must consume the same paper-soft + success-bg tokens the
-    // .bc-cs-myclass-badge mini viewer uses, so both surfaces read as one
-    // status-pill family.
+  it("section-row Add button shows persistent cart-state as quiet text, not a tinted pill", () => {
+    // "In cart" and "Enrolled" are facts about the row, not actions, so
+    // they must not compete with Add to cart for attention.
     const css = addCtaStyles();
-    const inCart = css.match(
-      /\.bc-cs-add\[data-state="in-cart"\][^{]*\{[^}]*--bc-color-paper-soft[^}]*--bc-color-paper[^}]*\}/
-    );
-    const enrolled = css.match(
-      /\.bc-cs-add\[data-state="enrolled"\][^{]*\{[^}]*--bc-color-success-bg[^}]*--bc-color-success[^}]*\}/
-    );
-    expect(inCart, "in-cart rule must use paper-soft + paper tokens").not.toBeNull();
-    expect(enrolled, "enrolled rule must use success-bg + success tokens").not.toBeNull();
+    for (const state of ["in-cart", "enrolled"]) {
+      const rule = css.match(
+        new RegExp(`\\.bc-cs-add\\[data-state="${state}"\\][^{]*\\{[^}]*background: transparent[^}]*--bc-color-text-soft[^}]*\\}`)
+      );
+      expect(rule, `${state} rule must be untinted text`).not.toBeNull();
+    }
   });
 });

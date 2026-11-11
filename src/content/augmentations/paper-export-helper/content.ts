@@ -21,11 +21,11 @@ export const APP_CONTENT: Record<CalendarApp, AppContent> = {
   google: {
     steps: [
       "Download the .ics.",
-      "Google Calendar's import page opens — click Select file and pick the .ics.",
+      "Google Calendar's import page opens. Click Select file and pick the .ics.",
       "Choose a destination calendar, then Import."
     ],
     deepLink: {
-      label: "Open Google Calendar Import",
+      label: "Open Google Calendar",
       href: "https://calendar.google.com/calendar/u/0/r/settings/export"
     },
     helpLink: {
@@ -48,11 +48,11 @@ export const APP_CONTENT: Record<CalendarApp, AppContent> = {
   outlook: {
     steps: [
       "Download the .ics.",
-      "Outlook's Add Calendar page opens — choose Upload from file and pick the .ics.",
+      "Outlook's Add Calendar page opens. Choose Upload from file and pick the .ics.",
       "Choose a destination calendar, then Import."
     ],
     deepLink: {
-      label: "Open Outlook Add Calendar",
+      label: "Open Outlook",
       href: "https://outlook.cloud.microsoft/calendar/addcalendar"
     },
     helpLink: {

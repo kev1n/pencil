@@ -23,12 +23,9 @@ import {
   createModalDataController,
   createModalView,
   type AnalyticsModalState,
-  type ModalActiveView,
   type ModalCommentSentimentFilter,
-  type ModalCommentSort,
   type ModalDataController,
   type ModalRefreshFlash,
-  type ModalTab,
   type ModalView
 } from "./modal";
 import {
@@ -239,8 +236,8 @@ export class ModalController {
     this.view.close();
   }
 
-  // Renders or hides the full-screen overlay based on openModalSource. The
-  // modal is decoupled from the side panel: the source is captured at open
+  // Renders or hides the side sheet based on openModalSource. The
+  // sheet is decoupled from the side panel: the source is captured at open
   // time (from the side card OR a schedule-chip analytics button) and
   // persists until close. Called every augmentation cycle so cached data
   // updates flow into the modal even while the user is interacting with it
@@ -283,9 +280,13 @@ export class ModalController {
           )
         : null;
 
-    const modalState = this.ensureModalState(source.key, data?.terms[0]?.id ?? null);
-    if (data && !data.terms.find((term) => term.id === modalState.selectedTermId)) {
-      modalState.selectedTermId = data.terms[0]?.id ?? null;
+    const modalState = this.ensureModalState(source.key);
+    if (
+      data &&
+      modalState.selectedTermId !== null &&
+      !data.terms.find((term) => term.id === modalState.selectedTermId)
+    ) {
+      modalState.selectedTermId = null;
     }
 
     const analyticsState = this.state.analyticsResolved.get(source.key);
@@ -485,21 +486,9 @@ export class ModalController {
     };
     return {
       onClose: () => this.closeModal(),
-      // Re-entering Comments resets pagination so a previously-expanded
-      // tab doesn't re-build hundreds of cards on each re-open.
-      onTabChange: (tab: ModalTab) => set("tab", tab, tab === "comments"),
-      onMetricChange: (kind: ModalActiveView) => set("activeMetric", kind),
-      onTermChange: (id: string) => set("selectedTermId", id),
+      onTermChange: (id: string | null) => set("selectedTermId", id, true),
       onCommentsSentimentChange: (f: ModalCommentSentimentFilter) =>
         set("commentsSentimentFilter", f, true),
-      onCommentsTopicChange: (t: string | null) =>
-        set("commentsActiveTopic", t, true),
-      onCommentsTermFilterChange: (t: string) =>
-        set("commentsTermFilter", t, true),
-      onCommentsSortChange: (sort: ModalCommentSort) =>
-        set("commentsSortBy", sort, true),
-      onToggleHeatmapExpanded: () =>
-        set("heatmapExpanded", !s.heatmapExpanded),
       onRefresh: () => this.data.kickRefresh(source),
       onLoadMore: () => this.data.kickBatch(source),
       onDismissRefreshFlash: () => {
@@ -618,23 +607,14 @@ export class ModalController {
     };
   }
 
-  private ensureModalState(
-    key: string,
-    fallbackTermId: string | null
-  ): AnalyticsModalState {
+  private ensureModalState(key: string): AnalyticsModalState {
     const existing = this.modalStates.get(key);
     if (existing) return existing;
 
     const fresh: AnalyticsModalState = {
-      tab: "overview",
-      activeMetric: "global",
-      selectedTermId: fallbackTermId,
+      selectedTermId: null,
       commentsQuery: "",
       commentsSentimentFilter: "all",
-      commentsActiveTopic: null,
-      commentsTermFilter: "all",
-      commentsSortBy: "recent",
-      heatmapExpanded: false,
       commentsVisibleCount: COMMENTS_PAGE_SIZE,
       dryRun: null,
       dryRunDismissed: false,

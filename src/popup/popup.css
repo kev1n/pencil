@@ -1,3 +1,6 @@
+/* Popup: one white surface. Sections are split by hairlines, never boxed;
+   switches are the only filled controls; everything is sentence case. */
+
 :root {
   color-scheme: light;
 }
@@ -9,83 +12,101 @@ html, body {
 
 body {
   font-family: var(--bc-font-body);
-  background: var(--bc-color-bg-app);
-  color: var(--bc-color-text-strong);
-  position: relative;
-  overflow-x: hidden;
+  font-size: var(--bc-font-13);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  background: var(--bc-color-bg);
+  color: var(--bc-color-text);
+  -webkit-font-smoothing: antialiased;
 }
 
-/* Graph paper grid + dot texture — mirrors the landing page body::before/after.
-   Pointer-events none + z-index 0 so the .app surface sits cleanly on top. */
-body::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(rgba(38, 30, 20, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(38, 30, 20, 0.05) 1px, transparent 1px);
-  background-size: 28px 28px;
-  z-index: 0;
-}
-body::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px);
-  background-size: 3px 3px;
-  mix-blend-mode: multiply;
-  opacity: 0.5;
-  z-index: 0;
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
 }
 
 .app {
-  width: 700px;
-  padding: 18px 16px 16px;
+  width: 680px;
+  padding: 16px 24px 20px;
   box-sizing: border-box;
-  position: relative;
-  z-index: 1;
 }
 
+/* ---------- header ---------- */
+
 .app-header {
-  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 28px;
 }
 
 .brand {
   margin: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   font-family: var(--bc-font-display);
-  font-weight: var(--bc-fw-regular);
-  font-size: var(--bc-font-26);
+  font-size: var(--bc-font-16);
+  font-weight: var(--bc-fw-semibold);
   letter-spacing: var(--bc-ls-snug);
-  color: var(--bc-color-text);
+  color: var(--bc-color-text-strong);
   line-height: 1;
 }
 
 .brand-pencil {
   display: block;
   flex: 0 0 auto;
+  transform: rotate(45deg);
 }
 
-.app-subtitle {
-  margin: 8px 0 0;
-  font-family: var(--bc-font-hand);
-  font-size: var(--bc-font-20);
-  line-height: 1;
-  color: var(--bc-color-accent);
-  transform: rotate(-1.5deg);
-  transform-origin: left center;
-  display: inline-block;
+/* Quiet text button: 28px, 7px radius, panel-coloured hover. */
+.feedback-link,
+.changelog-history-summary,
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--bc-color-text-soft);
+  font-size: 12.5px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--bc-tx-fast) var(--bc-easing),
+              color var(--bc-tx-fast) var(--bc-easing);
 }
+
+.feedback-link:hover,
+.changelog-history-summary:hover,
+.action-btn:hover:not(:disabled) {
+  background: var(--bc-color-surface-hover);
+  color: var(--bc-color-text-strong);
+}
+
+.feedback-link:focus-visible,
+.changelog-history-summary:focus-visible,
+.action-btn:focus-visible,
+.toggle:focus-visible,
+.ctec-school-select:focus-visible {
+  outline: 2px solid var(--bc-color-accent);
+  outline-offset: 2px;
+}
+
+.feedback-link {
+  margin-right: -9px;
+}
+
+/* ---------- what's new ---------- */
 
 .changelog {
-  margin-bottom: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  margin-top: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--bc-color-border);
 }
 
 .changelog:empty {
@@ -93,66 +114,47 @@ body::after {
 }
 
 .changelog-card {
-  padding: 12px 14px;
-  background: var(--bc-color-bg);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-lg);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.changelog-card--past {
-  box-shadow: none;
-  border-style: dashed;
-  border-color: var(--bc-color-border-strong);
-  background: var(--bc-color-bg-app);
+  gap: 6px;
 }
 
 .changelog-header {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-}
-
-.changelog-version {
-  display: inline-block;
-  padding: 2px 10px;
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-13);
-  font-weight: var(--bc-fw-bold);
-  letter-spacing: 0.04em;
-  color: var(--bc-color-accent-on);
-  background: var(--bc-color-accent);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: 999px;
-}
-
-.changelog-card--past .changelog-version {
-  color: var(--bc-color-text-muted);
-  background: var(--bc-color-bg);
-  border-color: var(--bc-color-border-strong);
-  border-width: 1px;
-}
-
-.changelog-date {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--bc-font-11);
-  color: var(--bc-color-text-muted);
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .changelog-title {
   margin: 0;
   font-family: var(--bc-font-display);
   font-size: var(--bc-font-20);
-  font-weight: var(--bc-fw-regular);
-  line-height: 1.15;
-  color: var(--bc-color-text);
+  font-weight: var(--bc-fw-semibold);
+  line-height: 1.25;
+  letter-spacing: var(--bc-ls-snug);
+  color: var(--bc-color-text-strong);
+}
+
+/* The headline sits on a tilted yellow paper strip, like the site's hero. */
+[data-bc-theme="bright"] .changelog-title {
+  padding: 1px 8px 2px;
+  margin-left: -8px;
+  border-radius: 3px 5px 4px 6px;
+  background: var(--bc-color-cta);
+  color: var(--bc-color-cta-on);
+  transform: rotate(-1.2deg);
 }
 
 .changelog-subhead {
   margin: 0;
+  font-size: var(--bc-font-13);
+  font-weight: var(--bc-fw-semibold);
+  color: var(--bc-color-text-strong);
+}
+
+.changelog-date {
+  flex-shrink: 0;
   font-size: var(--bc-font-12);
   color: var(--bc-color-text-muted);
 }
@@ -163,41 +165,30 @@ body::after {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
+/* "New" / "Fixed" lead each line as plain coloured words in a fixed
+   column, so the sentences line up without a pill. */
 .changelog-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: var(--bc-font-12);
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  column-gap: 8px;
+  font-size: var(--bc-font-13);
   line-height: 1.45;
-  color: var(--bc-color-text-strong);
+  color: var(--bc-color-text);
 }
 
 .changelog-tag {
-  flex-shrink: 0;
-  margin-top: 1px;
-  padding: 1px 8px;
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-11);
-  font-weight: var(--bc-fw-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  border: 1px solid;
+  font-weight: var(--bc-fw-semibold);
 }
 
 .changelog-tag--feat {
-  color: var(--bc-color-gate-ok-text);
-  background: var(--bc-color-gate-ok-bg);
-  border-color: var(--bc-color-gate-ok-border);
+  color: var(--bc-color-success);
 }
 
 .changelog-tag--fix {
-  color: var(--bc-color-gate-warn-text);
-  background: var(--bc-color-gate-warn-bg);
-  border-color: var(--bc-color-gate-warn-border);
+  color: var(--bc-color-text-muted);
 }
 
 .changelog-text {
@@ -205,24 +196,13 @@ body::after {
 }
 
 .changelog-history {
-  border: 1px dashed var(--bc-color-border-strong);
-  border-radius: var(--bc-radius-lg);
-  background: var(--bc-color-bg-app);
-  padding: 0;
-}
-
-.changelog-history[open] {
-  padding: 4px 10px 10px;
+  margin-top: 4px;
 }
 
 .changelog-history-summary {
   list-style: none;
-  cursor: pointer;
-  padding: 8px 12px;
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-12);
-  letter-spacing: 0.04em;
-  color: var(--bc-color-text-muted);
+  margin-left: -9px;
+  gap: 5px;
   user-select: none;
 }
 
@@ -230,152 +210,143 @@ body::after {
   display: none;
 }
 
-.changelog-history-summary::before {
-  content: "▸ ";
-  font-size: 0.85em;
+/* Drawn chevron: two hairlines, turned when open. */
+.changelog-history-summary::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--bc-tx-base) var(--bc-easing);
 }
 
-.changelog-history[open] .changelog-history-summary::before {
-  content: "▾ ";
+.changelog-history[open] .changelog-history-summary::after {
+  margin-top: 3px;
+  transform: rotate(-135deg);
 }
 
 .changelog-history .changelog-card {
-  margin-top: 8px;
+  padding: 10px 0;
+  border-top: 1px solid var(--bc-color-border-divider);
 }
 
+.changelog-history .changelog-card:first-of-type {
+  margin-top: 4px;
+}
+
+/* ---------- master switch ---------- */
+
 .master-toggle {
-  margin: 0 0 12px;
-  padding: 12px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  background: var(--bc-color-accent-surface-soft);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-lg);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
-  transition: opacity var(--bc-tx-base) var(--bc-easing);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--bc-color-border);
 }
 
 .master-toggle:empty {
   display: none;
 }
 
-.master-toggle-copy {
+.master-toggle-copy,
+.ctec-school-label,
+.feature-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 1px;
 }
 
-.master-toggle-label {
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-20);
-  font-weight: var(--bc-fw-regular);
-  color: var(--bc-color-text);
-  line-height: 1;
+.master-toggle-label,
+.ctec-school-label-title,
+.feature-label {
+  font-size: var(--bc-font-13);
+  font-weight: var(--bc-fw-semibold);
+  color: var(--bc-color-text-strong);
 }
 
-.master-toggle-description {
-  font-size: var(--bc-font-11);
+.master-toggle-description,
+.ctec-school-label-help,
+.feature-description {
+  font-size: var(--bc-font-12);
   line-height: 1.4;
   color: var(--bc-color-text-muted);
 }
 
-.master-toggle-switch {
-  width: 48px;
-  height: 26px;
-  border-radius: 13px;
-  flex-shrink: 0;
-}
+/* ---------- feature sections ---------- */
 
-.master-toggle-switch::after {
-  width: 20px;
-  height: 20px;
-}
-
-.master-toggle-switch.on::after {
-  left: 25px;
-}
-
-.master-toggle.is-off {
-  opacity: 0.85;
-}
-
+/* Two columns, CAESAR and Paper.nu, with one hairline between them. The
+   rating choice spans both underneath. */
 .feature-sections {
-  margin: 0;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-/* Dim every section and ungated row when master/group is off. The toggles
-   themselves stay full-opacity + clickable so the user can flip things
-   back on. */
-body.bc-master-off .feature-section,
-body.bc-master-off .ctec-school-row,
-body.bc-master-off .actions {
-  opacity: 0.55;
-}
-
-body.bc-master-off .feature-section .feature-row,
-body.bc-master-off .ctec-school-row .ctec-school-select,
-body.bc-master-off .actions .action-btn {
-  pointer-events: none;
-}
-
-.feature-section.is-off .feature-list {
-  opacity: 0.55;
-  pointer-events: none;
+  border-bottom: 1px solid var(--bc-color-border);
 }
 
 .feature-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--bc-color-bg);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-lg);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
+  padding: 14px 0 10px;
+}
+
+.feature-section:nth-child(1) {
+  padding-right: 24px;
+}
+
+.feature-section:nth-child(2) {
+  padding-left: 24px;
+  border-left: 1px solid var(--bc-color-border);
+}
+
+.feature-section--radio {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--bc-color-border);
 }
 
 .feature-section-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding-bottom: 6px;
-  border-bottom: 2px dashed var(--bc-color-border-strong);
-  margin-bottom: 4px;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.feature-section--radio .feature-section-header {
+  margin-bottom: 0;
 }
 
 .feature-section-header-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 1px;
   min-width: 0;
   flex: 1 1 auto;
-}
-
-.feature-section-header .toggle {
-  margin-top: 2px;
 }
 
 .feature-section-title {
   margin: 0;
   font-family: var(--bc-font-display);
-  font-size: var(--bc-font-20);
-  font-weight: var(--bc-fw-regular);
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--bc-color-text);
-  line-height: 1;
+  font-size: var(--bc-font-14);
+  font-weight: var(--bc-fw-semibold);
+  line-height: 1.3;
+  color: var(--bc-color-text-strong);
+}
+
+.feature-section--radio .feature-section-title {
+  font-size: var(--bc-font-13);
 }
 
 .feature-section-blurb {
   margin: 0;
-  font-size: var(--bc-font-11);
+  font-size: var(--bc-font-12);
   line-height: 1.4;
   color: var(--bc-color-text-muted);
 }
@@ -386,45 +357,47 @@ body.bc-master-off .actions .action-btn {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
 .feature-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  background: var(--bc-color-accent-surface-row);
-  border-radius: var(--bc-radius-lg);
-  border: 1px solid var(--bc-color-accent-surface-row-border);
+  gap: 14px;
+  padding: 7px 0;
 }
 
-.feature-copy {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+.feature-row .toggle {
+  margin-top: 1px;
 }
 
-.feature-label {
-  font-size: var(--bc-font-13);
-  font-weight: var(--bc-fw-semibold);
-  color: var(--bc-color-text-strong);
+/* Dim every section and ungated row when master/group is off. The toggles
+   themselves stay full-opacity + clickable so the user can flip things
+   back on. */
+body.bc-master-off .feature-section,
+body.bc-master-off .ctec-school-row,
+body.bc-master-off .actions {
+  opacity: 0.5;
 }
 
-.feature-description {
-  font-size: var(--bc-font-11);
-  line-height: 1.4;
-  color: var(--bc-color-text-muted);
+body.bc-master-off .feature-section .feature-row,
+body.bc-master-off .ctec-school-row .ctec-school-select,
+body.bc-master-off .actions .action-btn {
+  pointer-events: none;
 }
 
-/* Toggle switch */
+.feature-section.is-off .feature-list {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ---------- switch ---------- */
+
 .toggle {
   position: relative;
-  width: 36px;
-  height: 20px;
-  border-radius: 10px;
+  width: 30px;
+  height: 18px;
+  border-radius: 9px;
   border: none;
   cursor: pointer;
   padding: 0;
@@ -435,196 +408,228 @@ body.bc-master-off .actions .action-btn {
 .toggle::after {
   content: "";
   position: absolute;
-  top: 3px;
+  top: 2px;
+  left: 2px;
   width: 14px;
   height: 14px;
   border-radius: var(--bc-radius-circle);
   background: var(--bc-color-bg);
-  transition: left 0.15s;
-  box-shadow: var(--bc-shadow-toggle-knob);
+  transition: transform 0.15s;
 }
 
+/* On is the pencil-yellow fill with an ink knob, so a column of switches
+   reads warm, not as a column of black pills. */
 .toggle.on {
-  background: var(--bc-color-accent);
+  background: var(--bc-color-cta);
 }
 
 .toggle.on::after {
-  left: 19px;
+  transform: translateX(12px);
+  background: var(--bc-color-cta-on);
 }
 
 .toggle.off {
   background: var(--bc-color-border-strong);
 }
 
-.toggle.off::after {
-  left: 3px;
+/* Rating display: a row of text choices; the chosen one is ink-filled.
+   Each option is still a row (copy + radio button) in the DOM. The radio
+   button is stretched over its row so the whole choice is the target. */
+.feature-section--radio .feature-list {
+  flex-direction: row;
+  gap: 2px;
 }
 
-/* Radio variant: re-uses .toggle sizing but reads as a circular checkmark
-   indicator rather than a sliding switch. The same row layout already
-   highlights the selected option via .feature-row.is-selected. */
+.feature-section--radio .feature-row {
+  position: relative;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--bc-color-text-soft);
+  transition: background var(--bc-tx-fast) var(--bc-easing);
+}
+
+.feature-section--radio .feature-row:hover {
+  background: var(--bc-color-surface-hover);
+}
+
+.feature-section--radio .feature-row.is-selected {
+  background: var(--bc-color-cta);
+}
+
+.feature-section--radio .feature-label {
+  font-size: 12.5px;
+  font-weight: var(--bc-fw-regular);
+  color: var(--bc-color-text-soft);
+}
+
+.feature-section--radio .feature-row.is-selected .feature-label {
+  font-weight: var(--bc-fw-semibold);
+  color: var(--bc-color-cta-on);
+}
+
+.feature-section--radio .feature-description {
+  display: none;
+}
+
 .toggle.radio {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--bc-radius-circle);
-  border: 1.5px solid var(--bc-color-border-strong);
-  background: var(--bc-color-bg);
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  background: transparent;
 }
 
 .toggle.radio::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  border-radius: var(--bc-radius-circle);
-  background: transparent;
-  box-shadow: none;
-  transform: translate(-50%, -50%);
-  transition: background 0.15s;
+  content: none;
 }
 
-.toggle.radio.on {
-  background: var(--bc-color-bg);
-  border-color: var(--bc-color-accent);
-}
+/* ---------- setting rows ---------- */
 
-.toggle.radio.on::after {
-  background: var(--bc-color-accent);
-}
-
-.feature-row.is-selected {
-  background: var(--bc-color-accent-surface-soft);
-  border-color: var(--bc-color-accent-mid-border);
-}
-
-.ctec-school-row {
-  margin-top: 12px;
-  padding: 12px;
-  background: var(--bc-color-bg);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-lg);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
+.ctec-school-row,
+.actions-clear {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--bc-color-border-divider);
 }
 
-.ctec-school-label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.ctec-school-label-title {
-  font-size: var(--bc-font-13);
-  font-weight: var(--bc-fw-semibold);
-  color: var(--bc-color-text-strong);
-}
-
-.ctec-school-label-help {
-  font-size: var(--bc-font-11);
-  line-height: 1.4;
-  color: var(--bc-color-text-muted);
+.ctec-school-row:empty,
+.ctec-school-row[hidden] {
+  display: none;
 }
 
 .ctec-school-select {
   flex-shrink: 0;
-  padding: 6px 10px;
-  font-family: inherit;
-  font-size: var(--bc-font-12);
-  border-radius: var(--bc-radius-lg);
-  border: 1px solid var(--bc-color-border-strong);
-  background: var(--bc-color-bg);
+  height: 28px;
+  padding: 0 8px;
+  box-sizing: border-box;
+  font-size: 12.5px;
+  border-radius: 7px;
+  border: 0;
+  background: var(--bc-color-surface-hover);
   color: var(--bc-color-text-strong);
   cursor: pointer;
   max-width: 220px;
 }
 
-.ctec-school-select:focus {
-  outline: 2px solid var(--bc-color-accent);
-  outline-offset: 1px;
-  border-color: var(--bc-color-accent);
+select.ctec-school-select {
+  --bc-select-bg: var(--bc-color-surface-hover);
+  padding-right: 30px;
+  appearance: none;
+  -webkit-appearance: none;
+  /* A drawn chevron in the text colour; the native arrow sat too tight
+     against the rounded edge. */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--bc-select-bg) 50%),
+    linear-gradient(135deg, var(--bc-select-bg) 50%, transparent 50%),
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px;
+  background-position:
+    right 16px top calc(50% - 1px), right 10px top calc(50% - 1px),
+    right 16px top calc(50% + 1px), right 10px top calc(50% + 1px);
+  background-repeat: no-repeat;
 }
 
+.ctec-school-select--number {
+  width: 52px;
+  text-align: center;
+  cursor: text;
+}
+
+/* Access status: a word in its status colour. No pill. */
 .ctec-access-pill {
   flex-shrink: 0;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: var(--bc-font-12);
-  font-weight: var(--bc-fw-bold);
-  letter-spacing: var(--bc-ls-caps-wide);
-  text-transform: uppercase;
-  border: 1.5px solid;
+  font-size: 12.5px;
+  font-weight: var(--bc-fw-semibold);
   white-space: nowrap;
 }
 
 .ctec-access-pill--ok {
-  background: var(--bc-color-gate-ok-bg);
-  border-color: var(--bc-color-gate-ok-border);
-  color: var(--bc-color-gate-ok-text);
+  color: var(--bc-color-success);
 }
 
 .ctec-access-pill--warn {
-  background: var(--bc-color-gate-warn-bg);
-  border-color: var(--bc-color-gate-warn-border);
-  color: var(--bc-color-gate-warn-text);
+  color: var(--bc-color-warn);
 }
 
 .ctec-access-pill--muted {
-  background: var(--bc-color-bg-app);
-  border-color: var(--bc-color-border-strong);
+  font-weight: var(--bc-fw-regular);
   color: var(--bc-color-text-muted);
 }
 
-.actions {
-  margin-top: 12px;
-}
+/* ---------- my courses + saved data ---------- */
 
 .actions {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
-.action-btn {
-  width: 100%;
-  padding: 9px 12px;
+/* "My courses" is a full-width disclosure row. */
+.action-btn--row {
+  justify-content: space-between;
+  width: calc(100% + 18px);
+  height: 40px;
+  margin: 0 -9px;
   font-size: var(--bc-font-13);
-  font-family: var(--bc-font-display);
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  border: 1.5px solid var(--bc-color-text);
-  background: var(--bc-color-bg);
-  color: var(--bc-color-text);
-  border-radius: var(--bc-radius-sm);
-  text-align: center;
-  box-shadow: 2px 2px 0 var(--bc-color-text);
-  transition: transform var(--bc-tx-base) var(--bc-easing), box-shadow var(--bc-tx-base) var(--bc-easing);
+  font-weight: var(--bc-fw-semibold);
+  color: var(--bc-color-text-strong);
 }
 
-.action-btn:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--bc-color-text);
+.action-btn--row::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-right: 4px;
+  border-right: 1.5px solid var(--bc-color-text-muted);
+  border-bottom: 1.5px solid var(--bc-color-text-muted);
+  transform: rotate(-45deg);
+  transition: transform var(--bc-tx-base) var(--bc-easing);
+}
+
+.action-btn--row[aria-expanded="true"]::after {
+  transform: rotate(45deg);
+}
+
+.actions-clear {
+  align-items: flex-start;
+  border-top: 1px solid var(--bc-color-border-divider);
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.actions-clear-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: 0 0 330px;
+}
+
+/* Pills: 26px, panel background, no border. */
+.actions-clear-buttons .action-btn {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 13px;
+  background: var(--bc-color-surface-hover);
+  color: var(--bc-color-text);
+}
+
+.actions-clear-buttons .action-btn:hover:not(:disabled) {
+  background: var(--bc-color-surface-hover-strong);
 }
 
 .action-btn:disabled {
-  opacity: 0.6;
   cursor: default;
-  box-shadow: 2px 2px 0 var(--bc-color-text-subtle);
-  transform: none;
 }
 
 .course-history-panel {
-  margin-top: -2px;
-  padding: 12px;
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-lg);
-  background: var(--bc-color-bg);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
+  padding: 0 0 12px;
 }
 
 .course-history-panel[hidden] {
@@ -634,38 +639,29 @@ body.bc-master-off .actions .action-btn {
 .course-history-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.course-history-empty {
+.course-history-empty,
+.course-history-meta {
   margin: 0;
   font-size: var(--bc-font-12);
   color: var(--bc-color-text-muted);
   line-height: 1.4;
 }
 
-.course-history-meta {
-  margin: 0;
-  font-size: var(--bc-font-11);
-  color: var(--bc-color-text-muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
 .course-history-term {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  padding-top: 10px;
 }
 
 .course-history-term-title {
   margin: 0;
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-13);
-  font-weight: var(--bc-fw-bold);
-  letter-spacing: 0.02em;
-  color: var(--bc-color-text-strong);
-  padding-bottom: 3px;
-  border-bottom: 1px dashed var(--bc-color-border-strong);
+  padding-bottom: 4px;
+  font-size: var(--bc-font-12);
+  font-weight: var(--bc-fw-regular);
+  color: var(--bc-color-text-muted);
+  border-bottom: 1px solid var(--bc-color-border-divider);
 }
 
 .course-history-list {
@@ -674,113 +670,74 @@ body.bc-master-off .actions .action-btn {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
 }
 
+/* One line per course: code, title, then status, grade and units in
+   fixed columns so they line up down the list. */
 .course-history-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 10px;
-  padding: 4px 0;
-  font-size: var(--bc-font-12);
+  gap: 12px;
+  padding: 5px 0;
+  font-size: var(--bc-font-13);
   line-height: 1.3;
 }
 
 .course-history-row-left {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
+  align-items: baseline;
+  gap: 10px;
   min-width: 0;
   flex: 1 1 auto;
 }
 
 .course-history-code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--bc-font-12);
-  font-weight: var(--bc-fw-bold);
+  flex: 0 0 116px;
+  font-weight: var(--bc-fw-semibold);
   color: var(--bc-color-text-strong);
+  white-space: nowrap;
 }
 
 .course-history-desc {
-  font-size: var(--bc-font-11);
-  color: var(--bc-color-text-muted);
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--bc-color-text-soft);
 }
 
 .course-history-row-right {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: 76px 24px 62px;
+  column-gap: 10px;
+  align-items: baseline;
   flex-shrink: 0;
-}
-
-.course-history-grade {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--bc-font-11);
-  font-weight: var(--bc-fw-bold);
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid var(--bc-color-border-strong);
-  background: var(--bc-color-bg-app);
-  color: var(--bc-color-text-strong);
+  font-size: var(--bc-font-12);
 }
 
 .course-history-status {
-  font-size: var(--bc-font-11);
-  padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid;
+  grid-column: 1;
+  grid-row: 1;
+  text-align: right;
+  color: var(--bc-color-text-muted);
 }
 
-.course-history-status--taken {
-  color: var(--bc-color-gate-ok-text);
-  background: var(--bc-color-gate-ok-bg);
-  border-color: var(--bc-color-gate-ok-border);
+.course-history-grade {
+  grid-column: 2;
+  grid-row: 1;
+  font-size: var(--bc-font-13);
+  font-weight: var(--bc-fw-semibold);
+  color: var(--bc-color-text-strong);
 }
 
 .course-history-status--in-progress {
-  color: var(--bc-color-gate-warn-text);
-  background: var(--bc-color-gate-warn-bg);
-  border-color: var(--bc-color-gate-warn-border);
-}
-
-.course-history-status--in-cart {
-  color: var(--bc-color-text-muted);
-  background: var(--bc-color-bg-app);
-  border-color: var(--bc-color-border-strong);
-}
-
-.course-history-status--transferred {
-  color: var(--bc-color-text-muted);
-  background: var(--bc-color-bg);
-  border-color: var(--bc-color-border-strong);
-  border-style: dashed;
+  color: var(--bc-color-warn);
 }
 
 .course-history-units {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: var(--bc-font-11);
+  grid-column: 3;
+  grid-row: 1;
+  text-align: right;
   color: var(--bc-color-text-muted);
-}
-
-.feedback-link {
-  display: block;
-  margin-top: 12px;
-  padding: 10px 12px;
-  font-family: var(--bc-font-display);
-  font-size: var(--bc-font-13);
-  letter-spacing: 0.02em;
-  text-align: center;
-  text-decoration: none;
-  color: var(--bc-color-accent-on);
-  background: var(--bc-color-accent);
-  border: 1.5px solid var(--bc-color-text);
-  border-radius: var(--bc-radius-sm);
-  box-shadow: 2px 2px 0 var(--bc-color-text);
-  transition: transform var(--bc-tx-base) var(--bc-easing), box-shadow var(--bc-tx-base) var(--bc-easing);
-}
-
-.feedback-link:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: 3px 3px 0 var(--bc-color-text);
 }

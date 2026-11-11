@@ -10,7 +10,7 @@
     <main class="app">
       <header class="app-header">
         <h1 class="brand">
-          <svg class="brand-pencil" width="18" height="48" viewBox="14 0 14 42" fill="none" aria-hidden="true">
+          <svg class="brand-pencil" width="10" height="26" viewBox="14 0 14 42" fill="none" aria-hidden="true">
             <g transform="rotate(90 21 21)" stroke="#2a2a2e" stroke-width="1.2" stroke-linejoin="round">
               <rect x="2" y="16" width="6" height="10" rx="1.6" fill="#ef8da6" />
               <rect x="8" y="16" width="5" height="10" fill="#c2c7cb" />
@@ -24,7 +24,12 @@
           </svg>
           <span>pencil.nu</span>
         </h1>
-        <p class="app-subtitle">— choose what runs on Paper and CAESAR —</p>
+        <a
+          class="feedback-link"
+          href="https://docs.google.com/forms/d/e/1FAIpQLSc34UX2cWyPx3jwgYDxyU7P7nx_--G91b1cepX1t1xS6tI7-w/viewform?usp=dialog"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Leave feedback</a>
       </header>
       <div class="changelog" id="changelog"></div>
       <section class="master-toggle" id="master-toggle"></section>
@@ -33,22 +38,22 @@
       <div class="ctec-school-row" id="theme-row"></div>
       <div class="ctec-school-row" id="ctec-access-row"></div>
       <div class="actions">
-        <button id="toggle-course-history" class="action-btn" aria-expanded="false">My courses</button>
+        <button id="toggle-course-history" class="action-btn action-btn--row" aria-expanded="false">My courses</button>
         <div id="course-history-panel" class="course-history-panel" hidden></div>
-        <button id="clear-ctec-cache" class="action-btn">Clear CTEC cache</button>
-        <button id="clear-catalog-cache" class="action-btn">Clear catalog cache</button>
-        <button id="clear-cart-cache" class="action-btn">Clear cart cache</button>
-        <button id="clear-course-history-cache" class="action-btn">Clear course history cache</button>
-        <button id="clear-prereqs-cache" class="action-btn">Clear prereqs cache</button>
+        <div class="actions-clear">
+          <div class="ctec-school-label">
+            <span class="ctec-school-label-title">Clear saved data</span>
+            <span class="ctec-school-label-help">Pencil saves what it loads so pages open fast. Clearing makes it load again.</span>
+          </div>
+          <div class="actions-clear-buttons">
+            <button id="clear-ctec-cache" class="action-btn">CTECs</button>
+            <button id="clear-catalog-cache" class="action-btn">Class catalog</button>
+            <button id="clear-cart-cache" class="action-btn">Cart</button>
+            <button id="clear-course-history-cache" class="action-btn">Course history</button>
+            <button id="clear-prereqs-cache" class="action-btn">Prerequisites</button>
+          </div>
+        </div>
       </div>
-      <a
-        class="feedback-link"
-        href="https://docs.google.com/forms/d/e/1FAIpQLSc34UX2cWyPx3jwgYDxyU7P7nx_--G91b1cepX1t1xS6tI7-w/viewform?usp=dialog"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        ↗ Leave feedback
-      </a>
     </main>
     <script src="./popup.js"></script>
   </body>

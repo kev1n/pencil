@@ -42,14 +42,16 @@ describe("tokensCss", () => {
   const css = tokensCss((f) => `TEST/${f}`);
   const rules = parseTokensCss(css);
 
-  it("emits the base + four theme blocks", () => {
+  it("emits the base + six theme blocks", () => {
     const selectors = rules.map((r) => r.selector);
     expect(selectors).toEqual([
       ":root", // base()
       ':root, [data-bc-theme="default"]',
       '[data-bc-theme="default"][data-bc-mode="dark"]',
       '[data-bc-theme="pencil"]',
-      '[data-bc-theme="pencil"][data-bc-mode="dark"]'
+      '[data-bc-theme="pencil"][data-bc-mode="dark"]',
+      '[data-bc-theme="bright"]',
+      '[data-bc-theme="bright"][data-bc-mode="dark"]'
     ]);
   });
 
@@ -227,6 +229,35 @@ describe("tokensCss", () => {
       expect(v["--bc-color-text"]).toBe("#f6ecc0");
       expect(v["--bc-color-accent"]).toBe("#f5a3b4");
       expect(v["--bc-shadow-add-cta"]).toBe("2px 2px 0 #f5a3b4");
+    });
+  });
+
+  describe("bright theme", () => {
+    const light = rules.find((r) => r.selector === '[data-bc-theme="bright"]')!.vars;
+    const dark = rules.find(
+      (r) => r.selector === '[data-bc-theme="bright"][data-bc-mode="dark"]'
+    )!.vars;
+    const base = rules.find((r) => r.selector === ':root, [data-bc-theme="default"]')!.vars;
+
+    it("uses near-black for the accent, yellow for action fills and pink for charts", () => {
+      expect(light["--bc-color-accent"]).toBe("#17171a");
+      expect(light["--bc-color-accent-fill-12"]).toBe("rgba(23, 23, 26, 0.12)");
+      expect(light["--bc-color-chart"]).toBe("#d6456a");
+      expect(light["--bc-color-cta"]).toBe("#f5c842");
+      expect(light["--bc-color-cta-on"]).toBe("#201a02");
+      expect(dark["--bc-color-cta"]).toBe("#f5c842");
+    });
+
+    it("defines every token the default theme does, and keeps its status colors", () => {
+      for (const name of Object.keys(base)) expect(light[name], name).toBeDefined();
+      expect(light["--bc-color-success"]).toBe(base["--bc-color-success"]);
+      expect(light["--bc-color-seat-open-bg"]).toBe(base["--bc-color-seat-open-bg"]);
+    });
+
+    it("leaves the default theme's buttons on the accent", () => {
+      const root = rules.find((r) => r.selector === ":root")!.vars;
+      expect(root["--bc-color-cta"]).toBe("var(--bc-color-accent)");
+      expect(base["--bc-color-cta"]).toBeUndefined();
     });
   });
 

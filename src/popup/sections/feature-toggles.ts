@@ -48,50 +48,50 @@ export type FeatureSection =
 export const FEATURE_SECTIONS: FeatureSection[] = [
   {
     title: "CAESAR",
-    blurb: "Add richer enrollment, evaluation, and navigation tools directly inside CAESAR.",
+    blurb: "Registration, seats and CTECs.",
     groupId: GROUP_CAESAR_ID,
     features: [
       {
         id: "seats-notes",
-        label: "Seats & Notes",
-        description: "Loads class notes, attributes, requirements, and seat details in shopping cart views."
+        label: "Seats and notes",
+        description: "Open seats, class notes and requirements in your shopping cart."
       },
       {
         id: "ctec-links",
-        label: "CTEC Links",
-        description: "Adds inline professor evaluation history and links to matching CTEC reports."
+        label: "CTEC links",
+        description: "Links to past CTEC reports for each class in your cart."
       },
       {
         id: "enrollment-navigation",
-        label: "Enrollment Terms",
-        description: "Improves navigation across enrollment terms and related registration screens."
+        label: "Term switcher",
+        description: "Switch enrollment terms without going back through the term page."
       },
       {
         id: "caesar-go-to",
-        label: "CAESAR Bookmarks",
-        description: "Shows shortcuts to common pages in the CAESAR header."
+        label: "Bookmarks",
+        description: "Shortcuts to common pages in the CAESAR header."
       },
       {
         id: "class-search",
-        label: "Class Search",
-        description: "Replaces CAESAR's class search with a paper.nu-powered UI that adds sections to your cart in place."
+        label: "Sharper Search",
+        description: "A faster class search that adds sections to your cart in place."
       },
       {
         id: "course-history-view",
-        label: "Course History",
-        description: "Groups your Course History by term, filters it by subject, and downloads what you see as a CSV. Hides classes still in progress unless you ask."
+        label: "Course History by term",
+        description: "Groups Course History by term, filters by subject and downloads a CSV."
       }
     ]
   },
   {
     title: "Paper.nu",
-    blurb: "Enhance the Paper schedule and section panel with Northwestern CTEC data.",
+    blurb: "Your schedule and class search.",
     groupId: GROUP_PAPER_ID,
     features: [
       {
         id: "paper-brand",
-        label: "\"with pencil\" Brand Mark",
-        description: "Adds a small \"with pencil\" tag next to Paper.nu's logo so you can tell at a glance the extension is active."
+        label: "\"with pencil\" mark",
+        description: "A small tag by Paper.nu's logo that shows Pencil is on."
       },
       {
         id: "paper-enrollment-dates",
@@ -100,73 +100,73 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       },
       {
         id: "paper-ctec",
-        label: "CTEC Integration",
-        description: "Loads CTEC summaries into schedule cards and the expanded analytics panel."
+        label: "CTECs on your schedule",
+        description: "Ratings and hours on each schedule card, with full analytics a click away."
       },
       {
         id: "paper-ctec-single-summary-card",
-        label: "First Timeslot Only",
-        description: "Shows the compact CTEC summary on only one schedule block per class, using the earliest timeslot."
+        label: "One summary per class",
+        description: "Shows the CTEC line on a class's first block of the week only."
       },
       {
         id: "paper-ctec-compact-cards",
-        label: "Dense Cards",
-        description: "Compresses the schedule card header to make more room for the compact CTEC row."
+        label: "Compact cards",
+        description: "Tightens the card header to leave room for the CTEC line."
       },
       {
         id: "paper-card-border-on-hover",
-        label: "Card Border on Hover",
-        description: "Disables Paper's hover-lift animation on schedule cards and shows a static border outline instead."
+        label: "Steady cards",
+        description: "Outlines a card on hover instead of lifting it."
       },
       {
         id: "paper-combos",
-        label: "Schedule Combinations",
-        description: "Show the in-page combinations bar on Paper.nu. Use the on/off switch on Paper itself to actually start cycling combos."
+        label: "Schedule combinations",
+        description: "Adds the Combinations bar above your schedule. Switch it on there to step through schedules."
       },
       {
         id: "paper-hide-taken",
-        label: "Hide Taken Courses",
-        description: "Hides Paper.nu search results for courses you've already completed or transferred. In-progress courses stay visible, and repeatable courses (396/397, seminars, independent study) are never filtered."
+        label: "Hide classes you've taken",
+        description: "Hides search results you've completed or transferred. Repeatable classes always show."
       },
       {
         id: "paper-export-helper",
-        label: "Schedule Export Tools",
-        description: "Adds Copy schedule as Markdown to Paper.nu's Export menu and a step-by-step calendar import guide."
+        label: "Export tools",
+        description: "Copy your schedule as Markdown, and a guide for importing it into a calendar."
       },
       {
         id: "prereq-filter",
-        label: "Prereq Filter (Experimental)",
-        description: "Paints eligibility badges on Paper.nu search results + schedule cards based on your CAESAR course history. Data quality caveat: Paper.nu's data is sometimes out of sync with the actual course requirements."
+        label: "Prerequisite check (beta)",
+        description: "Marks classes whose prerequisites you've met. Paper.nu's requirement data can be out of date."
       },
       {
         id: "prereq-filter-unknown-as-eligible",
-        label: "Show Unverifiable Requirements",
-        description: "Default off — when the filter is on, courses whose requirements can't be verified automatically (free-form prose, standing, placement) are hidden alongside hard blocks. Turn this on to keep them visible."
+        label: "Keep unverified classes",
+        description: "Keeps classes whose requirements can't be checked visible when you filter by prerequisites."
       }
     ]
   },
   {
     kind: "radio",
     title: "Rating display",
-    blurb: "How CTEC scores are formatted in schedule cards and the analytics KPI strip.",
+    blurb: "How CTEC ratings are written.",
     defaultOptionId: "default",
     options: [
       {
         id: "default",
-        label: "Numeric (/6)",
-        description: "Shows the raw mean rating on Northwestern's native 0–6 scale.",
+        label: "Out of 6",
+        description: "5.4 /6, Northwestern's own scale.",
         enables: []
       },
       {
         id: "percent",
-        label: "Percent (/100)",
-        description: "Converts the rating to a percentage of the 6-point scale (e.g. 5.4 → 90%).",
+        label: "Percent",
+        description: "5.4 becomes 90%.",
         enables: ["paper-ctec-rating-percent"]
       },
       {
         id: "stars",
         label: "Stars",
-        description: "Renders the rating as filled stars instead of a number.",
+        description: "Filled stars in place of a number.",
         enables: ["paper-ctec-compact-card-stars"]
       }
     ]
@@ -213,7 +213,10 @@ export async function initFeatureToggles(): Promise<void> {
 
   for (const section of FEATURE_SECTIONS) {
     const sectionEl = document.createElement("section");
-    sectionEl.className = "feature-section";
+    sectionEl.className =
+      section.kind === "radio"
+        ? "feature-section feature-section--radio"
+        : "feature-section";
     if (section.groupId) sectionEl.dataset.groupId = section.groupId;
 
     const header = document.createElement("div");
@@ -265,12 +268,12 @@ function renderMasterToggle(
 
   const label = document.createElement("span");
   label.className = "master-toggle-label";
-  label.textContent = "All features";
+  label.textContent = "Pencil";
 
   const description = document.createElement("span");
   description.className = "master-toggle-description";
   description.textContent =
-    "Master switch. Turn off to disable every CAESAR and Paper.nu feature without losing your individual choices.";
+    "Turn Pencil off everywhere. Your choices below are kept.";
 
   copy.append(label, description);
 

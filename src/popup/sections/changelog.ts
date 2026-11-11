@@ -18,7 +18,7 @@ export function initChangelogPanel(): void {
     details.className = "changelog-history";
     const summary = document.createElement("summary");
     summary.className = "changelog-history-summary";
-    summary.textContent = `Earlier versions (${olderEntries.length})`;
+    summary.textContent = "Earlier versions";
     details.append(summary);
     for (const entry of olderEntries) {
       details.append(renderEntry(entry, { headline: false }));
@@ -36,31 +36,19 @@ function renderEntry(
     ? "changelog-card changelog-card--head"
     : "changelog-card changelog-card--past";
 
+  // Headline first, then one quiet line of version and date.
+  const meta = document.createElement("span");
+  meta.className = "changelog-date";
+  meta.textContent = `Version ${entry.version} · ${formatDate(entry.date)}`;
+
+  const title = document.createElement(opts.headline ? "h2" : "p");
+  title.className = opts.headline ? "changelog-title" : "changelog-subhead";
+  title.textContent = entry.headline ?? (opts.headline ? "What's new" : `Version ${entry.version}`);
+
   const header = document.createElement("div");
   header.className = "changelog-header";
-
-  const badge = document.createElement("span");
-  badge.className = "changelog-version";
-  badge.textContent = `v${entry.version}`;
-
-  const date = document.createElement("span");
-  date.className = "changelog-date";
-  date.textContent = entry.date;
-
-  header.append(badge, date);
+  header.append(title, meta);
   card.append(header);
-
-  if (opts.headline) {
-    const title = document.createElement("h2");
-    title.className = "changelog-title";
-    title.textContent = entry.headline ?? "What's new";
-    card.append(title);
-  } else if (entry.headline) {
-    const sub = document.createElement("p");
-    sub.className = "changelog-subhead";
-    sub.textContent = entry.headline;
-    card.append(sub);
-  }
 
   if (entry.items.length > 0) {
     const list = document.createElement("ul");
@@ -83,7 +71,7 @@ function renderItem(item: ChangelogItem): HTMLElement {
     item.kind === "feat"
       ? "changelog-tag changelog-tag--feat"
       : "changelog-tag changelog-tag--fix";
-  tag.textContent = item.kind === "feat" ? "new" : "fix";
+  tag.textContent = item.kind === "feat" ? "New" : "Fixed";
 
   const body = document.createElement("span");
   body.className = "changelog-text";
@@ -91,4 +79,11 @@ function renderItem(item: ChangelogItem): HTMLElement {
 
   li.append(tag, body);
   return li;
+}
+
+// "2026-11-10" -> "Nov 10, 2026". Falls back to the raw string.
+function formatDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1];
+  return month && d && y ? `${month} ${d}, ${y}` : iso;
 }

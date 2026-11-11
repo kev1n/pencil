@@ -1,83 +1,83 @@
-// Per-section rows (id, component, time, instructor, room, live status,
-// status pills, and the per-section actions cluster including Details).
+// Per-section rows (id, component, time, instructor, room, CTEC, live
+// status, and the per-section actions).
 export function sectionRowsStyles(): string {
   return `
     /* ── Section rows ───────────────────────────────────────────────────── */
     .bc-cs-section-list {
       list-style: none;
-      margin: 0;
+      margin: 8px 0 0;
       padding: 0;
     }
     .bc-cs-sections-disclosure {
-      border-top: 1px solid var(--bc-color-border-divider);
+      margin-top: 4px;
     }
     .bc-cs-sections-summary {
-      padding: 10px 16px;
-      color: var(--bc-color-accent);
-      font-size: var(--bc-font-12);
-      font-weight: var(--bc-fw-semibold);
+      display: inline-flex;
+      align-items: center;
+      height: 28px;
+      margin-left: -9px;
+      padding: 0 9px;
+      border-radius: 7px;
+      color: var(--bc-color-text-soft);
+      font-size: 12.5px;
       cursor: pointer;
       user-select: none;
       transition: background-color var(--bc-tx-fast), color var(--bc-tx-fast);
     }
     .bc-cs-sections-summary:hover {
-      background: var(--bc-color-surface-soft);
-      color: var(--bc-color-accent-hover);
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text-strong);
     }
     .bc-cs-sections-summary:focus-visible {
       outline: 2px solid var(--bc-color-accent);
-      outline-offset: -2px;
+      outline-offset: 2px;
     }
     .bc-cs-section {
       position: relative;
       display: grid;
-      grid-template-columns: 80px 64px minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.2fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
-      gap: 10px;
+      grid-template-columns: 28px 36px minmax(0, 1.5fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.5fr) 68px auto;
+      column-gap: 12px;
       align-items: center;
-      padding: 10px 16px;
+      min-height: 44px;
+      padding: 6px 0;
       border-top: 1px solid var(--bc-color-border-divider);
       font-size: var(--bc-font-13);
-      transition: background-color var(--bc-tx-fast);
     }
-    .bc-cs-section:hover { background: var(--bc-color-surface-soft); }
     .bc-cs-section-topic {
       grid-column: 1 / -1;
-      color: var(--bc-color-text);
+      padding-bottom: 2px;
+      color: var(--bc-color-text-strong);
       font-weight: var(--bc-fw-semibold);
       overflow-wrap: anywhere;
     }
     .bc-cs-section-id {
-      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-      font-size: var(--bc-font-12);
       font-weight: var(--bc-fw-semibold);
-      color: var(--bc-color-text);
+      color: var(--bc-color-text-strong);
     }
     .bc-cs-section-component { color: var(--bc-color-text-muted); font-size: var(--bc-font-12); }
-    .bc-cs-section-time { color: var(--bc-color-text); font-size: var(--bc-font-12); line-height: 1.4; }
+    .bc-cs-section-time { line-height: 1.35; }
     .bc-cs-section-time-dates {
       color: var(--bc-color-text-muted);
-      font-size: var(--bc-font-11);
+      font-size: var(--bc-font-12);
     }
     .bc-cs-section-time-pattern {
-      color: var(--bc-color-text);
-      font-size: var(--bc-font-12);
-      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-strong);
+      font-size: var(--bc-font-13);
     }
     .bc-cs-section-instructor {
       color: var(--bc-color-text);
-      font-size: var(--bc-font-12);
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
     .bc-cs-section-room {
       color: var(--bc-color-text-muted);
-      font-size: var(--bc-font-11);
+      font-size: var(--bc-font-12);
       line-height: 1.4;
       overflow-wrap: anywhere;
     }
     .bc-cs-section-live {
-      font-size: var(--bc-font-11);
+      font-size: var(--bc-font-12);
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -86,93 +86,93 @@ export function sectionRowsStyles(): string {
     }
     .bc-cs-section-live[data-tone="muted"] {
       color: var(--bc-color-text-subtle);
-      font-style: italic;
     }
-
+    /* Open / Wait List / Closed: a plain word with a small status dot, so
+       a long list is not a column of coloured text. */
     .bc-cs-status-pill {
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
-      padding: 2px 7px;
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-surface-soft);
-      color: var(--bc-color-text-muted);
-      border: 1px solid var(--bc-color-border-divider);
-      line-height: 1.4;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      color: var(--bc-color-text-soft);
+      white-space: nowrap;
     }
-    .bc-cs-status-pill[data-status="Open"]      { background: var(--bc-color-success-bg); color: var(--bc-color-success); border-color: transparent; }
-    .bc-cs-status-pill[data-status="Closed"]    { background: var(--bc-color-danger-bg);  color: var(--bc-color-danger);  border-color: transparent; }
-    .bc-cs-status-pill[data-status="Wait List"] { background: var(--bc-color-warn-bg);    color: var(--bc-color-warn);    border-color: transparent; }
-
+    .bc-cs-status-pill[data-status]::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: var(--bc-radius-circle);
+      background: var(--bc-color-text-subtle);
+    }
+    .bc-cs-status-pill[data-status="Open"]::before      { background: var(--bc-color-success); }
+    .bc-cs-status-pill[data-status="Closed"]::before    { background: var(--bc-color-danger); }
+    .bc-cs-status-pill[data-status="Wait List"]::before { background: var(--bc-color-warn); }
     .bc-cs-section-actions {
       display: flex;
-      gap: 6px;
+      gap: 4px;
       align-items: center;
       justify-content: flex-end;
       /* Each .bc-cs-section is its own grid (the auto last column sizes
          to content) — a min-width here reserves the actions column even
          on rows that hide buttons (DIS / LAB under a LEC), so the row
          stays aligned with its LEC sibling. Width covers the natural
-         "Details" + "Add to cart" cluster. */
-      min-width: 188px;
+         "Add to cart" + "Details" cluster. */
+      min-width: 172px;
     }
+    /* Details: a quiet text button. Open, it is ink-filled. */
     .bc-cs-details-btn {
-      background: var(--bc-color-accent);
-      color: var(--bc-color-accent-on);
-      border: 1px solid var(--bc-color-accent);
-      border-radius: var(--bc-radius-lg);
-      /* Match .bc-cs-add (the secondary sibling) on padding, font size,
-         and weight — the two should read as a paired button cluster, with
-         primary/secondary distinction carried only by fill vs outline. */
-      padding: 5px 10px;
+      appearance: none;
+      height: 28px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--bc-color-text-soft);
       font: inherit;
-      font-size: var(--bc-font-11);
-      font-weight: var(--bc-fw-semibold);
+      font-size: 12.5px;
       cursor: pointer;
-      transition: background-color 100ms, transform var(--bc-tx-fast), box-shadow 100ms, border-color var(--bc-tx-fast);
+      transition: background-color 100ms, color 100ms;
       /* Inline-flex so a spinner span sits next to the label text inside
          the button when data-state="loading". min-width keeps the button
          a stable size across "Details" / "Loading…" / "Hide" so the row's
-         actions cluster never reflows mid-click — important at narrow
-         viewports where a few extra pixels can push Add-to-cart to wrap. */
+         actions cluster never reflows mid-click. */
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
-      min-width: 76px;
+      min-width: 68px;
     }
     .bc-cs-details-btn:hover {
-      background: var(--bc-color-accent-hover);
-      border-color: var(--bc-color-accent-hover);
-      box-shadow: var(--bc-shadow-add-cta);
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text-strong);
     }
-    .bc-cs-details-btn:active { transform: translateY(1px); box-shadow: none; }
     .bc-cs-details-btn[data-expanded="true"] {
-      background: var(--bc-color-accent-hover);
-      border-color: var(--bc-color-accent-hover);
-      box-shadow: none;
+      background: var(--bc-color-accent);
+      color: var(--bc-color-accent-on);
     }
     .bc-cs-details-btn[disabled],
     .bc-cs-details-btn[data-state="loading"] {
       cursor: progress;
     }
     .bc-cs-details-btn[data-state="loading"] {
-      background: var(--bc-color-disabled-bg);
-      border-color: var(--bc-color-disabled-bg);
+      background: transparent;
       color: var(--bc-color-text-muted);
-      box-shadow: none;
     }
-
+    .bc-cs-details-btn:focus-visible,
+    .bc-cs-add:focus-visible,
+    .bc-cs-ctec-load-btn:focus-visible,
+    .bc-cs-ctec-analytics-btn:focus-visible {
+      outline: 2px solid var(--bc-color-accent);
+      outline-offset: 2px;
+    }
     /* Inline button spinner — used inside .bc-cs-details-btn and
        .bc-cs-add when data-state="loading". Inherits color from the
-       host button via currentColor so it reads on both transparent and
-       filled backgrounds without per-button overrides. */
+       host button via currentColor. */
     .bc-cs-btn-spinner {
       display: inline-block;
       width: 10px;
       height: 10px;
-      border: 2px solid currentColor;
+      border: 1.5px solid currentColor;
       border-top-color: transparent;
       border-radius: var(--bc-radius-circle);
       opacity: 0.75;
@@ -180,23 +180,34 @@ export function sectionRowsStyles(): string {
       flex: 0 0 auto;
     }
 
-    /* ── Per-section CTEC chip cell ─────────────────────────────────────
-       Rendered by ctec/view.ts. The chip sub-elements (.bc-paper-ctec-chip,
-       .bc-paper-ctec-chip-label, etc.) come from paper-ctec's stylesheet,
-       which class-search injects on mount so the visual language matches
-       the paper.nu schedule-card chips exactly. */
+    /* ── Per-section CTEC cell ──────────────────────────────────────────
+       Rendered by ctec/view.ts. The chip sub-elements (.bc-paper-ctec-chip
+       and friends) come from paper-ctec's stylesheet, which class-search
+       injects on mount so a rating reads the same here as on a paper.nu
+       schedule card. */
     .bc-cs-section-ctec {
       display: flex;
       align-items: center;
       min-width: 0;
-      font-size: var(--bc-font-11);
+      font-size: var(--bc-font-12);
     }
     .bc-cs-ctec-summary {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      column-gap: 8px;
+      row-gap: 2px;
       flex-wrap: wrap;
       min-width: 0;
+    }
+    .bc-cs-ctec-summary .bc-paper-ctec-chip,
+    .bc-cs-ctec-summary .bc-paper-ctec-chip-value,
+    .bc-cs-ctec-summary .bc-paper-ctec-chip-scale,
+    .bc-cs-ctec-summary .bc-paper-ctec-chip-label {
+      font-size: 12.5px;
+      line-height: 18px;
+    }
+    .bc-cs-ctec-summary .bc-paper-ctec-chip.is-hours .bc-paper-ctec-chip-value {
+      color: var(--bc-color-text-strong);
     }
     /* Spinner + message stay glued together as a single inline-flex unit
        on one line. The message truncates with ellipsis when the column
@@ -212,7 +223,7 @@ export function sectionRowsStyles(): string {
     .bc-cs-ctec-message {
       min-width: 0;
       color: var(--bc-color-text-muted);
-      font-size: var(--bc-font-11);
+      font-size: var(--bc-font-12);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -222,69 +233,48 @@ export function sectionRowsStyles(): string {
       width: 10px;
       height: 10px;
       border-radius: var(--bc-radius-circle);
-      border: 1.5px solid var(--bc-color-accent-fill-24);
-      border-top-color: var(--bc-color-accent-soft);
+      border: 1.5px solid var(--bc-color-border-strong);
+      border-top-color: var(--bc-color-text-strong);
       animation: bc-cs-spin 0.9s linear infinite;
       flex: 0 0 auto;
     }
+    /* "Load CTEC": a 26px pill, panel background, no border. */
     .bc-cs-ctec-load-btn {
       appearance: none;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 3px 9px;
-      border-radius: var(--bc-radius-pill);
-      border: 1px solid var(--bc-color-accent-border-45);
-      background: var(--bc-color-accent-surface-soft);
-      color: var(--bc-color-accent);
+      height: 26px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 13px;
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text);
       font: inherit;
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-wide);
-      text-transform: uppercase;
+      font-size: 12.5px;
       cursor: pointer;
-      box-shadow: var(--bc-shadow-button);
-      transition: background var(--bc-tx-fast), border-color var(--bc-tx-fast),
-                  box-shadow var(--bc-tx-fast), transform var(--bc-tx-fast);
+      transition: background var(--bc-tx-fast);
     }
     .bc-cs-ctec-load-btn:hover {
-      background: var(--bc-color-accent-surface-tile);
-      border-color: var(--bc-color-accent);
-      box-shadow: var(--bc-shadow-button-hover);
-      transform: translateY(-1px);
+      background: var(--bc-color-surface-hover-strong);
+      color: var(--bc-color-text-strong);
     }
-    .bc-cs-ctec-load-btn:active {
-      transform: translateY(0);
-      box-shadow: var(--bc-shadow-button);
-    }
-    .bc-cs-ctec-load-btn svg {
-      width: 11px;
-      height: 11px;
-      stroke-width: 1.8;
-      flex: 0 0 auto;
-    }
+    /* "Analytics": an underlined text link next to the numbers. */
     .bc-cs-ctec-analytics-btn {
       appearance: none;
-      display: inline-flex;
-      align-items: center;
-      padding: 3px 8px;
-      border-radius: var(--bc-radius-pill);
-      border: 1px solid var(--bc-color-accent-border-45);
-      background: var(--bc-color-accent-soft);
-      color: var(--bc-color-accent-soft-on);
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--bc-color-text-soft);
       font: inherit;
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
+      font-size: 12.5px;
+      text-decoration: underline;
+      text-decoration-color: var(--bc-color-border-strong);
+      text-underline-offset: 3px;
       cursor: pointer;
-      box-shadow: var(--bc-shadow-button);
-      transition: background var(--bc-tx-fast), border-color var(--bc-tx-fast),
-                  box-shadow var(--bc-tx-fast);
     }
     .bc-cs-ctec-analytics-btn:hover {
-      background: var(--bc-color-accent-soft-hover);
-      box-shadow: var(--bc-shadow-button-hover);
+      color: var(--bc-color-text-strong);
+      text-decoration-color: var(--bc-color-text-strong);
     }
   `;
 }

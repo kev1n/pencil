@@ -148,26 +148,26 @@ function buttons(): string {
 
 /* Primary: solid accent fill. */
 .bc-btn.bc-btn--primary {
-  background: var(--bc-color-accent);
-  border-color: var(--bc-color-accent);
-  color: var(--bc-color-accent-on);
+  background: var(--bc-color-cta);
+  border-color: var(--bc-color-cta);
+  color: var(--bc-color-cta-on);
 }
 .bc-btn.bc-btn--primary:hover:not(:disabled) {
-  background: var(--bc-color-accent-hover);
-  border-color: var(--bc-color-accent-hover);
+  background: var(--bc-color-cta-hover);
+  border-color: var(--bc-color-cta-hover);
 }
 
 /* Soft modifier — swaps a primary button's hard accent for the softer accent
    ladder (used by modal/dialog action rows where the harder accent reads as
    too loud). Stack with --primary: bc-btn bc-btn--primary bc-btn--soft. */
 .bc-btn.bc-btn--soft {
-  background: var(--bc-color-accent-soft);
-  border-color: var(--bc-color-accent-soft);
-  color: var(--bc-color-accent-soft-on);
+  background: var(--bc-color-cta-soft);
+  border-color: var(--bc-color-cta-soft);
+  color: var(--bc-color-cta-soft-on);
 }
 .bc-btn.bc-btn--soft:hover:not(:disabled) {
-  background: var(--bc-color-accent-soft-hover);
-  border-color: var(--bc-color-accent-soft-hover);
+  background: var(--bc-color-cta-soft-hover);
+  border-color: var(--bc-color-cta-soft-hover);
 }
 
 /* Secondary: outline with surface bg. */

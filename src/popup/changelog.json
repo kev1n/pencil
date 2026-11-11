@@ -11,6 +11,19 @@
   },
   "entries": [
     {
+      "version": "1.0.0",
+      "date": "2026-11-10",
+      "headline": "Pencil 1.0",
+      "items": [
+        { "kind": "feat", "text": "CTEC analytics now open in a panel beside your schedule, with one-click terms, comment search and the phrases students mention most."
+        },
+        {
+          "kind": "feat",
+          "text": "Pencil has a cleaner look everywhere. Prefer the old colours? Switch back under Theme in this popup." },
+        { "kind": "fix", "text": "The sign-in, About and calendar export dialogs are simpler and easier to read." }
+      ]
+    },
+    {
       "version": "0.9.18",
       "date": "2026-11-10",
       "headline": "Enrollment dates on Paper.nu",

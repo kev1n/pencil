@@ -13,6 +13,7 @@
 // the wrapping `<li>` shell.
 
 import { createActionButton } from "../../../framework";
+import { uiIcon } from "../../../design/ui-icons";
 import { el } from "../../../framework/dom";
 import type { PerSectionSeats } from "../../seats-notes/combined-section";
 import type { SeatsNotesResult, SeatsNotesSuccess } from "../../seats-notes/types";
@@ -68,27 +69,25 @@ export function renderSectionDetail(
         : "Many of these seats may be allocated for another section.";
       wrap.appendChild(
         el(doc, "div", { class: "bc-cs-detail-combined-warning" }, [
-          el(doc, "span", {
-            class: "bc-cs-detail-combined-warning-icon",
-            text: "⚠️",
-            attrs: { "aria-hidden": "true" }
-          }),
+          el(doc, "span", { class: "bc-cs-detail-combined-warning-icon" }, [
+            uiIcon(doc, "alert")
+          ]),
           el(doc, "span", { class: "bc-cs-detail-combined-warning-text", text: message })
         ])
       );
     }
   }
 
-  appendDetailBlock(doc, wrap, "Class Attributes", props.detail.classAttributes);
-  appendDetailBlock(doc, wrap, "Enrollment Requirements", props.detail.enrollmentRequirements);
-  appendDetailBlock(doc, wrap, "Class Notes", props.detail.classNotes);
+  appendDetailBlock(doc, wrap, "Class attributes", props.detail.classAttributes);
+  appendDetailBlock(doc, wrap, "Enrollment requirements", props.detail.enrollmentRequirements);
+  appendDetailBlock(doc, wrap, "Class notes", props.detail.classNotes);
 
   if (props.detail.classCapacity === null && hasNoEnrichedFields(props.detail)) {
     wrap.appendChild(
       el(doc, "div", {
         class: "bc-cs-detail-note",
         text:
-          "CAESAR did not return a detail panel for this section. Status from search-results page is shown above."
+          "CAESAR has no seat details for this section. Its status is shown above."
       })
     );
   }
@@ -102,7 +101,7 @@ export function renderSectionDetailLoading(doc: Document): HTMLElement {
       el(doc, "span", { class: "bc-cs-spinner" }),
       el(doc, "span", {
         class: "bc-cs-detail-loading-label",
-        text: "Fetching seats and notes from CAESAR…"
+        text: "Loading seats and notes from CAESAR"
       })
     ])
   ]);
@@ -144,7 +143,7 @@ function buildPerSectionBlock(
     el(doc, "div", {
       class: "bc-cs-detail-per-section-source",
       text:
-        "CAESAR pools enrollment across cross-listed sections — pencil.nu inferred the per-section split from paper.nu's catalog."
+        "CAESAR counts cross-listed sections together. Pencil worked out this section's share from Paper.nu."
     })
   );
   return block;
@@ -155,8 +154,8 @@ function buildStatsGrid(doc: Document, detail: SeatsNotesSuccess): HTMLElement {
   appendStat(doc, stats, "Capacity", detail.classCapacity);
   appendStat(doc, stats, "Enrolled", detail.enrollmentTotal);
   appendStat(doc, stats, "Open seats", detail.availableSeats);
-  appendStat(doc, stats, "Wait cap", detail.waitListCapacity);
-  appendStat(doc, stats, "Wait total", detail.waitListTotal);
+  appendStat(doc, stats, "Waitlist size", detail.waitListCapacity);
+  appendStat(doc, stats, "On waitlist", detail.waitListTotal);
   return stats;
 }
 

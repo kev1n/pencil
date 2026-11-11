@@ -23,8 +23,8 @@ type CompactChipTone = {
 
 type WidgetAggregate = Extract<PaperCtecWidgetData, { state: "found" }>["aggregate"];
 
-// Generic icon-plus-text chip used by the widget summary for state messages
-// (loading, no CTEC, error). Different from the metric chips below.
+// Plain-text state message for the widget summary (loading, no CTEC,
+// error). Only the lock keeps an icon; the old spark glyph said nothing.
 export function makeChip(
   icon: IconName,
   text: string,
@@ -32,7 +32,9 @@ export function makeChip(
   title?: string
 ): TemplateResult {
   const className = `${WIDGET_CLASS}-chip${extraClass ? ` ${extraClass}` : ""}`;
-  return html`<span class=${className} title=${title ?? ""}>${iconTemplate(icon)}${text}</span>`;
+  return html`<span class=${className} title=${title ?? ""}>${
+    icon === "spark" ? "" : iconTemplate(icon)
+  }${text}</span>`;
 }
 
 // Builds the Rating chip (the "Global Rating" in the modal) from the
@@ -59,7 +61,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
     components.reduce((sum, c) => sum + c.mean, 0) / components.length;
 
   const tooltipParts = [
-    `Rating ${formatRatingDetail(overallMean)} — avg of ${components
+    `Rating ${formatRatingDetail(overallMean)}: average of ${components
       .map((c) => `${c.label} ${formatRatingDetail(c.mean)}`)
       .join(", ")}.`
   ];
@@ -67,7 +69,7 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
 
   const starMode = isFeatureEnabled(COMPACT_CARD_STARS_FEATURE_ID);
   if (starMode) {
-    return makeMetricStarsChip("Rating", overallMean, tooltip);
+    return makeMetricStarsChip("", overallMean, tooltip);
   }
 
   const tone = buildCompactChipTone(
@@ -76,16 +78,17 @@ export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
     false
   );
   return makeMetricValueChip(
-    "Rating",
-    formatChipRating(overallMean),
     "",
+    formatChipRating(overallMean),
+    "is-rating",
     tooltip,
     tone,
     ratingScaleSuffix()
   );
 }
 
-// Builds the chip for one CTEC metric (Inst/CRSE/LRN/Hrs/...). Picks
+// Builds the chip for one CTEC metric. Hours render bare ("3.4 hrs"); any
+// other metric keeps its name in front ("Challenge 4.8 /6"). Picks
 // stars-mode when the COMPACT_CARD_STARS_FEATURE_ID toggle is on for rating
 // metrics, value-mode otherwise. Hours never use stars (they're not a
 // 0-N rating).
@@ -118,17 +121,17 @@ export function metricChip(
     : metric.mean.toFixed(1);
 
   return makeMetricValueChip(
-    shortLabel,
+    scale === "hours" ? "" : shortLabel,
     value,
-    "",
+    scale === "hours" ? "is-hours" : "is-rating",
     buildMetricChipTooltip(label, metric, aggregate),
     tone,
-    scale === "rating" ? ratingScaleSuffix() : "h"
+    scale === "rating" ? ratingScaleSuffix() : "hrs"
   );
 }
 
 // Out-of-scale annotation appended to chip values: "/6" for ratings (when
-// the user hasn't selected stars or percent display), "h" for hours.
+// the user hasn't selected stars or percent display), "hrs" for hours.
 // Rendered as a smaller, muted span so the actual value stays visually
 // dominant. Skipped in percent mode (the `%` already shown on the value
 // makes the scale obvious).
@@ -151,7 +154,7 @@ function makeMetricValueChip(
     class=${className}
     title=${title ?? ""}
     style=${style}
-  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-value`}>${value}</span>${
+  >${labelTemplate(label)}<span class=${`${WIDGET_CLASS}-chip-value`}>${value}</span>${
     scaleSuffix
       ? html`<span class=${`${WIDGET_CLASS}-chip-scale`}>${scaleSuffix}</span>`
       : ""
@@ -166,7 +169,13 @@ function makeMetricStarsChip(
   return html`<span
     class=${`${WIDGET_CLASS}-chip`}
     title=${title ?? ""}
-  ><span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span><span class=${`${WIDGET_CLASS}-chip-stars`}>${ratingStarsTemplate(value)}</span></span>`;
+  >${labelTemplate(label)}<span class=${`${WIDGET_CLASS}-chip-stars`}>${ratingStarsTemplate(value)}</span></span>`;
+}
+
+function labelTemplate(label: string): TemplateResult | string {
+  return label
+    ? html`<span class=${`${WIDGET_CLASS}-chip-label`}>${label}</span>`
+    : "";
 }
 
 function compactChipToneStyleString(tone: CompactChipTone): string {
@@ -217,12 +226,13 @@ function buildCompactChipTone(
   const hue = pickMetricHue(value, max, invert);
 
   return {
-    lightBackground: `hsla(${hue}, 96%, 68%, 0.98)`,
-    darkBackground: `hsla(${hue}, 78%, 32%, 0.94)`,
-    lightBorder: `hsla(${hue}, 82%, 24%, 0.38)`,
-    darkBorder: `hsla(${hue}, 90%, 78%, 0.28)`,
-    lightText: `hsl(${hue}, 62%, 18%)`,
-    darkText: "var(--bc-color-kpi-fg-dark)"
+    // Same recipe as the CTEC sheet's overall-rating chip.
+    lightBackground: `hsl(${hue} 85% 80%)`,
+    darkBackground: `hsl(${hue} 55% 26%)`,
+    lightBorder: "transparent",
+    darkBorder: "transparent",
+    lightText: `hsl(${hue} 60% 16%)`,
+    darkText: `hsl(${hue} 80% 90%)`
   };
 }
 

@@ -6,7 +6,7 @@ import { PAPER_CTEC_CONFIG } from "./config";
 import { WIDGET_CLASS } from "./constants";
 import type { ModalDisplayData } from "./modal-data";
 import type { PaperCtecWidgetData } from "./types";
-import { createIcon, iconTemplate, preventAndStop, type IconName } from "./ui-shared";
+import { createIcon, preventAndStop, type IconName } from "./ui-shared";
 import { globalChip, makeChip, metricChip } from "./widget-chips";
 
 export type AnalyticsPreviewSource = () => ModalDisplayData | null;
@@ -42,7 +42,7 @@ export function renderIdle(
 ): void {
   widget.title = caesarUnreachable
     ? CAESAR_CONNECTION_MESSAGE
-    : "Click to fetch CTEC summary for this class.";
+    : "Load this class's CTEC ratings.";
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>
@@ -60,7 +60,7 @@ export function renderIdle(
           preventAndStop(event);
           onLoad();
         }}
-      >${iconTemplate("spark")}<span
+      ><span
           class=${`${WIDGET_CLASS}-chip-button-label`}
         >${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
     </div>`,
@@ -72,10 +72,10 @@ export function renderIdle(
 
 export function renderLoading(
   widget: HTMLElement,
-  message = "CTEC…",
+  message = "Loading CTEC",
   onOpenAnalytics?: () => void
 ): void {
-  widget.title = "pencil.nu is loading Northwestern CTEC data for this class.";
+  widget.title = "Loading CTEC ratings for this class.";
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>
@@ -144,7 +144,7 @@ function buildWidgetSummary(
       "lock",
       "No CTEC access",
       "is-muted",
-      "Northwestern has not authorized this NetID to view CTECs."
+      "Northwestern hasn't given this NetID access to CTECs."
     );
   }
 
@@ -161,17 +161,17 @@ function buildWidgetSummary(
 
   if (chips.length === 0) {
     const fallbackChips = [
-      metricChip("CHLG", "Challenge", aggregate.metrics.challenging, aggregate, "rating"),
-      metricChip("INT", "Interest", aggregate.metrics.stimulating, aggregate, "rating")
+      metricChip("Challenge", "Challenge", aggregate.metrics.challenging, aggregate, "rating"),
+      metricChip("Interest", "Interest", aggregate.metrics.stimulating, aggregate, "rating")
     ].filter((chip): chip is TemplateResult => chip !== null);
 
     if (fallbackChips.length > 0) return fallbackChips;
 
     return makeChip(
       "spark",
-      "CTEC detail",
+      "See analytics",
       "is-muted",
-      "Matching CTEC reports were found, but the compact card does not have Rating, Hours, Challenge, or Interest summary metrics for this course."
+      "This class has CTEC reports, but none with a rating or hours to show here. Open Analytics for the rest."
     );
   }
 
@@ -270,7 +270,7 @@ function makeCartButton(
   button.className = CART_BTN_CLASS;
 
   let icon: IconName = "plus";
-  let label = "Add to shopping cart";
+  let label = "Add to cart";
   let title = "Add this section to your CAESAR shopping cart.";
   let disabled = false;
   let stateAttr: string | null = null;
@@ -282,13 +282,13 @@ function makeCartButton(
     disabled = true;
     stateAttr = "loading";
   } else if (state.kind === "success") {
-    icon = "cart";
+    icon = "check";
     label = "Added";
     title = "Added to your CAESAR shopping cart.";
     disabled = true;
     stateAttr = "success";
   } else if (state.kind === "already") {
-    icon = "cart";
+    icon = "check";
     label = "In cart";
     title = "This class is in your CAESAR shopping cart.";
     disabled = true;
@@ -378,7 +378,7 @@ function makeAnalyticsButton(onClick: () => void): HTMLElement {
   const button = document.createElement("button");
   button.type = "button";
   button.className = ANALYTICS_BTN_CLASS;
-  button.title = "Open the full CTEC analytics view for this class.";
+  button.title = "Open CTEC analytics for this class.";
   button.setAttribute("aria-label", "Open CTEC analytics");
   button.append(createIcon("chart"));
   const labelEl = document.createElement("span");

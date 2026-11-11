@@ -63,7 +63,7 @@ describe("makeClearCacheButton()", () => {
     makeClearCacheButton({ containerId: "clear-y", buttonText: "Clear Y", cleanup });
     btn.click();
     await vi.waitFor(() => {
-      expect(btn.textContent).toBe("Cleared!");
+      expect(btn.textContent).toBe("Cleared");
       expect(btn.disabled).toBe(true);
     });
   });
@@ -86,7 +86,7 @@ describe("makeClearCacheButton()", () => {
     const cleanup = vi.fn(noopCleanup);
     makeClearCacheButton({ containerId: "clear-q", buttonText: "Clear Q", cleanup });
     btn.click();
-    await vi.waitFor(() => expect(btn.textContent).toBe("Cleared!"));
+    await vi.waitFor(() => expect(btn.textContent).toBe("Cleared"));
     vi.advanceTimersByTime(2000);
     expect(btn.textContent).toBe("Clear Q");
     expect(btn.disabled).toBe(false);
@@ -107,7 +107,7 @@ describe("makeClearCacheButton()", () => {
     expect(btn.disabled).toBe(true);
     resolveCleanup();
     await vi.waitFor(() => {
-      expect(btn.textContent).toBe("Cleared!");
+      expect(btn.textContent).toBe("Cleared");
       expect(btn.disabled).toBe(true);
     });
   });

@@ -31,21 +31,21 @@ type StatusView = {
 const STATUS_VIEWS: Record<CtecAccessStatus, StatusView> = {
   confirmed: {
     label: "CTEC access",
-    detail: "Northwestern is serving CTEC reports to this NetID.",
-    pillText: "OK",
+    detail: "Northwestern is showing CTEC reports to your NetID.",
+    pillText: "Working",
     pillModifier: "ok"
   },
   denied: {
     label: "CTEC access",
     detail:
-      "Northwestern revoked CTEC access for this NetID — finish your CTECs in the next collection period to restore it.",
+      "Northwestern has turned off CTECs for your NetID. Fill out your CTECs next quarter to get them back.",
     pillText: "No access",
     pillModifier: "warn"
   },
   unknown: {
     label: "CTEC access",
     detail:
-      "Will be detected the first time a CTEC widget runs on CAESAR or paper.nu.",
+      "Checked the first time you load a CTEC.",
     pillText: "Not checked yet",
     pillModifier: "muted"
   }

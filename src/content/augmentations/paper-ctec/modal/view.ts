@@ -1,28 +1,31 @@
 import { html, render, type TemplateResult } from "lit-html";
 
+import { extractCatalogLabel } from "../../../ctec-index/helpers";
+import { seasonIcon, seasonOf } from "../../../design/icons";
+import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import { ANALYTICS_MODAL_ID } from "../constants";
-import { preventAndStop, stopPropagation } from "../ui-shared";
-import { disposeTrendChartObserver } from "./charts";
-import { CommentsSection } from "./comments";
-import { renderDryRunOverlay } from "./dry-run";
-import { HeaderSection } from "./header";
-import { OverviewSection } from "./overview";
-import { TermsSection } from "./terms";
+import type { ModalDisplayData, ModalTerm } from "../modal-data";
+import { renderComments } from "./comments";
+import {
+  plural,
+  termName,
+  termShortYear,
+  type SheetContext,
+  type SheetLocal
+} from "./common";
+import { renderDryRun } from "./dry-run";
+import { renderRatings, renderSummary, renderWorkload } from "./summary";
 import type {
   AnalyticsModalCallbacks,
   AnalyticsModalInput,
   AnalyticsModalState
 } from "./types";
 
-// Modal orchestrator. Owns the root <div id="bc-paper-ctec-modal"> element,
-// the lit-html render lifecycle, ESC-key handling, and the dark-mode mirror
-// observer. Tab dispatch is centralized here so each section receives only
-// the props it needs.
-//
-// lit-html does its own template-result diffing across renders, so the
-// dataset.bcPaperCtecSignature short-circuit the legacy renderer used has
-// been removed: every callsite invokes view.open() and lit-html minimizes
-// the actual DOM mutations.
+// The CTEC analytics side sheet: a panel docked to the right edge, with the
+// host page still visible and usable beside it. One scrolling column, no
+// tabs; a term switch in the header turns the whole sheet into one term's
+// CTEC. Owns the root element, the lit-html render lifecycle, Escape, and
+// the bits of state that only matter while it is on screen (see SheetLocal).
 export interface ModalView {
   open(
     input: AnalyticsModalInput,
@@ -37,266 +40,498 @@ export interface ModalViewDeps {
   doc: Document;
 }
 
+type Current = {
+  input: AnalyticsModalInput;
+  state: AnalyticsModalState;
+  callbacks: AnalyticsModalCallbacks;
+};
+
 export function createModalView(deps: ModalViewDeps): ModalView {
   const { doc } = deps;
-  let escKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
-  let darkObserver: MutationObserver | null = null;
-  let modalEl: HTMLElement | null = null;
-
-  const ensureRoot = (): HTMLElement => {
-    let modal = doc.getElementById(ANALYTICS_MODAL_ID) as HTMLDivElement | null;
-    if (!modal) {
-      modal = doc.createElement("div");
-      modal.id = ANALYTICS_MODAL_ID;
-      modal.setAttribute("role", "dialog");
-      modal.setAttribute("aria-modal", "true");
-      (doc.body ?? doc.documentElement).appendChild(modal);
-    }
-    return modal;
+  let root: HTMLElement | null = null;
+  let current: Current | null = null;
+  let shownFor = "";
+  const local: SheetLocal = {
+    lensOpen: false,
+    scrub: null,
+    peek: null,
+    charts: new Map()
   };
 
-  // paper.nu applies its `.dark` class to a div inside the React tree, but
-  // our modal is appended to document.body — outside that ancestor — so
-  // `.dark .bc-paper-ctec-modal-*` rules never match. Mirror paper.nu's dark
-  // state onto the modal element itself, and observe DOM mutations so the
-  // modal updates live when the user toggles the setting.
-  const syncDarkMode = (modal: HTMLElement): void => {
-    const apply = () => {
-      modal.classList.toggle("dark", !!doc.querySelector(".dark"));
-    };
-    apply();
-    if (!darkObserver && typeof MutationObserver !== "undefined") {
-      darkObserver = new MutationObserver(apply);
-      darkObserver.observe(doc.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-        subtree: true
-      });
+  const rerender = (): void => {
+    if (!root || !current) return;
+    render(sheetTemplate(current, local, () => root, rerender), root);
+  };
+
+  const onKeydown = (event: KeyboardEvent): void => {
+    if (event.key !== "Escape" || !current) return;
+    if (local.lensOpen) {
+      local.lensOpen = false;
+      rerender();
+      return;
     }
+    current.callbacks.onClose();
+  };
+
+  // The view menu closes when the student clicks anywhere else, on the
+  // sheet or on the page beside it.
+  const onPointerDown = (event: Event): void => {
+    if (!local.lensOpen) return;
+    const target = event.target as Element | null;
+    if (target?.closest?.(".bc-sheet-lens")) return;
+    local.lensOpen = false;
+    rerender();
   };
 
   return {
     open(input, state, callbacks) {
-      const modal = ensureRoot();
-      modalEl = modal;
-      syncDarkMode(modal);
-
-      // Backdrop click → close. Re-bound on every render via lit-html's
-      // event syntax through the inner card stopPropagation guard.
-      modal.onclick = (event) => {
-        if (event.target !== modal) return;
-        preventAndStop(event);
-        callbacks.onClose();
-      };
-
-      if (escKeydownHandler) {
-        doc.removeEventListener("keydown", escKeydownHandler);
+      if (!root || !root.isConnected) {
+        root = doc.createElement("aside");
+        root.id = ANALYTICS_MODAL_ID;
+        root.className = "bc-sheet";
+        (doc.body ?? doc.documentElement).appendChild(root);
+        doc.addEventListener("keydown", onKeydown);
+        doc.addEventListener("pointerdown", onPointerDown, true);
       }
-      escKeydownHandler = (event) => {
-        if (event.key !== "Escape") return;
-        if (!doc.getElementById(ANALYTICS_MODAL_ID)) return;
-        callbacks.onClose();
-      };
-      doc.addEventListener("keydown", escKeydownHandler);
-
-      render(buildTemplate(doc, input, state, callbacks), modal);
+      const key = `${input.identity.subject}|${input.identity.catalog}|${input.identity.instructor}|${input.strategy}`;
+      if (key !== shownFor) {
+        shownFor = key;
+        local.lensOpen = false;
+        local.scrub = null;
+        local.peek = null;
+      }
+      current = { input, state, callbacks };
+      root.setAttribute(
+        "aria-label",
+        `${courseCode(input)} evaluations`
+      );
+      rerender();
     },
     close() {
+      doc.removeEventListener("keydown", onKeydown);
+      doc.removeEventListener("pointerdown", onPointerDown, true);
       doc.getElementById(ANALYTICS_MODAL_ID)?.remove();
-      modalEl = null;
-      if (escKeydownHandler) {
-        doc.removeEventListener("keydown", escKeydownHandler);
-        escKeydownHandler = null;
-      }
-      disposeTrendChartObserver();
-      darkObserver?.disconnect();
-      darkObserver = null;
+      root = null;
+      current = null;
+      shownFor = "";
     },
     isOpen() {
-      return !!modalEl && !!doc.getElementById(ANALYTICS_MODAL_ID);
+      return !!root && root.isConnected;
     }
   };
 }
 
-function buildTemplate(
-  doc: Document,
+function courseCode(input: AnalyticsModalInput): string {
+  return `${input.identity.subject} ${input.identity.catalog.replace(/-0$/, "")}`;
+}
+
+function sheetTemplate(
+  current: Current,
+  local: SheetLocal,
+  sheet: () => HTMLElement | null,
+  rerender: () => void
+): TemplateResult {
+  const { input, state, callbacks } = current;
+  const data = input.freshLensLoading ? null : input.data;
+  const term =
+    data && state.selectedTermId
+      ? data.terms.find((t) => t.id === state.selectedTermId) ?? null
+      : null;
+
+  const selectTerm = (id: string | null): void => {
+    local.scrub = null;
+    local.peek = null;
+    callbacks.onTermChange(id);
+    const body = sheet()?.querySelector(".bc-sheet-body");
+    if (body) body.scrollTop = 0;
+  };
+
+  let body: TemplateResult | string;
+  if (state.dryRun) {
+    body = renderDryRun(input, state, callbacks);
+  } else if (data) {
+    const ctx: SheetContext = {
+      input,
+      data,
+      state,
+      callbacks,
+      local,
+      term,
+      sheet,
+      rerender,
+      selectTerm
+    };
+    body = html`${renderSummary(ctx)}${renderRatings(ctx)}${renderWorkload(ctx)}${renderComments(ctx)}`;
+  } else {
+    body = renderStatus(input, callbacks);
+  }
+
+  return html`<header class="bc-sheet-top">
+      <div class="bc-sheet-top-line">
+        <span class="bc-sheet-code">${courseCode(input)}</span>
+        <div class="bc-sheet-top-right">
+          ${renderLensMenu(input, callbacks, local, rerender)}
+          ${input.canRefresh
+            ? html`<button
+                type="button"
+                class="bc-sheet-icon-btn"
+                data-bc-action-button="controller"
+                aria-label="Check for new CTECs"
+                title="Check for new CTECs. Run this when a new round of evaluations comes out; what you see stays put while it looks."
+                ?disabled=${input.backgroundRefreshing}
+                @click=${() => {
+                  if (!input.backgroundRefreshing) callbacks.onRefresh();
+                }}
+              >${REFRESH_ICON}</button>`
+            : ""}
+          <button
+            type="button"
+            class="bc-sheet-icon-btn bc-sheet-close"
+            aria-label="Close"
+            @click=${() => callbacks.onClose()}
+          >${CLOSE_ICON}</button>
+        </div>
+      </div>
+      <h2 class="bc-sheet-title">${courseTitle(input)}</h2>
+      ${renderMeta(input, data, term)}
+      ${renderNotice(input, callbacks)}
+      ${data && !state.dryRun ? renderTermSwitch(input, data, term, selectTerm, callbacks) : ""}
+    </header>
+    <div
+      class="bc-sheet-body"
+      @scroll=${(event: Event) => {
+        const el = event.currentTarget as HTMLElement;
+        el.previousElementSibling?.classList.toggle("is-raised", el.scrollTop > 2);
+      }}
+    >${body}</div>`;
+}
+
+// "STAT 210-0 - Introductory Statistics" -> "Introductory Statistics".
+function courseTitle(input: AnalyticsModalInput): string {
+  if (input.data?.course.title) return input.data.course.title;
+  const parts = input.identity.title
+    .split(/\s+-\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts[parts.length - 1] ?? courseCode(input);
+}
+
+const CLOSE_ICON = html`<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+  <path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+</svg>`;
+
+const REFRESH_ICON = html`<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+  <path
+    d="M11.5 7a4.5 4.5 0 1 1-1.5-3.35M11.6 1.9v2.5H9.1"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+</svg>`;
+
+const CHEVRON_ICON = html`<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+  <path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+</svg>`;
+
+// ---------------------------------------------------------------------------
+// View menu: which slice of CTECs the sheet is showing
+// ---------------------------------------------------------------------------
+
+const LENSES: ReadonlyArray<{ id: CtecAnalyticsStrategy; label: string }> = [
+  { id: "combo", label: "This professor, this course" },
+  { id: "course", label: "Everyone who taught it" },
+  { id: "instructor", label: "Everything they teach" }
+];
+
+function renderLensMenu(
   input: AnalyticsModalInput,
-  state: AnalyticsModalState,
-  callbacks: AnalyticsModalCallbacks
+  callbacks: AnalyticsModalCallbacks,
+  local: SheetLocal,
+  rerender: () => void
 ): TemplateResult {
-  return html`<div class="bc-paper-ctec-modal-card" @click=${stopPropagation}>
-    ${HeaderSection.render({ doc, input, state, callbacks })}
-    ${input.freshLensLoading
-      ? renderFreshLensLoading(input)
-      : input.data
-        ? renderBody(doc, input.data, input.strategy, state, callbacks)
-        : renderStatusBody(input, callbacks)}
-    ${renderDryRunOverlay(input, state, callbacks)}
-  </div>`;
-}
+  const active = LENSES.find((lens) => lens.id === input.strategy) ?? LENSES[0]!;
+  const close = (): void => {
+    local.lensOpen = false;
+    rerender();
+  };
+  // A broader view that would show these same reports still opens, but
+  // says so first.
+  const hint = (id: CtecAnalyticsStrategy): string => {
+    if (id === "course" && input.courseLensRedundant) return "No one else has";
+    if (id === "instructor" && input.instructorLensRedundant) {
+      return `Nothing else in ${input.identity.subject}`;
+    }
+    return "";
+  };
 
-// First-time lens switch: a fetch is in flight and we have NO confirmed
-// discovery for the active lens. Suppress the data body so cached combo
-// entries (which the course/instructor matchers treat as a valid subset)
-// don't render as if they were the new lens's data.
-function renderFreshLensLoading(input: AnalyticsModalInput): TemplateResult {
-  const label =
-    input.strategy === "course"
-      ? "Loading Course view…"
-      : input.strategy === "instructor"
-        ? "Loading Prof view…"
-        : "Loading CTEC reports…";
-  return html`<div class="bc-paper-ctec-modal-status-body">
-    <div class="bc-paper-ctec-modal-status-card">
-      <div class="bc-paper-ctec-modal-status-spinner"></div>
-      <h3 class="bc-paper-ctec-modal-status-title">${label}</h3>
-      <p class="bc-paper-ctec-modal-status-text">
-        Pulling fresh data for this view from Northwestern.
-      </p>
-    </div>
-  </div>`;
-}
-
-// Tab dispatcher. Order matches the header tab order: overview → comments →
-// terms. Body wrapper carries .bc-paper-ctec-modal-body so charts/tabs can
-// scroll independently of the header.
-function renderBody(
-  doc: Document,
-  data: NonNullable<AnalyticsModalInput["data"]>,
-  strategy: AnalyticsModalInput["strategy"],
-  state: AnalyticsModalState,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  return html`<div class="bc-paper-ctec-modal-body">
-    ${state.tab === "overview"
-      ? OverviewSection.render({ doc, data, state, callbacks })
-      : state.tab === "comments"
-        ? CommentsSection.render({ doc, data, strategy, state, callbacks })
-        : TermsSection.render({ doc, data, state, callbacks })}
-  </div>`;
-}
-
-// Centered status callout when there's no loaded data yet — error, loading,
-// or not-found. Replaces the rich body with a single message + (optionally)
-// an action button. Identity in the header is still drawn from
-// input.identity so the user knows what course they were looking at while
-// the data fetches.
-function renderStatusBody(
-  input: AnalyticsModalInput,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  const inner = (() => {
-    if (input.errorMessage) {
-      return html`<h3 class="bc-paper-ctec-modal-status-title">
-          Couldn't load CTEC reports
-        </h3>
-        <p class="bc-paper-ctec-modal-status-text">${input.errorMessage}</p>
-        ${input.canRefresh
-          ? html`<button
+  return html`<div class=${`bc-sheet-lens${local.lensOpen ? " is-open" : ""}`}>
+    <button
+      type="button"
+      class="bc-sheet-lens-btn"
+      aria-haspopup="listbox"
+      aria-expanded=${local.lensOpen ? "true" : "false"}
+      @click=${() => {
+        local.lensOpen = !local.lensOpen;
+        rerender();
+      }}
+    ><span>${active.label}</span>${CHEVRON_ICON}</button>
+    ${local.lensOpen
+      ? html`<div class="bc-sheet-lens-list" role="listbox">
+          ${LENSES.map((lens) => {
+            const on = lens.id === input.strategy;
+            const note = hint(lens.id);
+            return html`<button
               type="button"
-              class="bc-btn bc-btn--primary bc-btn--pill"
-              ?disabled=${input.backgroundRefreshing}
-              @click=${(event: Event) => {
-                preventAndStop(event);
-                if (input.backgroundRefreshing) return;
-                callbacks.onRefresh();
+              role="option"
+              class=${`bc-sheet-lens-opt${on ? " is-on" : ""}`}
+              aria-selected=${on ? "true" : "false"}
+              @click=${() => {
+                close();
+                if (!on) callbacks.onStrategyChange(lens.id);
               }}
-            >${input.backgroundRefreshing ? "Retrying…" : "Try again"}</button>`
-          : ""}`;
-    }
-
-    if (input.notFound) {
-      return html`<h3 class="bc-paper-ctec-modal-status-title">
-          ${notFoundTitle(input)}
-        </h3>
-        <p class="bc-paper-ctec-modal-status-text">
-          ${notFoundBody(input)}
-        </p>
-        ${renderStrategyPivots(input, callbacks)}`;
-    }
-
-    if (input.loading) {
-      return html`<div class="bc-paper-ctec-modal-status-spinner"></div>
-        <h3 class="bc-paper-ctec-modal-status-title">Loading CTEC reports…</h3>
-        <p class="bc-paper-ctec-modal-status-text">
-          Pulling the most recent ${input.loadMoreBatchSize} term${input.loadMoreBatchSize === 1 ? "" : "s"} from Northwestern.
-        </p>`;
-    }
-
-    // Fallback: nothing loaded for the active lens and no fetch in
-    // flight. Without an explicit affordance the modal renders an
-    // empty card body (the "grey box" users reported when navigating
-    // to a section with no data for their preferred lens). Give them
-    // a clear status message and the wizard re-entry button so
-    // they're never stuck staring at blank space.
-    return html`<h3 class="bc-paper-ctec-modal-status-title">
-        Nothing loaded for this view yet
-      </h3>
-      <p class="bc-paper-ctec-modal-status-text">
-        Pick another lens from the tabs above, or open the preview to
-        explore alternatives.
-      </p>
-      ${renderStrategyPivots(input, callbacks)}`;
-  })();
-
-  const cardCls = input.errorMessage
-    ? "bc-paper-ctec-modal-status-card is-warn"
-    : "bc-paper-ctec-modal-status-card";
-
-  return html`<div class="bc-paper-ctec-modal-status-body">
-    <div class=${cardCls}>${inner}</div>
+            ><span>${lens.label}</span>${note
+                ? html`<span class="bc-sheet-lens-note">${note}</span>`
+                : ""}</button>`;
+          })}
+          ${input.strategy === "combo"
+            ? ""
+            : html`<button
+                type="button"
+                class="bc-sheet-lens-opt bc-sheet-lens-adjust"
+                @click=${() => {
+                  close();
+                  callbacks.onOpenDryRun();
+                }}
+              >Choose which sections</button>`}
+        </div>`
+      : ""}
   </div>`;
 }
 
-// Empty-state copy varies by lens so the message tracks what we *did*
-// search rather than reading the same way every time. Combo (the
-// default) is the only case that has obvious pivots — "try the course
-// without instructor", "try the instructor without course" — so it gets
-// the most encouraging message; the course/instructor lenses' empty
-// states are rarer and more terminal.
-function notFoundTitle(input: AnalyticsModalInput): string {
-  if (input.strategy === "course") {
-    return `No CTECs for ${input.identity.subject} ${input.identity.catalog}`;
-  }
-  if (input.strategy === "instructor") {
-    const name = input.identity.instructor.trim() || "this professor";
-    return `No CTECs for ${name} in ${input.identity.subject}`;
-  }
-  return "No CTECs for this professor + course";
+// ---------------------------------------------------------------------------
+// Meta line, refresh notice, term switch
+// ---------------------------------------------------------------------------
+
+function distinct(values: string[]): number {
+  return new Set(values.map((v) => v.trim().toLowerCase()).filter(Boolean)).size;
 }
 
-function notFoundBody(input: AnalyticsModalInput): string {
-  if (input.strategy === "combo") {
-    const name = input.identity.instructor.trim() || "this professor";
-    return `${name} doesn't have any published CTEC evaluations for ${input.identity.subject} ${input.identity.catalog}. You can still get a read using one of the broader views below.`;
+function renderMeta(
+  input: AnalyticsModalInput,
+  data: ModalDisplayData | null,
+  term: ModalTerm | null
+): TemplateResult {
+  const parts: Array<string | TemplateResult> = [];
+  const instructor = input.identity.instructor.trim();
+
+  if (term) {
+    if (term.instructor.trim()) parts.push(term.instructor.trim());
+    if (input.strategy === "instructor") parts.push(extractCatalogLabel(term.description));
+    parts.push(plural(term.responses, "response"));
+    if (term.reportUrl) {
+      parts.push(html`<a
+        class="bc-sheet-link"
+        href=${term.reportUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >Open original report</a>`);
+    }
+  } else if (data) {
+    if (input.strategy === "course") {
+      const professors = distinct(data.terms.map((t) => t.instructor));
+      parts.push(
+        professors === 1 ? data.terms[0]!.instructor.trim() : plural(professors, "professor")
+      );
+    } else {
+      if (instructor) parts.push(instructor);
+      if (input.strategy === "instructor") {
+        parts.push(
+          plural(distinct(data.terms.map((t) => extractCatalogLabel(t.description))), "course")
+        );
+      }
+    }
+    parts.push(plural(data.responses, "response"));
+  } else if (instructor) {
+    parts.push(instructor);
   }
-  if (input.strategy === "course") {
-    return `Northwestern hasn't published any CTECs for ${input.identity.subject} ${input.identity.catalog} yet — that's pretty unusual.`;
-  }
-  return `Northwestern hasn't published CTECs for this professor in ${input.identity.subject} yet.`;
+
+  return html`<div class="bc-sheet-meta">
+    ${parts.map(
+      (part, i) =>
+        html`${i > 0 ? html`<span class="bc-sheet-meta-sep">·</span>` : ""}<span>${part}</span>`
+    )}
+  </div>`;
 }
 
-// Recovery affordance for the not-found body: gives the user a single
-// click back into the dry-run dialog after they've explicitly dismissed
-// it. Without this, cancelling the dry-run would strand them on the
-// empty body with no way forward — the original bug we fixed.
-function renderStrategyPivots(
-  _input: AnalyticsModalInput,
+// One quiet line under the meta: what the last "check for new CTECs" found,
+// or that one is running.
+function renderNotice(
+  input: AnalyticsModalInput,
+  callbacks: AnalyticsModalCallbacks
+): TemplateResult | string {
+  const flash = input.refreshFlash;
+  if (!flash) {
+    return input.backgroundRefreshing
+      ? html`<div class="bc-sheet-notice" role="status">Checking Northwestern for new CTECs</div>`
+      : "";
+  }
+  const text =
+    flash.kind === "error"
+      ? `Couldn't check for new CTECs. ${flash.message}`
+      : flash.addedCount > 0
+        ? `${plural(flash.addedCount, "new evaluation")} added`
+        : "Up to date. Northwestern has no new CTECs for this course.";
+  return html`<div
+    class=${`bc-sheet-notice${flash.kind === "error" ? " is-error" : ""}`}
+    role=${flash.kind === "error" ? "alert" : "status"}
+  >
+    <span>${text}</span>
+    <button
+      type="button"
+      class="bc-sheet-notice-x"
+      aria-label="Dismiss"
+      @click=${() => callbacks.onDismissRefreshFlash()}
+    >${CLOSE_ICON}</button>
+  </div>`;
+}
+
+function renderTermSwitch(
+  input: AnalyticsModalInput,
+  data: ModalDisplayData,
+  selected: ModalTerm | null,
+  selectTerm: (id: string | null) => void,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult {
-  return html`<div class="bc-paper-ctec-modal-status-pivots">
-    <p class="bc-paper-ctec-modal-status-pivots-prompt">
-      Want to look at alternatives instead?
-    </p>
-    <div class="bc-paper-ctec-modal-status-pivots-row">
-      <button
+  const button = (term: ModalTerm | null): TemplateResult => {
+    const on = (term?.id ?? null) === (selected?.id ?? null);
+    if (!term) {
+      return html`<button
         type="button"
-        class="bc-btn bc-btn--primary bc-btn--pill bc-paper-ctec-modal-status-pivot-btn"
-        @click=${(event: Event) => {
-          preventAndStop(event);
-          callbacks.onOpenDryRun();
-        }}
-      >Reopen preview →</button>
-    </div>
+        role="tab"
+        class=${`bc-sheet-term${on ? " is-on" : ""}`}
+        aria-selected=${on ? "true" : "false"}
+        @click=${() => selectTerm(null)}
+      >All terms</button>`;
+    }
+    const season = seasonOf(term.term);
+    // In the broader views two sections can share a term, so the full name
+    // also says whose it is, or which course.
+    const full = [
+      termName(term.term),
+      input.strategy === "course" ? term.instructor.trim() : "",
+      input.strategy === "instructor" ? extractCatalogLabel(term.description) : ""
+    ]
+      .filter(Boolean)
+      .join(", ");
+    return html`<button
+      type="button"
+      role="tab"
+      class=${`bc-sheet-term${on ? " is-on" : ""}`}
+      aria-selected=${on ? "true" : "false"}
+      aria-label=${full}
+      title=${full}
+      @click=${() => selectTerm(term.id)}
+    >${season ? seasonIcon(season) : ""}<span
+        >${season ? termShortYear(term.term) : term.term}</span
+      ></button>`;
+  };
+
+  // Loading older terms a batch at a time only makes sense for this
+  // professor's sections of this course. The broader views are scoped
+  // through "Choose which sections" instead, where "everything left" can
+  // run past twenty sections.
+  const showLoadMore =
+    input.strategy === "combo" && (input.canLoadMore || input.loading);
+  const batch =
+    input.remainingTerms > 0
+      ? Math.min(input.loadMoreBatchSize, input.remainingTerms)
+      : input.loadMoreBatchSize;
+
+  return html`<div class="bc-sheet-terms" role="tablist" aria-label="Term">
+    ${button(null)}${data.terms.map(button)}
+    ${showLoadMore
+      ? html`<button
+          type="button"
+          class="bc-sheet-term bc-sheet-term-more"
+          data-bc-action-button="controller"
+          ?disabled=${input.loading || !input.canLoadMore}
+          title=${`${plural(input.parsedTermCount, "term")} loaded, ${input.remainingTerms} more available. Reports load a few at a time to go easy on Northwestern's servers.`}
+          @click=${() => {
+            if (!input.loading && input.canLoadMore) callbacks.onLoadMore();
+          }}
+        >${input.loading ? "Loading" : `${batch} more`}</button>`
+      : ""}
   </div>`;
+}
+
+// ---------------------------------------------------------------------------
+// Nothing to show yet: loading, error, not found
+// ---------------------------------------------------------------------------
+
+function renderStatus(
+  input: AnalyticsModalInput,
+  callbacks: AnalyticsModalCallbacks
+): TemplateResult {
+  const code = courseCode(input);
+  const prof = input.identity.instructor.trim() || "this professor";
+  const broader = html`<button
+    type="button"
+    class="bc-btn bc-btn--secondary bc-btn--sm"
+    @click=${() => callbacks.onOpenDryRun()}
+  >See broader views</button>`;
+
+  let title: string;
+  let text: string;
+  let action: TemplateResult | string = "";
+  let busy = false;
+
+  if (input.freshLensLoading) {
+    busy = true;
+    title = "Loading this view";
+    text = "Pulling fresh reports from Northwestern.";
+  } else if (input.errorMessage) {
+    title = "Couldn't load CTEC reports";
+    text = input.errorMessage;
+    if (input.canRefresh) {
+      action = html`<button
+        type="button"
+        class="bc-btn bc-btn--secondary bc-btn--sm"
+        data-bc-action-button="controller"
+        ?disabled=${input.backgroundRefreshing}
+        @click=${() => {
+          if (!input.backgroundRefreshing) callbacks.onRefresh();
+        }}
+      >${input.backgroundRefreshing ? "Retrying" : "Try again"}</button>`;
+    }
+  } else if (input.notFound) {
+    action = broader;
+    if (input.strategy === "course") {
+      title = `No CTECs for ${code}`;
+      text = "Northwestern hasn't published any for this course yet.";
+    } else if (input.strategy === "instructor") {
+      title = `No CTECs for ${prof} in ${input.identity.subject}`;
+      text = "Northwestern hasn't published any for this professor in this subject yet.";
+    } else {
+      title = `No CTECs for ${prof} in ${code}`;
+      text = "A broader view can still give you a read on the course or the professor.";
+    }
+  } else if (input.loading) {
+    busy = true;
+    title = "Loading CTEC reports";
+    text = `Pulling the most recent ${plural(input.loadMoreBatchSize, "term")} from Northwestern.`;
+  } else {
+    title = "Nothing loaded for this view yet";
+    text = "Pick another view from the menu above, or look at a broader one.";
+    action = broader;
+  }
+
+  return html`<section class="bc-sheet-status" role=${input.errorMessage ? "alert" : "status"}>
+    <h3 class="bc-sheet-status-title">
+      ${busy ? html`<span class="bc-spinner bc-spinner--xs" aria-hidden="true"></span>` : ""}${title}
+    </h3>
+    <p class="bc-sheet-status-text">${text}</p>
+    ${action}
+  </section>`;
 }

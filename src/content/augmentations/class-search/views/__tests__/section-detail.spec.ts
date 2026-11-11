@@ -55,7 +55,7 @@ describe("renderSectionDetail — success", () => {
     const labels = Array.from(stats).map(
       (s) => s.querySelector(".bc-cs-stat-label")?.textContent
     );
-    expect(labels).toEqual(["Capacity", "Enrolled", "Open seats", "Wait cap", "Wait total"]);
+    expect(labels).toEqual(["Capacity", "Enrolled", "Open seats", "Waitlist size", "On waitlist"]);
   });
 
   it("renders class notes / attributes / requirements blocks", () => {
@@ -67,7 +67,7 @@ describe("renderSectionDetail — success", () => {
     });
     const blocks = Array.from(wrap.querySelectorAll<HTMLElement>(".bc-cs-detail-block"));
     const labels = blocks.map((b) => b.querySelector(".bc-cs-detail-block-label")?.textContent);
-    expect(labels).toEqual(["Class Attributes", "Enrollment Requirements", "Class Notes"]);
+    expect(labels).toEqual(["Class attributes", "Enrollment requirements", "Class notes"]);
     const bodies = blocks.map((b) => b.querySelector(".bc-cs-detail-block-body")?.textContent);
     expect(bodies).toEqual([
       "Discovery Seminar",
@@ -95,7 +95,7 @@ describe("renderSectionDetail — success", () => {
     const blockLabels = Array.from(
       wrap.querySelectorAll<HTMLElement>(".bc-cs-detail-block-label")
     ).map((l) => l.textContent);
-    expect(blockLabels).not.toContain("Class Attributes");
+    expect(blockLabels).not.toContain("Class attributes");
   });
 
   it("shows the 'no detail panel' note when only the search-page row was returned", () => {
@@ -121,7 +121,7 @@ describe("renderSectionDetail — success", () => {
       onRefresh: vi.fn()
     });
     expect(wrap.querySelector(".bc-cs-detail-note")?.textContent).toContain(
-      "did not return a detail panel"
+      "CAESAR has no seat details for this section"
     );
   });
 
@@ -213,12 +213,12 @@ describe("renderSectionDetail — failure", () => {
 });
 
 describe("renderSectionDetailLoading", () => {
-  it("renders a spinner + 'Fetching…' line", () => {
+  it("renders a spinner + 'Loading…' line", () => {
     const doc = fresh();
     const wrap = renderSectionDetailLoading(doc);
     expect(wrap.classList.contains("bc-cs-detail")).toBe(true);
     expect(wrap.querySelector(".bc-cs-spinner")).not.toBeNull();
-    expect(wrap.textContent).toContain("Fetching seats and notes from CAESAR");
+    expect(wrap.textContent).toContain("Loading seats and notes from CAESAR");
   });
 });
 

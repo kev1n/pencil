@@ -396,7 +396,7 @@ export function createChipFetchCoordinator(
 
       if (inFlight.has(target.key)) {
         if (!target.widget.textContent?.trim()) {
-          deps.renderLoading(target.widget, "CTEC…", onAnalytics);
+          deps.renderLoading(target.widget, "Loading CTEC", onAnalytics);
         }
         continue;
       }

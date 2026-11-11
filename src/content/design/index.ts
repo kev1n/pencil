@@ -24,18 +24,19 @@ import { tokensCss, type FontUrlResolver } from "./tokens";
 const STYLE_ID = "bc-design-system";
 const THEME_STORAGE_KEY = "better-caesar:theme:v1";
 
-export const BC_THEMES = ["default", "pencil"] as const;
+export const BC_THEMES = ["default", "pencil", "bright"] as const;
 export type BcTheme = typeof BC_THEMES[number];
-// Fresh installs (and existing users who never opened the theme dropdown)
-// land on the original NU-purple "default" theme. The pencil sketchbook
-// theme is opt-in via the popup dropdown.
-export const DEFAULT_THEME: BcTheme = "default";
+// People with no saved choice (fresh installs and anyone who never opened
+// the theme dropdown) get "bright", the pencil.nu website's look. The
+// Northwestern purple and sketchbook themes stay selectable in the popup.
+export const DEFAULT_THEME: BcTheme = "bright";
 
-// Friendly labels for the popup dropdown — order in BC_THEMES dictates
-// dropdown order, so "Northwestern" appears first as the default choice.
+// Friendly labels for the popup dropdown. BC_THEMES order is the dropdown
+// order; the select shows whichever theme is active.
 export const THEME_LABELS: Record<BcTheme, string> = {
-  default: "Northwestern",
-  pencil: "pencil.nu"
+  default: "Northwestern purple",
+  pencil: "Sketchbook",
+  bright: "Pencil"
 };
 
 let darkObserver: MutationObserver | null = null;

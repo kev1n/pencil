@@ -22,7 +22,7 @@ export async function initThemePicker(): Promise<void> {
   const labelHelp = document.createElement("span");
   labelHelp.className = "ctec-school-label-help";
   labelHelp.textContent =
-    "Pick the design system theme. Reload pages to apply.";
+    "Colours for Pencil on Paper.nu and CAESAR.";
 
   label.append(labelTitle, labelHelp);
 

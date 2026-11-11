@@ -4,8 +4,11 @@
 // the look-and-feel: edit a value below, or add a new theme override block.
 //
 // Themes (each theme owns a light + dark variant):
-//   default — original NU purple (kept as a legacy option in the popup)
-//   pencil  — pencil.nu sketchbook palette (eraser pink + Ticonderoga cream)
+//   bright  — the pencil.nu website's look: ink accent, warm paper neutrals,
+//             yellow for the one primary action, pink as chart ink. The
+//             default for anyone with no saved choice.
+//   default — original NU purple (selectable in the popup)
+//   pencil  — sketchbook palette (eraser pink + Ticonderoga cream; selectable)
 //
 // Selectors:
 //   :root                                       — base shape/motion tokens
@@ -13,6 +16,8 @@
 //   [data-bc-theme="default"][data-bc-mode="dark"]  — default dark overrides
 //   [data-bc-theme="pencil"]                    — pencil light values
 //   [data-bc-theme="pencil"][data-bc-mode="dark"]   — pencil dark overrides
+//   [data-bc-theme="bright"]                  — bright light values
+//   [data-bc-theme="bright"][data-bc-mode="dark"] — bright dark overrides
 //
 // Theme authors override only the vars they want to change; anything they
 // leave alone falls back to the default values. The `--bc-*` namespace is
@@ -38,7 +43,9 @@ export function tokensCss(fontUrl?: FontUrlResolver): string {
     themeBlock(":root,\n[data-bc-theme=\"default\"]", DEFAULT_LIGHT_THEME),
     themeBlock("[data-bc-theme=\"default\"][data-bc-mode=\"dark\"]", DEFAULT_DARK_THEME),
     themeBlock("[data-bc-theme=\"pencil\"]", PENCIL_LIGHT_THEME),
-    themeBlock("[data-bc-theme=\"pencil\"][data-bc-mode=\"dark\"]", PENCIL_DARK_THEME)
+    themeBlock("[data-bc-theme=\"pencil\"][data-bc-mode=\"dark\"]", PENCIL_DARK_THEME),
+    themeBlock("[data-bc-theme=\"bright\"]", BRIGHT_LIGHT_THEME),
+    themeBlock("[data-bc-theme=\"bright\"][data-bc-mode=\"dark\"]", BRIGHT_DARK_THEME)
   ].join("\n");
 }
 
@@ -140,6 +147,30 @@ function base(): string {
      Course / Learn / Global) and hours. */
   --bc-color-heatmap-rating-rgb: 102, 2, 60;
   --bc-color-heatmap-hours-rgb: 162, 28, 175;
+
+  /* Call-to-action fill for primary buttons. Follows the accent unless a
+     theme sets its own (bright uses pencil yellow with dark text, since
+     its accent is near-black and has to stay readable as text). */
+  /* Chart ink. Follows the accent unless a theme colors data separately. */
+  --bc-color-chart: var(--bc-color-accent);
+  --bc-color-chart-fill-45: var(--bc-color-accent-fill-45);
+  --bc-color-chart-fill-05: var(--bc-color-accent-fill-05);
+  --bc-color-cta: var(--bc-color-accent);
+  --bc-color-cta-hover: var(--bc-color-accent-hover);
+  --bc-color-cta-on: var(--bc-color-accent-on);
+  --bc-color-cta-soft: var(--bc-color-accent-soft);
+  --bc-color-cta-soft-hover: var(--bc-color-accent-soft-hover);
+  --bc-color-cta-soft-on: var(--bc-color-accent-soft-on);
+
+  /* Season inks for the drawn term icons (design/icons.ts). Dark themes
+     lift them in their own blocks. */
+  --bc-color-season-fall: #b85c2c;
+  --bc-color-season-winter: #4a7bb0;
+  --bc-color-season-spring: #c4527e;
+  --bc-color-season-summer: #d39a17;
+
+  /* Cast by the analytics side sheet onto the page to its left. */
+  --bc-shadow-sheet: -18px 0 40px -24px rgba(23, 23, 26, 0.35);
 
   /* Letter-spacing */
   --bc-ls-tight: -0.02em;
@@ -489,6 +520,15 @@ const DEFAULT_DARK_THEME: Theme = {
   inkFill: { "04": "0.04", "06": "0.06", "08": "0.08", "025": "0.05" },
   inkBorder12: "rgba(255, 255, 255, 0.14)",
   tokens: {
+    "--bc-color-season-fall": "#e0895a",
+    "--bc-color-season-winter": "#7fb0e6",
+    "--bc-color-season-spring": "#ec86ac",
+    "--bc-color-season-summer": "#f0bd45",
+    "--bc-shadow-sheet": "-18px 0 40px -24px rgba(0, 0, 0, 0.8)",
+    "--bc-color-sentiment-pos-fg": "#4ade80",
+    "--bc-color-sentiment-neg-fg": "#fb7185",
+    "--bc-color-sentiment-mix-fg": "#eab308",
+    "--bc-color-sentiment-neu-fg": "#a3a3a3",
     "--bc-color-accent": "#d8b4fe",
     "--bc-color-accent-hover": "#c084fc",
     "--bc-color-accent-pressed": "#c084fc",
@@ -891,6 +931,15 @@ const PENCIL_DARK_THEME: Theme = {
   inkFill: { "04": "0.05", "06": "0.07", "08": "0.10", "025": "0.04" },
   inkBorder12: "rgba(255, 250, 243, 0.14)",
   tokens: {
+    "--bc-color-season-fall": "#e0895a",
+    "--bc-color-season-winter": "#7fb0e6",
+    "--bc-color-season-spring": "#ec86ac",
+    "--bc-color-season-summer": "#f0bd45",
+    "--bc-shadow-sheet": "-18px 0 40px -24px rgba(0, 0, 0, 0.8)",
+    "--bc-color-sentiment-pos-fg": "#86c98a",
+    "--bc-color-sentiment-neg-fg": "#f5a3b4",
+    "--bc-color-sentiment-mix-fg": "#e3b341",
+    "--bc-color-sentiment-neu-fg": "#b3a890",
     "--bc-color-accent": "#f5a3b4",
     "--bc-color-accent-hover": "#f7b8c5",
     "--bc-color-accent-pressed": "#e88fa3",
@@ -1056,3 +1105,136 @@ const PENCIL_DARK_THEME: Theme = {
   }
 };
 
+// -----------------------------------------------------------------------------
+// Bright theme — the pencil.nu website's look. White cards on plain light
+// neutrals, near-black for text and for whatever is selected, pencil yellow
+// for the buttons that start an action, and eraser pink kept for charts so
+// the data is where the color is. Built on the default theme so status,
+// seat and rating colors stay exactly as they are.
+// -----------------------------------------------------------------------------
+const BRIGHT_SHARED = {
+  "--bc-color-cta": "#f5c842",
+  "--bc-color-cta-hover": "#eebb25",
+  "--bc-color-cta-on": "#201a02",
+  "--bc-color-cta-soft": "#f5c842",
+  "--bc-color-cta-soft-hover": "#eebb25",
+  "--bc-color-cta-soft-on": "#201a02",
+  "--bc-font-display": "var(--bc-font-body)",
+  "--bc-color-heatmap-hours-rgb": "222, 160, 16",
+  "--bc-color-hours-grad-start": "#f2bd1d",
+  "--bc-color-hours-grad-end": "#e0486b",
+  "--bc-shadow-kpi-active-ring": "0 0 0 3px rgba(245, 200, 66, 0.5)",
+  "--bc-shadow-input-focus-ring": "0 0 0 3px rgba(245, 200, 66, 0.55)"
+};
+
+const BRIGHT_LIGHT_THEME: Theme = {
+  ...DEFAULT_LIGHT_THEME,
+  accentRgb: [23, 23, 26],
+  inkFillRgb: [23, 23, 26],
+  inkBorder12: "rgba(23, 23, 26, 0.12)",
+  tokens: {
+    ...DEFAULT_LIGHT_THEME.tokens,
+    ...BRIGHT_SHARED,
+    "--bc-color-chart": "#d6456a",
+    "--bc-color-chart-fill-45": "rgba(214, 69, 106, 0.45)",
+    "--bc-color-chart-fill-05": "rgba(214, 69, 106, 0.05)",
+    "--bc-color-heatmap-rating-rgb": "214, 69, 106",
+    "--bc-color-accent": "#17171a",
+    "--bc-color-accent-hover": "#2c2c31",
+    "--bc-color-accent-pressed": "#000000",
+    "--bc-color-accent-on": "#ffffff",
+    "--bc-color-accent-soft": "#17171a",
+    "--bc-color-accent-soft-hover": "#2c2c31",
+    "--bc-color-accent-soft-on": "#ffffff",
+    "--bc-color-accent-surface-faint": "#fcfcfb",
+    "--bc-color-accent-surface-soft": "#f3f3f1",
+    "--bc-color-accent-surface-tint": "#f8f7f5",
+    "--bc-color-accent-surface-tile": "#f4f3f0",
+    "--bc-color-accent-surface-tile-2": "#f1f0ec",
+    "--bc-color-accent-surface-row": "#faf9f7",
+    "--bc-color-accent-surface-row-border": "#ebe9e4",
+    "--bc-color-accent-mid-border": "#bfbdb6",
+    "--bc-color-bg-app": "#fbfaf7",
+    "--bc-color-bg-muted": "#fbfaf8",
+    "--bc-color-surface-hover": "#f6f5f2",
+    "--bc-color-surface-hover-strong": "#efeeea",
+    "--bc-color-surface-soft": "#fbfaf8",
+    "--bc-color-border": "#e7e5e0",
+    "--bc-color-border-strong": "#d3d0c8",
+    "--bc-color-border-divider": "#ebe9e4",
+    "--bc-color-surface-translucent-86": "rgba(252, 252, 251, 0.86)",
+    "--bc-color-surface-warm-grad-top": "rgba(252, 252, 251, 0.98)",
+    "--bc-color-panel-grad-top": "rgba(252, 252, 251, 0.98)",
+    "--bc-color-text": "#26262b",
+    "--bc-color-text-strong": "#17171a",
+    "--bc-color-text-soft": "#53545c",
+    "--bc-color-text-muted": "#74757d",
+    "--bc-color-text-subtle": "#a1a2a9",
+    "--bc-color-text-mauve": "#6b6b72",
+    "--bc-color-text-mauve-soft": "#62636a",
+    "--bc-color-text-mauve-warm": "#4c4d54",
+    "--bc-color-text-mauve-deep": "#17171a",
+    "--bc-color-text-mauve-panel": "#33343a",
+    "--bc-color-text-mauve-pale": "#c4c2bb",
+    "--bc-color-text-mauve-cool": "#85868e",
+    "--bc-color-text-mauve-axis": "#94959c",
+    "--bc-color-text-mauve-axis-strong": "#6b6b72",
+    "--bc-color-text-body-warm": "#3f4046",
+    "--bc-color-text-mauve-cool-alt": "#62636a",
+    "--bc-color-text-on-histogram": "#26262b",
+    "--bc-color-star-base": "#cfcbc0",
+    "--bc-color-chart-trend-axis": "#eeebe3",
+    "--bc-color-chart-trend-text": "#94959c",
+    "--bc-color-chart-trend-text-strong": "#6b6b72",
+    "--bc-color-ink": "#26262b",
+    "--bc-color-ink-deep": "#17171a",
+    "--bc-color-ink-text": "#26262b",
+    "--bc-color-sentiment-neu-fg": "#6b6b72",
+    "--bc-color-sentiment-neu-bg": "#f1f0ec",
+    "--bc-color-sentiment-all-dot": "#bfbdb6",
+    "--bc-color-disabled-bg": "#d6d3cb",
+    "--bc-color-seat-muted-text": "#53545c",
+    "--bc-shadow-add-cta": "0 2px 6px rgba(60, 45, 0, 0.2)",
+    "--bc-shadow-side-panel": "0 10px 28px rgba(30, 25, 10, 0.08)"
+  }
+};
+
+const BRIGHT_DARK_THEME: Theme = {
+  ...DEFAULT_DARK_THEME,
+  accentRgb: [244, 244, 245],
+  tokens: {
+    ...DEFAULT_DARK_THEME.tokens,
+    ...BRIGHT_SHARED,
+    "--bc-color-chart": "#f5a3b4",
+    "--bc-color-chart-fill-45": "rgba(245, 163, 180, 0.45)",
+    "--bc-color-chart-fill-05": "rgba(245, 163, 180, 0.05)",
+    "--bc-color-heatmap-rating-rgb": "245, 163, 180",
+    "--bc-color-accent": "#f4f4f5",
+    "--bc-color-accent-hover": "#ffffff",
+    "--bc-color-accent-pressed": "#d4d4d8",
+    "--bc-color-accent-on": "#17171a",
+    "--bc-color-accent-soft": "#f4f4f5",
+    "--bc-color-accent-soft-hover": "#ffffff",
+    "--bc-color-accent-soft-on": "#17171a",
+    "--bc-color-accent-surface-faint": "#1f1f22",
+    "--bc-color-accent-surface-soft": "#2a2a2e",
+    "--bc-color-accent-surface-tint": "#26262a",
+    "--bc-color-accent-surface-tile": "#2c2c31",
+    "--bc-color-accent-surface-tile-2": "#303035",
+    "--bc-color-accent-surface-row": "#232326",
+    "--bc-color-accent-surface-row-border": "#3a3a40",
+    "--bc-color-accent-mid-border": "#52525b",
+    "--bc-color-text-mauve": "#d4d4d8",
+    "--bc-color-text-mauve-soft": "#c4c4cc",
+    "--bc-color-text-mauve-warm": "#e4e4e7",
+    "--bc-color-text-mauve-deep": "#fafafa",
+    "--bc-color-text-mauve-panel": "#e4e4e7",
+    "--bc-color-text-mauve-pale": "rgba(255, 255, 255, 0.3)",
+    "--bc-color-text-mauve-cool": "#a1a1aa",
+    "--bc-color-text-body-warm": "#e4e4e7",
+    "--bc-color-text-mauve-cool-alt": "#c4c4cc",
+    "--bc-color-sentiment-neu-fg": "#c4c4cc",
+    "--bc-color-sentiment-neu-bg": "#2c2c31",
+    "--bc-color-sentiment-all-dot": "#52525b"
+  }
+};
