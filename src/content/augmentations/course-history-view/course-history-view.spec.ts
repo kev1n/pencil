@@ -5,22 +5,22 @@ import { CourseHistoryViewAugmentation, courseHistoryCsv } from ".";
 
 type Fixture = [catalog: string, term: string, start: string, grade: string, status: string];
 
-function row(i: number, [catalog, term, start, grade, status]: Fixture): string {
+function row(i: number, [catalog, term, start, grade, status]: Fixture, win = "win5"): string {
   return `<tr class="ps_grid-row psc_rowact" id="CRSE_HIST2$0_row_${i}">
-    <td><div id="win5divSSR_CLASS_BTN$${i}"><span class="ps-link-wrapper" title="Desc ${i}"><a id="SSR_CLASS_BTN$${i}">${catalog}</a></span></div></td>
+    <td><div id="${win}divSSR_CLASS_BTN$${i}"><span class="ps-link-wrapper" title="Desc ${i}"><a id="SSR_CLASS_BTN$${i}">${catalog}</a></span></div></td>
     <td><span id="DERIVED_SSS_HST_SSR_CLASSNAME_LONG$83$$${i}">Desc ${i}</span></td>
-    <td><div id="win5divDERIVED_SSR_FL_SS_MESSAGE_LONG$${i}"><!--${start}-->${term}</div></td>
-    <td>${grade ? `<div id="win5divDERIVED_SSS_HST_SSR_GRADE_LONG$${i}"><div class="ps-htmlarea"><span class="ps_box-value">${grade}</span></div></div>` : ""}</td>
+    <td><div id="${win}divDERIVED_SSR_FL_SS_MESSAGE_LONG$${i}"><!--${start}-->${term}</div></td>
+    <td>${grade ? `<div id="${win}divDERIVED_SSS_HST_SSR_GRADE_LONG$${i}"><div class="ps-htmlarea"><span class="ps_box-value">${grade}</span></div></div>` : ""}</td>
     <td><span id="DERIVED_SSS_HST_UNT_TAKEN$${i}">1.00</span></td>
-    <td><div id="win5divDERIVED_SSS_HST_SSR_STATUS_LONG$${i}"><img alt="${status}"></div></td>
+    <td><div id="${win}divDERIVED_SSS_HST_SSR_STATUS_LONG$${i}"><img alt="${status}"></div></td>
     <td></td>
   </tr>`;
 }
 
-function mount(rows: Fixture[]): HTMLTableSectionElement {
-  document.body.innerHTML = `<div><div id="win5divCRSE_HIST2$0"><div class="ps_header-grid-custom"><a>Filter</a></div><table class="ps_grid-flex">
+function mount(rows: Fixture[], win = "win5"): HTMLTableSectionElement {
+  document.body.innerHTML = `<div><div id="${win}divCRSE_HIST2$0"><div class="ps_header-grid-custom"><a>Filter</a></div><table class="ps_grid-flex">
     <thead><tr><th>Class</th><th>Description</th><th>Term</th><th>Grade</th><th>Units</th><th>Status</th><th></th></tr></thead>
-    <tbody>${rows.map((r, i) => row(i, r)).join("")}</tbody>
+    <tbody>${rows.map((r, i) => row(i, r, win)).join("")}</tbody>
   </table></div></div>`;
   return document.querySelector("tbody")!;
 }
@@ -115,6 +115,18 @@ describe("Course History view", () => {
     setSubject("SI");
     chip("Subject", "Show less").click();
     expect(chips("Subject")).toEqual(["All", "SA1", "SB1", "SC1", "SD1", "SE1", "SF1", "SI1*", "+2 more"]);
+  });
+
+  it("reads terms and statuses whatever CAESAR window the page opened in", () => {
+    // Academic Records' sidebar opens Course History under /csnu_2670/,
+    // so wrapper ids carry win2670 rather than win5.
+    const tbody = mount(ROWS, "win2670");
+    augmentation.run(document);
+    expect(order(tbody)).toEqual([
+      "2026 Fall", "COMP_SCI 329-0",
+      "2026 Spring", "COMP_SCI 333-0", "DSGN 240-0"
+    ]);
+    expect(chips("Status")).toEqual(["Taken2*", "In Cart1*", "In Progress1"]);
   });
 
   it("orders terms newest first whatever the native sort", () => {
