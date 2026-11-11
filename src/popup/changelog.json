@@ -11,6 +11,17 @@
   },
   "entries": [
     {
+      "version": "0.9.22",
+      "date": "2026-11-10",
+      "headline": "Shortcuts keep CAESAR's sidebar",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "The Class Search, Cart, Enrollment Dates and Course History shortcuts now open inside CAESAR's own pages, so the top bar and the left-hand tabs stay with you."
+        }
+      ]
+    },
+    {
       "version": "0.9.21",
       "date": "2026-11-10",
       "headline": "A Back button that works",
