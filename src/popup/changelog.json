@@ -11,6 +11,29 @@
   },
   "entries": [
     {
+      "version": "1.0.1",
+      "date": "2026-11-10",
+      "headline": "Tidier class search",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "In CAESAR class search, CTEC, Details and Add to cart sit together at the end of each class. Once a CTEC loads, its rating and hours become the button that opens the full report."
+        },
+        {
+          "kind": "feat",
+          "text": "Open seats show as one coloured number: green when there is room, red when a class is nearly full."
+        },
+        {
+          "kind": "feat",
+          "text": "On Paper.nu, the Paper.nu and CTECs tabs moved into the top row of the class panel, so the report starts higher up."
+        },
+        {
+          "kind": "fix",
+          "text": "Class search no longer squeezes each class into a cramped stack in a normal-sized CAESAR window."
+        }
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2026-11-10",
       "headline": "Pencil 1.0",

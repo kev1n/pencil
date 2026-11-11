@@ -149,11 +149,12 @@ function buildPerSectionBlock(
   return block;
 }
 
+// Open seats lead the row, on a chip coloured by how full the class is.
 function buildStatsGrid(doc: Document, detail: SeatsNotesSuccess): HTMLElement {
   const stats = el(doc, "div", { class: "bc-cs-detail-stats" });
+  appendStat(doc, stats, "Open seats", detail.availableSeats, seatTone(detail));
   appendStat(doc, stats, "Capacity", detail.classCapacity);
   appendStat(doc, stats, "Enrolled", detail.enrollmentTotal);
-  appendStat(doc, stats, "Open seats", detail.availableSeats);
   appendStat(doc, stats, "Waitlist size", detail.waitListCapacity);
   appendStat(doc, stats, "On waitlist", detail.waitListTotal);
   return stats;
@@ -192,77 +193,19 @@ function buildStatsSection(
   const stats = buildStatsGrid(doc, detail);
   if (stats.children.length > 0) section.appendChild(stats);
 
-  const bar = buildCapacityBar(doc, detail);
-  if (bar) section.appendChild(bar);
-
   return section;
 }
 
-// Horizontal availability viz: bar width = capacity, left segment (grey) =
-// filled seats, right segment = available seats colored by enrollment
-// pressure. Same five-tone gradient (open → room → tight → warn → full)
-// the seats-notes shopping-cart cards use, so a class that's tight in the
-// cart reads as tight here too.
-function buildCapacityBar(
-  doc: Document,
-  detail: SeatsNotesSuccess
-): HTMLElement | null {
+// How full the class is, as one of the five seat tones the shopping-cart
+// cards use, so a class that's tight in the cart reads as tight here too.
+function seatTone(detail: SeatsNotesSuccess): SeatTone | null {
   const capacity = parseSeatNumber(detail.classCapacity);
   if (capacity === null || capacity <= 0) return null;
-
-  const explicitAvailable = parseSeatNumber(detail.availableSeats);
+  const available = parseSeatNumber(detail.availableSeats);
   const enrolled = parseSeatNumber(detail.enrollmentTotal);
-
-  let used: number;
-  let available: number;
-  if (explicitAvailable !== null) {
-    available = clamp(explicitAvailable, 0, capacity);
-    used = capacity - available;
-  } else if (enrolled !== null) {
-    used = clamp(enrolled, 0, capacity);
-    available = capacity - used;
-  } else {
-    return null;
-  }
-
-  const occupancy = used / capacity;
-  const tone = pressureTone(occupancy);
-  const usedPct = (used / capacity) * 100;
-  const availPct = 100 - usedPct;
-
-  const bar = el(doc, "div", {
-    class: "bc-cs-capacity-bar",
-    attrs: {
-      role: "img",
-      "aria-label": `${available} of ${capacity} seats available`
-    }
-  });
-  // Available (colored) on the LEFT so the bar reads like a "seats left"
-  // counter — the colored portion is what's up for grabs, draining toward
-  // the right (filled, muted grey) as enrollment grows.
-  bar.appendChild(
-    el(doc, "div", {
-      class: "bc-cs-capacity-avail",
-      style: {
-        width: `${availPct}%`,
-        background: tone.background,
-        borderRightColor: tone.border
-      }
-    })
-  );
-  bar.appendChild(
-    el(doc, "div", {
-      class: "bc-cs-capacity-used",
-      style: { width: `${usedPct}%` }
-    })
-  );
-
-  const label = el(doc, "div", {
-    class: "bc-cs-capacity-legend",
-    text: `${available} of ${capacity} seats left`
-  });
-
-  return el(doc, "div", { class: "bc-cs-capacity" }, [bar, label]);
+  if (available !== null) return pressureTone(1 - clamp(available, 0, capacity) / capacity);
+  if (enrolled !== null) return pressureTone(clamp(enrolled, 0, capacity) / capacity);
+  return null;
 }
 
 function parseSeatNumber(input: string | null): number | null {
@@ -275,38 +218,16 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
-function pressureTone(occupancy: number): { background: string; border: string } {
-  // Mirrors occupancyToTone() in seats-notes/ui.ts so the cart cards and
-  // the class-search detail bar render with one tone. If you adjust the
+type SeatTone = "full" | "warn" | "tight" | "room" | "open";
+
+function pressureTone(occupancy: number): SeatTone {
+  // Mirrors occupancyToTone() in seats-notes/ui.ts. If you adjust the
   // thresholds here, mirror them there.
-  if (occupancy >= 0.95) {
-    return {
-      background: "var(--bc-color-seat-full-bg)",
-      border: "var(--bc-color-seat-full-border)"
-    };
-  }
-  if (occupancy >= 0.8) {
-    return {
-      background: "var(--bc-color-seat-warn-bg)",
-      border: "var(--bc-color-seat-warn-border)"
-    };
-  }
-  if (occupancy >= 0.6) {
-    return {
-      background: "var(--bc-color-seat-tight-bg)",
-      border: "var(--bc-color-seat-tight-border)"
-    };
-  }
-  if (occupancy >= 0.35) {
-    return {
-      background: "var(--bc-color-seat-room-bg)",
-      border: "var(--bc-color-seat-room-border)"
-    };
-  }
-  return {
-    background: "var(--bc-color-seat-open-bg)",
-    border: "var(--bc-color-seat-open-border)"
-  };
+  if (occupancy >= 0.95) return "full";
+  if (occupancy >= 0.8) return "warn";
+  if (occupancy >= 0.6) return "tight";
+  if (occupancy >= 0.35) return "room";
+  return "open";
 }
 
 function buildFooter(
@@ -341,12 +262,17 @@ function appendStat(
   doc: Document,
   parent: HTMLElement,
   label: string,
-  value: string | null
+  value: string | null,
+  tone: SeatTone | null = null
 ): void {
   if (!value) return;
   parent.appendChild(
     el(doc, "div", { class: "bc-cs-stat" }, [
-      el(doc, "div", { class: "bc-cs-stat-value", text: value }),
+      el(doc, "div", {
+        class: "bc-cs-stat-value",
+        text: value,
+        attrs: tone ? { "data-bc-seat-tone": tone } : {}
+      }),
       el(doc, "div", { class: "bc-cs-stat-label", text: label })
     ])
   );
