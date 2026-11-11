@@ -369,7 +369,15 @@ async function loadCaesarHistoryQa() {
     await page.goto(CART);
     await settled(4500);
     const cartView = await view();
-    await clickId("P_CLASS_NAME$4");
+    // A class followed by a row without a link is paired with a lab or
+    // discussion and opens a different page, so pick classes that stand alone.
+    const links = await inPage(() =>
+      [...document.querySelectorAll('a[id^="P_CLASS_NAME$"]')]
+        .map((a) => a.id)
+        .filter((id) => document.getElementById("P_CLASS_NAME$" + (Number(id.split("$")[1]) + 1)))
+    );
+    if (links.length < 2) return check("Cart: has two classes to open", false, "cart has fewer than two classes");
+    await clickId(links[0]);
     await settled(4000);
     const detail = await view();
     check("Cart: opens a class", detail.heading !== cartView.heading, "page did not change");
@@ -379,7 +387,7 @@ async function loadCaesarHistoryQa() {
     await forward(2500);
     check("Cart: Forward to class", same(await view(), detail), "wrong page");
     await back(2500);
-    await clickId("P_CLASS_NAME$6");
+    await clickId(links[links.length - 1]);
     await settled(4000);
     now = await view();
     check("Cart: restored cart still works (opens another class)", now.heading === detail.heading && !now.dead, `got "${label(now)}"`);
@@ -403,7 +411,11 @@ async function loadCaesarHistoryQa() {
     const tab = (await sideTabs()).find((t) => /Shopping Cart/.test(t.name));
     await openSideTab(tab.key);
     const cartView = await view();
-    const classes = await inPage(() => [...document.querySelectorAll('a[id^="P_CLASS_NAME$"]')].map((a) => a.id));
+    const classes = await inPage(() =>
+      [...document.querySelectorAll('a[id^="P_CLASS_NAME$"]')]
+        .map((a) => a.id)
+        .filter((id) => document.getElementById("P_CLASS_NAME$" + (Number(id.split("$")[1]) + 1)))
+    );
     if (classes.length < 2) return check("Cart (in Manage Classes): has two classes to open", false, `found ${classes.length}`);
     await clickId(classes[0]);
     await settled(4500);
