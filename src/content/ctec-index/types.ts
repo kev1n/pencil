@@ -74,6 +74,10 @@ export type CtecReportSummary = {
 export type CtecCourseDiscoveryState = {
   pendingRowCount: number;
   updatedAt: number;
+  // Which course numbers the discovery covered, set only for a course
+  // with former numbers. State recorded before those were known lacks
+  // it, so the next load searches again instead of trusting the cache.
+  searched?: string;
 };
 
 export type CtecSubjectIndex = {
