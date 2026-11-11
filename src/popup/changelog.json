@@ -11,6 +11,17 @@
   },
   "entries": [
     {
+      "version": "1.0.1",
+      "date": "2026-11-10",
+      "headline": "Better comment tones",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "The Positive, Mixed, Neutral and Critical labels on CTEC comments are more accurate, and the Critical filter now catches about twice as many critical comments."
+        }
+      ]
+    },
+    {
       "version": "1.0.0",
       "date": "2026-11-10",
       "headline": "Pencil 1.0",
