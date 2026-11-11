@@ -4,7 +4,7 @@ import { el, ensureStyle, type Augmentation } from "../../framework";
 import { openAboutModal, type AboutModalHandle } from "../paper-brand/modal";
 import { removePaperBrandStyles } from "../paper-brand/styles";
 import { createEnrollmentDatesPopover } from "../../enrollment-dates/popover";
-import { readBookmarks, type Bookmark } from "./destinations";
+import { openRequestedTab, readBookmarks, type Bookmark } from "./destinations";
 import { STYLE_ID, styles } from "./styles";
 
 const BOOKMARKS_ID = "bc-caesar-bookmarks";
@@ -12,6 +12,8 @@ const HEADER_ID = "bc-caesar-header";
 const DATES_ID = "bc-caesar-enrollment-dates";
 const BANNER_SLOT = '[id$="hdrdivPT_CUSTOM_RIGHT"], #pthdr2navbarlinks';
 const STANDALONE_PAGE = 'form#SSR_SSENRL_CART, form#SSR_SSENRL_APPT, form#CLASS_SEARCH, form#SSR_CRSE_HIST_FL, [id$="divDERIVED_REGFRM1_SS_TRANSACT_TITLE"]';
+const TAB_RETRY_MS = 1500;
+const TAB_GIVES_UP_AFTER_MS = 15000;
 const APP_PATH = /^\/ps[cp]\/csnu(?:_\d+)?\/EMPLOYEE\/SA(?:\/|$)/i;
 
 function createBookmark(doc: Document, bookmark: Bookmark): HTMLElement {
@@ -55,6 +57,7 @@ export class CaesarBookmarksAugmentation implements Augmentation {
   private popover?: HTMLElement;
   private aboutModal?: AboutModalHandle;
   private bookmarkIds = "";
+  private tabTimer?: number;
 
   run(doc: Document = document): void {
     const view = doc.defaultView;
@@ -68,6 +71,7 @@ export class CaesarBookmarksAugmentation implements Augmentation {
       if (standalone) ensureStyle(doc, STYLE_ID, styles);
       return;
     }
+    this.openRequestedTab(doc);
     const banner = doc.querySelector(BANNER_SLOT);
     const host = banner ?? (standalone || doc.querySelector('form[name="win0"]') ? doc.body : null);
     if (!host) {
@@ -143,6 +147,8 @@ export class CaesarBookmarksAugmentation implements Augmentation {
 
   cleanup(doc: Document = document): void {
     this.closeAboutModal();
+    if (this.tabTimer !== undefined) doc.defaultView?.clearTimeout(this.tabTimer);
+    this.tabTimer = undefined;
     removePaperBrandStyles(doc);
     this.bar?.remove();
     this.header?.remove();
@@ -158,6 +164,19 @@ export class CaesarBookmarksAugmentation implements Augmentation {
     this.popover = undefined;
     this.bookmarkIds = "";
     doc.getElementById(STYLE_ID)?.remove();
+  }
+
+  // Keeps picking the tab a bookmark link named until CAESAR shows it.
+  private openRequestedTab(doc: Document): void {
+    if (this.tabTimer !== undefined) return;
+    const startedAt = Date.now();
+    const attempt = (): void => {
+      this.tabTimer = undefined;
+      if (openRequestedTab(doc, Date.now() - startedAt > TAB_GIVES_UP_AFTER_MS)) {
+        this.tabTimer = doc.defaultView!.setTimeout(attempt, TAB_RETRY_MS);
+      }
+    };
+    attempt();
   }
 
   private openAboutModal(doc: Document): void {

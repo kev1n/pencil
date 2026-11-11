@@ -3,7 +3,8 @@ import { isCaesarAuthRequiredError } from "../augmentations/class-search/caesar-
 import { createActionButton, el } from "../framework";
 import { CaesarConnectionError } from "../peoplesoft/connection";
 import { formatAppointmentTime, googleCalendarUrl, type Appointment } from "./appointments";
-import { APPOINTMENTS_URL, loadEnrollmentDates } from "./appointment-dates";
+import { loadEnrollmentDates } from "./appointment-dates";
+import { MANAGE_CLASSES_TABS, manageClassesTabUrl } from "../peoplesoft/shared";
 
 function renderAppointments(doc: Document, appointments: Appointment[]): HTMLElement {
   const host = el(doc, "div");
@@ -59,7 +60,7 @@ export function createEnrollmentDatesPopover(
     el(doc, "a", {
       text: openInNewTab ? "Open Enrollment Dates in CAESAR ↗" : "Open Enrollment Dates →",
       attrs: {
-        href: APPOINTMENTS_URL,
+        href: manageClassesTabUrl(MANAGE_CLASSES_TABS.dates),
         target: openInNewTab ? "_blank" : undefined,
         rel: openInNewTab ? "noopener noreferrer" : undefined
       }

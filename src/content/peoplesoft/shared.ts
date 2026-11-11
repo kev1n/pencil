@@ -50,3 +50,17 @@ export function normalizeCareer(value: string | null | undefined): CareerCode | 
   const upper = value.toUpperCase();
   return (CAREER_CODES as readonly string[]).includes(upper) ? (upper as CareerCode) : null;
 }
+
+// CAESAR's Manage Classes page keeps the top bar and the left-hand tab list
+// around its content, unlike the bare standalone pages. It cannot be linked
+// to a tab, so a link names the tab in its fragment and the bookmarks plugin
+// picks it once the page has loaded.
+const MANAGE_CLASSES_URL =
+  "https://caesar.ent.northwestern.edu/psc/csnu/EMPLOYEE/SA/c/NUI_FRAMEWORK.PT_AGSTARTPAGE_NUI.GBL?CONTEXTIDPARAMS=TEMPLATE_ID%3aPTPPNAVCOL&scname=NW_MANAGE_CLASSES_CLASSIC_NAV&PTPPB_GROUPLET_ID=NW_MANAGE_CLASS_CLASSIC&CRefName=NW_MNG_CLS_NAVCOL&AJAXTransfer=Y";
+export const TAB_FRAGMENT = "#bc-tab=";
+export const MANAGE_CLASSES_TABS = {
+  search: "ADMN_S201708141120276178777428",
+  cart: "ADMN_S201708141117213461104159",
+  dates: "ADMN_S201708141138231091952269"
+} as const;
+export const manageClassesTabUrl = (tab: string): string => `${MANAGE_CLASSES_URL}${TAB_FRAGMENT}${tab}`;

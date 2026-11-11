@@ -1,8 +1,8 @@
-import { CART_URL } from "../../cart-cache/reconcile";
 import { LANDING_PAGE_URL } from "../../auth/silent-recovery";
-import { COURSE_HISTORY_PAGE_URL } from "../../course-history/reconcile";
-import { SEARCH_ENTRY_URL } from "../../peoplesoft/shared";
-import { APPOINTMENTS_URL } from "../../enrollment-dates/appointment-dates";
+import { MANAGE_CLASSES_TABS, TAB_FRAGMENT, manageClassesTabUrl } from "../../peoplesoft/shared";
+import { CAESAR_ORIGIN } from "../../../shared/nu-hosts";
+
+const ACADEMIC_RECORDS_URL = `${CAESAR_ORIGIN}/psc/csnu/EMPLOYEE/SA/c/SSR_STUDENT_ACAD_REC_FL.SSR_MD_ACAD_REC_FL.GBL?Action=U&MD=Y&GMenu=SSR_STUDENT_ACAD_REC_FL&GComp=SSR_ACADREC_NAV_FL&GPage=SCC_START_PAGE_FL&scname=CS_SSR_ACADEMIC_RECORDS_FL`;
 
 export type Bookmark = {
   id: string;
@@ -14,6 +14,8 @@ export type Bookmark = {
 
 type Route = Omit<Bookmark, "navigate"> & {
   nativeLabels: readonly string[];
+  // The Manage Classes tab this bookmark opens.
+  tab?: string;
 };
 
 const ROUTES: readonly Route[] = [
@@ -28,14 +30,16 @@ const ROUTES: readonly Route[] = [
     id: "search",
     label: "Class Search",
     nativeLabels: ["class search", "search for classes"],
-    href: SEARCH_ENTRY_URL
+    tab: MANAGE_CLASSES_TABS.search,
+    href: manageClassesTabUrl(MANAGE_CLASSES_TABS.search)
   },
   {
     id: "cart",
     label: "Shopping Cart",
     shortLabel: "Cart",
     nativeLabels: ["shopping cart and enroll", "shopping cart"],
-    href: CART_URL
+    tab: MANAGE_CLASSES_TABS.cart,
+    href: manageClassesTabUrl(MANAGE_CLASSES_TABS.cart)
   },
   {
     id: "schedule",
@@ -47,18 +51,39 @@ const ROUTES: readonly Route[] = [
     id: "appointment",
     label: "Enrollment Dates",
     nativeLabels: ["enrollment appointment/dates", "enrollment dates", "enrollment appointments"],
-    href: APPOINTMENTS_URL
+    href: manageClassesTabUrl(MANAGE_CLASSES_TABS.dates)
   },
   {
     id: "history",
     label: "Course History",
     nativeLabels: ["course history", "my course history"],
-    href: COURSE_HISTORY_PAGE_URL
+    href: ACADEMIC_RECORDS_URL
   }
 ];
 
 const NAV_LINKS = "nav a[href], [role='navigation'] a[href], #PT_SIDE a[href], #PT_LEFT_PANEL a[href], [role='link'][href]";
 const CART_SEARCH = "form#SSR_SSENRL_CART #DERIVED_REGFRM1_SSR_PB_SRCH";
+
+function findTab(doc: Document, tab: string): HTMLElement | null {
+  return doc.querySelector<HTMLElement>(`.ps_ag-step-button[onclick*="'${tab}'"]`);
+}
+
+// Picks the tab a bookmark link named, once Manage Classes has loaded.
+// Returns true while the tab still has to open: CAESAR ignores a pick made
+// while its first tab is loading, so the caller calls again.
+export function openRequestedTab(doc: Document, giveUp = false): boolean {
+  const { hash } = doc.location;
+  if (!hash.startsWith(TAB_FRAGMENT)) return false;
+  const tab = findTab(doc, hash.slice(TAB_FRAGMENT.length));
+  if (!tab && !giveUp) return true;
+  if (giveUp || tab!.classList.contains("psc_selected")) {
+    const view = doc.defaultView!;
+    view.history.replaceState(view.history.state, "", doc.location.pathname + doc.location.search);
+    return false;
+  }
+  tab!.click();
+  return true;
+}
 
 function findNativeLink(doc: Document, routeId: string, labels: readonly string[]): HTMLElement | undefined {
   const frameDoc = doc.querySelector<HTMLIFrameElement>("#ptifrmtgtframe")?.contentDocument;
@@ -80,12 +105,12 @@ function findNativeLink(doc: Document, routeId: string, labels: readonly string[
 }
 
 export function readBookmarks(doc: Document): Bookmark[] {
-  return ROUTES.flatMap(({ nativeLabels, ...bookmark }) => {
+  return ROUTES.flatMap(({ nativeLabels, tab, ...bookmark }) => {
     if (!bookmark.href && !findNativeLink(doc, bookmark.id, nativeLabels)) return [];
     return [{
       ...bookmark,
       navigate() {
-        const native = findNativeLink(doc, bookmark.id, nativeLabels);
+        const native = (tab && findTab(doc, tab)) || findNativeLink(doc, bookmark.id, nativeLabels);
         if (native) native.click();
         else if (bookmark.href) doc.location.assign(bookmark.href);
       }
