@@ -67,11 +67,11 @@ describe("Course History view", () => {
     chip("Subject", value).click();
   }
 
-  function setShowInProgress(_checked: boolean): void {
-    chip("Status", "In Progress").click();
+  function toggleStatus(status: string): void {
+    chip("Status", status).click();
   }
 
-  it("groups by term, hides in-progress classes, filters by subject and restores the native grid", () => {
+  it("groups by term, hides cart classes, filters by subject and restores the native grid", () => {
     const tbody = mount(ROWS);
     const nativeRows = Array.from(tbody.rows);
     const nativeHtml = document.body.innerHTML;
@@ -79,16 +79,16 @@ describe("Course History view", () => {
     augmentation.run(document);
 
     expect(order(tbody)).toEqual([
-      "2026 Fall", "COMP_SCI 329-0",
+      "2026 Fall", "DSGN 370-0",
       "2026 Spring", "COMP_SCI 333-0", "DSGN 240-0"
     ]);
     expect(document.getElementById("bc-course-history-toolbar")?.parentElement?.className).toBe("ps_header-grid-custom");
     expect(tbody.querySelector("tr.bc-ch-term-row th")?.getAttribute("colspan")).toBe("7");
     expect(tbody.querySelector(".bc-ch-term-meta")?.textContent).toBe("1 class · 1.00 unit");
-    expect(chips("Status")).toEqual(["Taken2*", "In Cart1*", "In Progress1"]);
+    expect(chips("Status")).toEqual(["Taken2*", "In Cart1", "In Progress1*"]);
     expect(chips("Subject")).toEqual(["All*", "COMP_SCI2", "DSGN2"]);
 
-    setShowInProgress(true);
+    toggleStatus("In Cart");
     expect(order(tbody)).toEqual([
       "2026 Fall", "COMP_SCI 329-0", "DSGN 370-0",
       "2026 Spring", "COMP_SCI 333-0", "DSGN 240-0"
@@ -97,7 +97,7 @@ describe("Course History view", () => {
     setSubject("DSGN");
     expect(order(tbody)).toEqual(["2026 Fall", "DSGN 370-0", "2026 Spring", "DSGN 240-0"]);
 
-    setShowInProgress(false);
+    toggleStatus("In Progress");
     expect(order(tbody)).toEqual(["2026 Spring", "DSGN 240-0"]);
 
     // The native <tr>s are moved, never cloned, so CAESAR's row onclick survives.
@@ -123,10 +123,10 @@ describe("Course History view", () => {
     const tbody = mount(ROWS, "win2670");
     augmentation.run(document);
     expect(order(tbody)).toEqual([
-      "2026 Fall", "COMP_SCI 329-0",
+      "2026 Fall", "DSGN 370-0",
       "2026 Spring", "COMP_SCI 333-0", "DSGN 240-0"
     ]);
-    expect(chips("Status")).toEqual(["Taken2*", "In Cart1*", "In Progress1"]);
+    expect(chips("Status")).toEqual(["Taken2*", "In Cart1", "In Progress1*"]);
   });
 
   it("orders terms newest first whatever the native sort", () => {
@@ -138,20 +138,20 @@ describe("Course History view", () => {
   it("downloads the visible rows as CSV", async () => {
     mount(ROWS);
     augmentation.run(document);
-    setSubject("COMP_SCI");
+    setSubject("DSGN");
 
     let blob: Blob | null = null;
     vi.spyOn(URL, "createObjectURL").mockImplementation((b) => { blob = b as Blob; return "blob:x"; });
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const clicked = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
-      expect(this.download).toBe("course-history-comp_sci.csv");
+      expect(this.download).toBe("course-history-dsgn.csv");
     });
     document.querySelector<HTMLButtonElement>(".bc-ch-download")!.click();
     expect(clicked).toHaveBeenCalledOnce();
     expect(await (blob as Blob | null)!.text()).toBe(
       "Term,Class,Description,Grade,Units,Status\r\n" +
-      "2026 Fall,COMP_SCI 329-0,Desc 0,,1.00,In Cart\r\n" +
-      "2026 Spring,COMP_SCI 333-0,Desc 1,A,1.00,Taken\r\n"
+      "2026 Fall,DSGN 370-0,Desc 2,,1.00,In Progress\r\n" +
+      "2026 Spring,DSGN 240-0,Desc 3,A,1.00,Taken\r\n"
     );
   });
 

@@ -79,7 +79,7 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
       {
         id: "course-history-view",
         label: "Course History",
-        description: "Groups your Course History by term, filters it by subject, and downloads what you see as a CSV. Hides classes still in progress unless you ask."
+        description: "Groups your Course History by term, filters it by subject, and downloads what you see as a CSV. Hides classes still in your cart unless you ask."
       }
     ]
   },
