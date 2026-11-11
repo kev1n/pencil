@@ -48,7 +48,7 @@ export function openExportHelperModal(
   // Download button's state (e.g. "Downloaded ✓") — we want that to
   // persist as the user explores tabs.
   const downloadBtn = el(doc, "button", {
-    class: "bc-btn bc-btn--primary bc-btn--soft bc-btn--fill bc-export-helper-download",
+    class: "bc-btn bc-btn--primary bc-btn--soft bc-export-helper-download",
     attrs: { type: "button" },
     text: DOWNLOAD_LABELS.idle,
     dataset: { state: "idle" },
@@ -57,14 +57,8 @@ export function openExportHelperModal(
   const deepLinkSlot = el(doc, "span", {
     class: "bc-export-helper-deeplink-slot"
   });
-  const cancelBtn = el(doc, "button", {
-    class: "bc-btn bc-btn--ghost",
-    attrs: { type: "button" },
-    text: "Close",
-    on: { click: () => callbacks.onClose() }
-  });
-  const actionsEl = el(doc, "div", { class: "bc-export-helper-actions" });
-  actionsEl.append(downloadBtn, deepLinkSlot, cancelBtn);
+  const actionsEl = el(doc, "div", { class: "bc-modal-actions" });
+  actionsEl.append(downloadBtn, deepLinkSlot);
 
   let activeTab: CalendarApp = initialTab;
 
@@ -74,7 +68,7 @@ export function openExportHelperModal(
     if (!content.deepLink) return;
     deepLinkSlot.appendChild(
       el(doc, "a", {
-        class: "bc-btn bc-btn--secondary-accent",
+        class: "bc-btn bc-btn--secondary",
         attrs: {
           href: content.deepLink.href,
           target: "_blank",
@@ -133,16 +127,12 @@ export function openExportHelperModal(
     on: { click: () => callbacks.onClose() }
   });
 
-  const eyebrow = el(doc, "p", {
-    class: "bc-export-helper-eyebrow",
-    text: "Export to calendar"
-  });
   const title = el(doc, "h2", {
-    class: "bc-export-helper-title",
+    class: "bc-modal-title",
     text: "Add your schedule to a calendar"
   });
 
-  card.append(closeBtn, eyebrow, title, tabsRow, bodyEl, actionsEl);
+  card.append(closeBtn, title, tabsRow, bodyEl, actionsEl);
 
   const backdrop = el(doc, "div", {
     class: "bc-modal",

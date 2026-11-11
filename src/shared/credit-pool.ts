@@ -226,12 +226,13 @@ export function defineCreditPool(config: CreditPoolConfig): CreditPoolApi {
 
 // ── Concrete pools ────────────────────────────────────────────────────────
 
-export const PS_CREDIT_CAP = 20;
+// Both caps are circuit breakers, not usage limits: they sit far above what a
+// person can reach by clicking, so hitting one means our own code is looping.
+export const PS_CREDIT_CAP = 1000;
 export const PS_CREDIT_WINDOW_MS = 30 * 60 * 1000;
 
 // Single-shot credit pool for CAESAR PeopleSoft work. Shared by seats-notes,
-// class-search, and paper-ctec's chip cart-add so they can't burn through
-// the cap independently.
+// class-search, and paper-ctec's chip cart-add.
 export const psCreditPool = defineCreditPool({
   key: "bc-seats-notes-rate-limit-v1",
   cap: PS_CREDIT_CAP,
@@ -239,15 +240,15 @@ export const psCreditPool = defineCreditPool({
   name: "PS",
   limitReachedMessage: (waitMs) => {
     const waitMin = Math.max(1, Math.ceil(waitMs / 60_000));
-    return `Limit reached: ${PS_CREDIT_CAP} CAESAR loads per 30 min. Try again in ${waitMin} min.`;
+    return `Pencil paused its CAESAR requests after making far more than expected. Try again in ${waitMin} min.`;
   }
 });
 
-export const CTEC_CREDIT_CAP = 30;
+export const CTEC_CREDIT_CAP = 1000;
 export const CTEC_CREDIT_WINDOW_MS = 60 * 60 * 1000;
 
 // Each batch of up to CTEC_BATCH_SIZE PeopleSoft class-page fetches consumes
-// one credit. Caps total Northwestern traffic from the extension.
+// one credit.
 export const ctecCreditPool = defineCreditPool({
   key: "bc-ctec-load-credit-v1",
   cap: CTEC_CREDIT_CAP,
@@ -255,6 +256,6 @@ export const ctecCreditPool = defineCreditPool({
   name: "CTEC",
   limitReachedMessage: (waitMs) => {
     const waitMin = Math.max(1, Math.ceil(waitMs / 60_000));
-    return `Limit reached: ${CTEC_CREDIT_CAP} CTEC loads per hour to reduce load on Northwestern's servers. Try again in ${waitMin} min.`;
+    return `Pencil paused its CTEC requests after making far more than expected. Try again in ${waitMin} min.`;
   }
 });

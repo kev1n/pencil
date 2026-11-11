@@ -279,10 +279,8 @@ const CSS = `
   display: flex;
   align-items: center;
   color: var(--bc-color-text-muted);
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
 .bc-prereq-tree__link::before,

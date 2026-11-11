@@ -42,11 +42,6 @@ export function openAboutModal(
     html: PENCIL_SVG_MARKUP
   });
 
-  const eyebrow = el(doc, "p", {
-    class: "bc-paper-brand-about-eyebrow",
-    text: "Browser extension"
-  });
-
   const title = el(doc, "h2", {
     class: "bc-paper-brand-about-title",
     text: "pencil.nu"
@@ -54,28 +49,31 @@ export function openAboutModal(
 
   const versionLine = el(doc, "p", {
     class: "bc-paper-brand-about-version",
-    text: `version ${version}`
+    text: `Version ${version}`
   });
+
+  const header = el(doc, "div", { class: "bc-paper-brand-about-header" }, [
+    iconTile,
+    el(doc, "div", {}, [title, versionLine])
+  ]);
 
   const lede = el(doc, "p", {
     class: "bc-paper-brand-about-lede",
-    text: "A small layer of upgrades that sit on top of Paper.nu and CAESAR to make lives easier for Northwestern students :)"
+    text: "A small layer of upgrades on top of Paper.nu and CAESAR, to make registration easier for Northwestern students."
   });
 
-  // Names link out to LinkedIn but keep the credit line's handwriting
-  // font and accent color (no blue underline, no default `a` styling).
-  // The `.bc-paper-brand-about-credit-link` class wipes the browser
-  // default and inherits font + color from the surrounding paragraph.
+  // Names link out to LinkedIn.
   const credit = el(doc, "p", { class: "bc-paper-brand-about-credit" }, [
-    "designed and developed by ",
+    "Designed and developed by ",
     el(doc, "a", {
       class: "bc-paper-brand-about-credit-link",
       attrs: {
         href: KEVIN_LINKEDIN_URL,
         target: "_blank",
         rel: "noopener noreferrer"
-      }
-    }, [el(doc, "strong", { text: "Kevin Wang" })]),
+      },
+      text: "Kevin Wang"
+    }),
     " and ",
     el(doc, "a", {
       class: "bc-paper-brand-about-credit-link",
@@ -83,8 +81,9 @@ export function openAboutModal(
         href: JASON_LINKEDIN_URL,
         target: "_blank",
         rel: "noopener noreferrer"
-      }
-    }, [el(doc, "strong", { text: "Jason Latz" })]),
+      },
+      text: "Jason Latz"
+    }),
     "."
   ]);
 
@@ -94,17 +93,17 @@ export function openAboutModal(
   });
 
   const visitBtn = el(doc, "a", {
-    class: "bc-btn bc-btn--primary bc-btn--soft bc-btn--fill bc-paper-brand-about-cta",
+    class: "bc-btn bc-btn--primary bc-btn--soft bc-paper-brand-about-cta",
     attrs: {
       href: LANDING_URL,
       target: "_blank",
       rel: "noopener noreferrer"
     },
-    text: "Learn More"
+    text: "Learn more"
   });
 
   const feedbackBtn = el(doc, "a", {
-    class: "bc-btn bc-btn--secondary-accent bc-btn--fill bc-paper-brand-about-cta",
+    class: "bc-btn bc-btn--secondary bc-paper-brand-about-cta",
     attrs: {
       href: FEEDBACK_URL,
       target: "_blank",
@@ -114,7 +113,7 @@ export function openAboutModal(
   });
 
   const actions = el(doc, "div", {
-    class: "bc-paper-brand-about-actions"
+    class: "bc-modal-actions"
   }, [visitBtn, feedbackBtn]);
 
   const card = el(
@@ -126,14 +125,11 @@ export function openAboutModal(
     },
     [
       closeBtn,
-      iconTile,
-      eyebrow,
-      title,
-      versionLine,
+      header,
       lede,
       credit,
-      actions,
-      disclaimer
+      disclaimer,
+      actions
     ]
   );
 

@@ -78,41 +78,46 @@ const CSS = `
 }
 
 .bc-export-helper-card {
-  width: min(520px, 100%);
-  padding: 22px 22px 18px;
+  width: min(480px, 100%);
 }
-.bc-export-helper-eyebrow {
-  margin: 0 0 4px;
-  font-size: var(--bc-font-11);
-  font-weight: var(--bc-fw-bold);
-  letter-spacing: var(--bc-ls-wider);
-  text-transform: uppercase;
-  color: var(--bc-color-text-muted);
-}
-.bc-export-helper-title {
-  margin: 0 0 10px;
-  font-size: var(--bc-font-18);
-  font-weight: var(--bc-fw-extrabold);
-  color: var(--bc-color-accent-soft);
-}
+/* Segmented control: sentence case, neutral track, the active tab lifts
+   onto the card surface. Overrides the uppercase accent pill defaults. */
 .bc-export-helper-tabs {
-  margin: 4px 0 14px;
+  margin: 8px 0 18px;
   display: flex;
   width: 100%;
+  padding: 3px;
+  border-radius: var(--bc-radius-xl);
+  background: var(--bc-color-surface-hover-strong);
 }
 .bc-export-helper-tabs .bc-tab {
   flex: 1 1 0;
   justify-content: center;
   text-align: center;
+  padding: 6px 10px;
+  border-radius: var(--bc-radius-lg);
+  font-size: var(--bc-font-13);
+  font-weight: var(--bc-fw-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bc-color-text-muted);
+}
+.bc-export-helper-tabs .bc-tab:hover {
+  background: transparent;
+  color: var(--bc-color-text);
+}
+.bc-export-helper-tabs .bc-tab.is-active {
+  background: var(--bc-color-bg);
+  color: var(--bc-color-text-strong);
+  box-shadow: var(--bc-shadow-elev-2);
 }
 .bc-export-helper-body {
-  margin: 0 0 16px;
-  font-size: var(--bc-font-13);
+  font-size: var(--bc-font-14);
   line-height: 1.5;
-  color: var(--bc-color-text-body-warm);
+  color: var(--bc-color-text-soft);
 }
 .bc-export-helper-steps {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   padding: 0;
   list-style: none;
   counter-reset: bc-export-step;
@@ -120,59 +125,37 @@ const CSS = `
 .bc-export-helper-steps li {
   position: relative;
   margin: 0 0 8px;
-  padding: 0 0 0 28px;
+  padding: 0 0 0 24px;
   counter-increment: bc-export-step;
 }
 .bc-export-helper-steps li::before {
-  content: counter(bc-export-step);
+  content: counter(bc-export-step) ".";
   position: absolute;
   left: 0;
   top: 0;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--bc-color-accent-fill-12);
-  color: var(--bc-color-accent-soft);
-  font-size: var(--bc-font-11);
-  font-weight: var(--bc-fw-bold);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--bc-color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 .bc-export-helper-warning {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  padding: 8px 10px;
-  margin: 0 0 4px;
-  border-radius: var(--bc-radius-lg);
-  background: var(--bc-color-accent-fill-06);
-  font-size: var(--bc-font-12);
-  line-height: 1.45;
-  color: var(--bc-color-text-mauve-cool-alt);
-}
-.bc-export-helper-warning::before {
-  content: "⚠";
-  flex: 0 0 auto;
-  color: var(--bc-color-accent-soft);
-  font-weight: var(--bc-fw-bold);
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--bc-color-border-divider);
+  font-size: var(--bc-font-13);
+  line-height: 1.5;
+  color: var(--bc-color-text);
 }
 .bc-export-helper-help {
-  margin: 8px 0 0;
-  font-size: var(--bc-font-11);
+  margin: 4px 0 0;
+  font-size: var(--bc-font-13);
   color: var(--bc-color-text-muted);
-  text-align: right;
 }
 .bc-export-helper-help a {
-  color: var(--bc-color-accent-soft);
+  color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-.bc-export-helper-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
+.bc-export-helper-help a:hover {
+  color: var(--bc-color-text);
 }
 /* Inline slot for the per-tab "Open <calendar>" link. Renders nothing
    when the active tab has no deep link (Apple). display:contents keeps

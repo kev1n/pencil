@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CAESAR_ORIGIN, CAESAR_SERVICE_URL, BLUERA_ORIGIN } from "../shared/nu-hosts";
-import { CaesarConnectionError } from "./peoplesoft/connection";
+import { CaesarConnectionError, CaesarWrongPageError } from "./peoplesoft/connection";
 import { fetchTextResultViaBackground } from "./remote-fetch";
 
 const sendMessage = vi.fn();
@@ -12,6 +12,35 @@ beforeEach(() => {
 });
 
 describe("CAESAR background window", () => {
+  it("makes a form post name the same window in its body as in its URL", async () => {
+    sendMessage.mockResolvedValue({ ok: true, status: 200, text: "", finalUrl: "" });
+
+    await fetchTextResultViaBackground(`${CAESAR_ORIGIN}/psc/csnu/EMPLOYEE/SA/c/X.GBL`, {
+      method: "POST",
+      body: "ICSID=abc&ICElementNum=0&ICAction=MYLINK%2456"
+    });
+
+    const sent = new URLSearchParams(sendMessage.mock.calls[0][0].body);
+    expect(sent.get("ICElementNum")).toBe("37");
+    expect(sent.get("ICAction")).toBe("MYLINK$56");
+  });
+
+  it("refuses CAESAR's home page as the answer to an action", async () => {
+    sendMessage.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: "<?xml version='1.0'?><PAGE id='SCC_START_PAGE_FL'><GENSCRIPT/></PAGE>",
+      finalUrl: ""
+    });
+
+    await expect(
+      fetchTextResultViaBackground(`${CAESAR_ORIGIN}/psc/csnu/EMPLOYEE/SA/c/NWCT.NW_CT_PUB_RSLT_FL.GBL`, {
+        method: "POST",
+        body: "ICSID=abc"
+      })
+    ).rejects.toBeInstanceOf(CaesarWrongPageError);
+  });
+
   it("keeps background requests out of the window the user is browsing in", async () => {
     sendMessage.mockResolvedValue({
       ok: true,

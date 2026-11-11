@@ -1,21 +1,23 @@
-// Primary "Add to cart" CTA + its loading / success / error / disabled +
+// "Add to cart" + its loading / success / error / disabled +
 // persistent cart-state (in-cart / enrolled) styles.
 export function addCtaStyles(): string {
   return `
-    /* ── Add-to-cart: secondary CAESAR action (Details is the primary) ──── */
+    /* ── Add to cart: the row's one action. Panel-filled at rest so a long
+       list stays calm; pencil yellow the moment you point at it. ──────── */
     .bc-cs-add {
-      background: transparent;
-      color: var(--bc-color-text-muted);
-      border: 1px solid var(--bc-color-border-strong);
-      border-radius: var(--bc-radius-lg);
-      padding: 5px 10px;
+      appearance: none;
+      height: 28px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: 7px;
+      background: var(--bc-color-surface-hover);
+      color: var(--bc-color-text-strong);
       font: inherit;
-      font-size: var(--bc-font-11);
+      font-size: 12.5px;
       font-weight: var(--bc-fw-semibold);
+      white-space: nowrap;
       cursor: pointer;
-      transition: color var(--bc-tx-fast), background-color var(--bc-tx-fast),
-                  border-color var(--bc-tx-fast), box-shadow var(--bc-tx-fast),
-                  transform var(--bc-tx-fast);
+      transition: color var(--bc-tx-fast), background-color var(--bc-tx-fast);
       /* Inline-flex so the spinner span (added when data-state="loading")
          sits next to the label inside the button. */
       display: inline-flex;
@@ -23,63 +25,47 @@ export function addCtaStyles(): string {
       justify-content: center;
       gap: 6px;
     }
-    .bc-cs-add:hover {
-      color: var(--bc-color-text);
-      background: var(--bc-color-surface-hover);
-      border-color: var(--bc-color-border-strong);
+    .bc-cs-add:hover:not([disabled]) {
+      background: var(--bc-color-cta);
+      color: var(--bc-color-cta-on);
     }
-    .bc-cs-add:active { transform: translateY(1px); box-shadow: none; }
     .bc-cs-add[disabled] {
-      background: var(--bc-color-disabled-bg);
-      border-color: var(--bc-color-disabled-bg);
+      background: transparent;
       color: var(--bc-color-text-muted);
       cursor: progress;
-      box-shadow: none;
     }
-    /* Loading state must read as clearly disabled — drop to the shared
-       disabled-bg + muted text so the locked state is obvious even before
-       the inline spinner spins up. */
+    /* Loading reads as clearly locked: no fill, muted text, and the
+       inline spinner. */
     .bc-cs-add[data-state="loading"],
     .bc-cs-add[disabled][data-state="loading"] {
-      background: var(--bc-color-disabled-bg);
-      border-color: var(--bc-color-disabled-bg);
+      background: transparent;
       color: var(--bc-color-text-muted);
       cursor: progress;
-      box-shadow: none;
     }
     .bc-cs-add[data-state="success"] {
-      background: var(--bc-color-success);
-      border-color: var(--bc-color-success);
-      color: var(--bc-color-accent-on);
+      background: var(--bc-color-success-bg);
+      color: var(--bc-color-success-text);
     }
     .bc-cs-add[data-state="error"] {
-      background: var(--bc-color-danger);
-      border-color: var(--bc-color-danger);
-      color: var(--bc-color-accent-on);
+      background: var(--bc-color-danger-bg);
+      color: var(--bc-color-danger-text);
     }
-    /* Persistent cart-state badges — match the canonical "mini viewer"
-       (.bc-cs-myclass-badge in styles/results.ts) so the section-row Add
-       button reads as the same status pill the user already sees in the
-       "Your classes" overview: subtle paper tint for in-cart, success
-       tint for enrolled. Both states arrive disabled (set by
-       cart-button-registry.applyCartStateToButton) so we have to win over
-       the gray [disabled] background above; selector is duplicated with
-       [disabled] for safe specificity. */
+    /* Persistent cart-state: plain quiet text, since it is a fact about
+       the row and not an action. Both
+       states arrive disabled (set by
+       cart-button-registry.applyCartStateToButton) so the selector is
+       duplicated with [disabled] to win over the rule above. */
     .bc-cs-add[data-state="in-cart"],
     .bc-cs-add[disabled][data-state="in-cart"] {
-      background: var(--bc-color-paper-soft);
-      border-color: var(--bc-color-paper-soft);
-      color: var(--bc-color-paper);
+      background: transparent;
+      color: var(--bc-color-text-soft);
       cursor: default;
-      box-shadow: none;
     }
     .bc-cs-add[data-state="enrolled"],
     .bc-cs-add[disabled][data-state="enrolled"] {
-      background: var(--bc-color-success-bg);
-      border-color: var(--bc-color-success-bg);
-      color: var(--bc-color-success);
+      background: transparent;
+      color: var(--bc-color-text-soft);
       cursor: default;
-      box-shadow: none;
     }
   `;
 }

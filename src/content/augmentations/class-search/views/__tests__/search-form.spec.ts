@@ -47,7 +47,7 @@ describe("renderSearchShell", () => {
       onTermChange: vi.fn()
     });
     expect(root.classList.contains("bc-cs-shell")).toBe(true);
-    expect(root.querySelector(".bc-cs-title")?.textContent).toBe("Search for Classes");
+    expect(root.querySelector(".bc-cs-title")?.textContent).toBe("Search for classes");
     expect(root.querySelector("#bc-cs-query")).not.toBeNull();
     expect(root.querySelector("#bc-cs-term")).not.toBeNull();
     expect(root.contains(statusEl)).toBe(true);

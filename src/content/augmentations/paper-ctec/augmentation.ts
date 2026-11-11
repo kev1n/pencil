@@ -154,7 +154,7 @@ export class PaperCtecAugmentation implements Augmentation {
       },
       isCustomScheduleCard,
       isCtecAccessDenied,
-      openAnalyticsModal: (source) => this.modal.openModal(source),
+      openAnalyticsModal: (source) => this.sideCard.openAnalytics(source),
       renderIdle,
       renderLoading,
       renderWidget,
@@ -184,7 +184,11 @@ export class PaperCtecAugmentation implements Augmentation {
       getInFlight: () => this.chipFetch.state.inFlight,
       hasCachedReportAggregate,
       getAggregateLimit: () => getRecentAggregationTerms(),
-      renderSideCardAnalytics
+      renderSideCardAnalytics,
+      findCard: (key) =>
+        findWidgetsByKey(document, key)[0]?.closest<HTMLElement>(
+          PAPER_CTEC_CONFIG.selectors.scheduleCard
+        ) ?? null
     });
 
     this.modal = new ModalController(

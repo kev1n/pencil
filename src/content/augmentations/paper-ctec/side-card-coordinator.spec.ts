@@ -30,6 +30,10 @@ function makeModal(overrides: Partial<ModalController> = {}): ModalController {
     mirrorFrontPageState: vi.fn(),
     resumeIfNeeded: vi.fn(),
     openModal: vi.fn(),
+    closeModal: vi.fn(),
+    setHost: vi.fn(),
+    sync: vi.fn(),
+    openKey: vi.fn().mockReturnValue(null),
     ...overrides
   } as unknown as ModalController;
 }
@@ -47,7 +51,8 @@ function makeDeps(overrides: Partial<SideCardCoordinatorDeps> = {}): {
     getInFlight: vi.fn().mockReturnValue(new Map()),
     hasCachedReportAggregate: vi.fn().mockReturnValue(false),
     getAggregateLimit: vi.fn().mockReturnValue(8),
-    renderSideCardAnalytics: vi.fn(),
+    renderSideCardAnalytics: vi.fn().mockReturnValue(null),
+    findCard: vi.fn().mockReturnValue(null),
     ...overrides
   };
   return { deps, modal };
@@ -116,11 +121,13 @@ describe("createSideCardCoordinator — context bridge", () => {
 });
 
 describe("createSideCardCoordinator — tab events", () => {
-  it("selecting Analytics opens the modal with the side-card context", () => {
+  it("selecting CTECs renders the sheet inside Paper.nu's panel", () => {
     let onTabChange!: (tab: "paper" | "analytics") => void;
+    const host = document.createElement("section");
     const renderSideCardAnalytics = vi.fn().mockImplementation(
-      (_ctx, _state, onTab) => {
+      (_ctx, state, onTab) => {
         onTabChange = onTab;
+        return state.selectedTab === "analytics" ? host : null;
       }
     );
     const { deps, modal } = makeDeps({
@@ -130,9 +137,42 @@ describe("createSideCardCoordinator — tab events", () => {
     const coord = createSideCardCoordinator(deps);
     coord.syncSideCard(document);
     onTabChange("analytics");
+    expect(modal.setHost).toHaveBeenCalledWith(host);
     expect(modal.openModal).toHaveBeenCalledWith(
       expect.objectContaining({ key: "course-1" })
     );
+  });
+
+  it("closes the hosted sheet when Paper.nu's panel goes away", () => {
+    let onTabChange!: (tab: "paper" | "analytics") => void;
+    const host = document.createElement("section");
+    const extractSideCardContext = vi.fn().mockReturnValue(makeContext());
+    const modal = makeModal();
+    const { deps } = makeDeps({
+      modalController: () => modal,
+      extractSideCardContext,
+      hasUserActivated: vi.fn().mockReturnValue(true),
+      renderSideCardAnalytics: vi.fn().mockImplementation((_ctx, state, onTab) => {
+        onTabChange = onTab;
+        return state.selectedTab === "analytics" ? host : null;
+      })
+    });
+    const coord = createSideCardCoordinator(deps);
+    coord.syncSideCard(document);
+    onTabChange("analytics");
+    (modal.openKey as ReturnType<typeof vi.fn>).mockReturnValue("course-1");
+    extractSideCardContext.mockReturnValue(null);
+    coord.syncSideCard(document);
+    expect(modal.setHost).toHaveBeenLastCalledWith(null);
+    expect(modal.closeModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("a card's Analytics button falls back to the docked sheet when there is no card to open", () => {
+    const { deps, modal } = makeDeps();
+    const coord = createSideCardCoordinator(deps);
+    const source = { ...makeContext(), key: "course-9" };
+    coord.openAnalytics(source);
+    expect(modal.openModal).toHaveBeenCalledWith(source);
   });
 
   it("selecting Paper does NOT open the modal", () => {
@@ -150,23 +190,6 @@ describe("createSideCardCoordinator — tab events", () => {
     coord.syncSideCard(document);
     onTabChange("paper");
     expect(modal.openModal).not.toHaveBeenCalled();
-  });
-
-  it("the openModal launcher fires when its callback is invoked", () => {
-    let onLaunch!: () => void;
-    const renderSideCardAnalytics = vi.fn().mockImplementation(
-      (_ctx, _state, _onTab, onOpen) => {
-        onLaunch = onOpen;
-      }
-    );
-    const { deps, modal } = makeDeps({
-      hasUserActivated: vi.fn().mockReturnValue(true),
-      renderSideCardAnalytics
-    });
-    const coord = createSideCardCoordinator(deps);
-    coord.syncSideCard(document);
-    onLaunch();
-    expect(modal.openModal).toHaveBeenCalledTimes(1);
   });
 
   it("remembers the user's selected tab across re-syncs (until analytics drops)", () => {

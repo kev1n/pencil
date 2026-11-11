@@ -84,7 +84,7 @@ describe("CAESAR bookmarks", () => {
     brand.click();
     brand.click();
     expect(document.querySelectorAll("#bc-paper-brand-modal")).toHaveLength(1);
-    expect(document.querySelector("#bc-paper-brand-modal")?.textContent).toContain("version 0.9.12");
+    expect(document.querySelector("#bc-paper-brand-modal")?.textContent).toContain("Version 0.9.12");
     document.querySelector<HTMLButtonElement>("#bc-paper-brand-modal button[aria-label='Close']")!.click();
     expect(document.getElementById("bc-paper-brand-modal")).toBeNull();
     brand.click();

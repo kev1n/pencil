@@ -77,16 +77,16 @@ function statusFromLoadState(
   }
   if (result.state === "no-term") return "No active term.";
   if (result.state === "term-data-missing") {
-    return "Couldn't load term data — try again in a moment.";
+    return "Couldn't load this term's classes. Try again in a moment.";
   }
   if (enumerate?.conflictingPins) {
     return "Pinned sections conflict with each other. Unpin one to continue.";
   }
   if (enumerate && enumerate.combinations.length === 1) {
-    return "Only one valid combination at this size. Add another section of a course (or lower Max) to see alternatives.";
+    return "Only one schedule fits. Add another section of a class, or lower the credit maximum, to see more.";
   }
   if (enumerate?.truncated) {
-    return "Showing the first batch of combinations — narrow the pool with pins to see more.";
+    return "Showing the first batch of combinations. Pin a section to narrow them down.";
   }
   return undefined;
 }

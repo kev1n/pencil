@@ -11,6 +11,33 @@
   },
   "entries": [
     {
+      "version": "1.0.0",
+      "date": "2026-11-10",
+      "headline": "Pencil 1.0",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "CTEC analytics now open inside Paper.nu's Section Info panel, on a CTECs tab, with one-click terms, comment search and the phrases students mention most."
+        },
+        {
+          "kind": "feat",
+          "text": "When a professor has no CTECs for a class, Pencil lists who else has taught it and what else they teach, one click away."
+        },
+        {
+          "kind": "feat",
+          "text": "Pencil has a cleaner look everywhere. Prefer the old colours? Switch back under Theme in this popup."
+        },
+        {
+          "kind": "fix",
+          "text": "CTECs no longer say a professor has never taught anything after Pencil loads data in the background."
+        },
+        {
+          "kind": "fix",
+          "text": "The sign-in, About and calendar export dialogs are simpler and easier to read."
+        }
+      ]
+    },
+    {
       "version": "0.9.22",
       "date": "2026-11-10",
       "headline": "Shortcuts keep CAESAR's sidebar",

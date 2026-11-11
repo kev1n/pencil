@@ -112,7 +112,8 @@ export function extractSideCardContext(doc: Document): PaperCtecSideCardContext 
     panel,
     key: buildCourseKey(params, titleHint),
     params,
-    titleHint
+    titleHint,
+    instructorName: instructorNames.join(", ")
   };
 }
 
@@ -315,6 +316,7 @@ export function teardownPageForCleanup(doc: Document): void {
   for (const panel of Array.from(
     doc.querySelectorAll<HTMLElement>(PAPER_CTEC_CONFIG.selectors.sideCardPanel)
   )) {
+    panel.parentElement?.removeAttribute("data-bc-ctec-wide");
     panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
     panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
     for (const child of Array.from(panel.children)) {

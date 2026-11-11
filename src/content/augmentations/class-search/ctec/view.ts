@@ -11,7 +11,6 @@ import { CAESAR_CONNECTION_LABEL, CAESAR_CONNECTION_MESSAGE } from "../../../peo
 import { getOrCreatePreviewController } from "../../paper-ctec/analytics-preview";
 import { WIDGET_CLASS } from "../../paper-ctec/constants";
 import type { ModalDisplayData } from "../../paper-ctec/modal-data";
-import { iconTemplate } from "../../paper-ctec/ui-shared";
 import {
   globalChip,
   makeChip,
@@ -29,7 +28,7 @@ export function renderIdle(host: HTMLElement, onLoad: () => void, caesarUnreacha
   host.dataset.state = "idle";
   host.title = caesarUnreachable
     ? CAESAR_CONNECTION_MESSAGE
-    : "Click to fetch CTEC summary for this section.";
+    : "Load this section's CTEC ratings.";
 
   render(
     html`<div class="bc-cs-ctec-summary">
@@ -43,7 +42,7 @@ export function renderIdle(host: HTMLElement, onLoad: () => void, caesarUnreacha
           event.stopPropagation();
           onLoad();
         }}
-      >${iconTemplate("spark")}<span>${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
+      ><span>${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
     </div>`,
     host
   );
@@ -51,10 +50,10 @@ export function renderIdle(host: HTMLElement, onLoad: () => void, caesarUnreacha
 
 export function renderLoading(
   host: HTMLElement,
-  message = "Connecting to Northwestern CTEC…"
+  message = "Loading CTEC"
 ): void {
   host.dataset.state = "loading";
-  host.title = "pencil.nu is loading Northwestern CTEC data for this section.";
+  host.title = "Loading CTEC ratings for this section.";
 
   render(
     html`<div class="bc-cs-ctec-summary">
@@ -77,7 +76,7 @@ export function renderResolved(
   if (data.state === "error") {
     host.title = data.message;
   } else if (data.state === "no-access") {
-    host.title = "Northwestern has not authorized this NetID to view CTECs.";
+    host.title = "Northwestern hasn't given this NetID access to CTECs.";
   } else {
     host.removeAttribute("title");
   }
@@ -115,7 +114,7 @@ function renderAnalyticsButton(onClick: () => void): TemplateResult {
   return html`<button
     type="button"
     class="bc-cs-ctec-analytics-btn"
-    title="Open the full CTEC analytics view for this section."
+    title="Open CTEC analytics for this section."
     @click=${(event: Event) => {
       event.preventDefault();
       event.stopPropagation();
@@ -136,7 +135,7 @@ function buildSummary(
       "lock",
       "No CTEC access",
       "is-muted",
-      "Northwestern has not authorized this NetID to view CTECs."
+      "Northwestern hasn't given this NetID access to CTECs."
     );
   }
 
@@ -153,12 +152,12 @@ function buildSummary(
 
   if (chips.length === 0) {
     const fallback = [
-      metricChip("CHLG", "Challenge", aggregate.metrics.challenging, aggregate, "rating"),
-      metricChip("INT", "Interest", aggregate.metrics.stimulating, aggregate, "rating")
+      metricChip("Challenge", "Challenge", aggregate.metrics.challenging, aggregate, "rating"),
+      metricChip("Interest", "Interest", aggregate.metrics.stimulating, aggregate, "rating")
     ].filter((chip): chip is TemplateResult => chip !== null);
 
     if (fallback.length > 0) return fallback;
-    return makeChip("spark", "CTEC detail", "is-muted");
+    return makeChip("spark", "See analytics", "is-muted");
   }
 
   return chips;

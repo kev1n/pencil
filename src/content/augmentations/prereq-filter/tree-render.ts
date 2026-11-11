@@ -158,7 +158,7 @@ function leafPill(
     case "none":
       return pill(doc, NULL_LABEL, "ok", { glyph: "✓" });
     case "consent":
-      return pill(doc, `${node.source} consent`, "warn", { glyph: "\u{1F511}" });
+      return pill(doc, `${node.source} consent`, "warn");
     case "standing":
       return pill(doc, standingLabel(node), "neutral", { soft: true });
     case "topic":

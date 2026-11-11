@@ -515,11 +515,11 @@ export async function discoverInstructorRows(
     params.subject,
     params.instructor
   );
-  if (persisted !== null) {
-    const result: InstructorDiscoveryResult =
-      persisted.length === 0
-        ? { state: "not-found" }
-        : { state: "found", rows: persisted };
+  // A saved "nothing found" is looked up again once per page load: it is
+  // cheap, and an empty answer saved by a failed lookup would otherwise
+  // hide a professor's history for good.
+  if (persisted !== null && persisted.length > 0) {
+    const result: InstructorDiscoveryResult = { state: "found", rows: persisted };
     instructorDiscoveryCache.set(key, result);
     return result;
   }

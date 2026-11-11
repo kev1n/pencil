@@ -3,8 +3,9 @@ import { PAPER_CTEC_CONFIG } from "../config";
 import { NO_HOVER_LIFT_CLASS, WIDGET_CLASS } from "../constants";
 
 // Schedule-card widget styles: dense card layout, course/title/instructor
-// lines, summary chips (incl. star ratings, value chips, auth chip, analytics
-// button). Hover-lift suppression for paper.nu's default card animation.
+// lines, the one-line CTEC summary (rating, hours, stars, state text), and
+// the two small action buttons that hang off the card's corner. Hover-lift
+// suppression for paper.nu's default card animation.
 export function cardStyles(): string {
   return `
     ${PAPER_CTEC_CONFIG.selectors.scheduleGrid} div.absolute.z-\\[31\\].-translate-y-1\\/2.whitespace-nowrap.rounded-md.bg-emerald-500.px-1\\.5.py-0\\.5.text-\\[10px\\].font-medium.text-white {
@@ -24,8 +25,8 @@ export function cardStyles(): string {
       margin-top: 3px;
       padding-top: 3px;
       border-top: 1px solid var(--bc-color-card-divider-soft);
-      min-height: 14px;
-      color: var(--bc-color-text-soft);
+      min-height: 16px;
+      color: inherit;
       pointer-events: auto;
     }
     .bc-paper-ctec-dense-card {
@@ -72,38 +73,41 @@ export function cardStyles(): string {
       -webkit-line-clamp: 1;
       -webkit-box-orient: vertical;
     }
+    /* Instructor sits at the right of the course line as plain quiet text.
+       No pill: the card is already a coloured box. */
     .bc-paper-ctec-instructor-line {
       flex: 0 0 auto;
       max-width: 44%;
       margin-left: auto !important;
-      padding: 1px 6px;
-      border-radius: var(--bc-radius-pill);
-      background: var(--bc-color-ink-instructor-pill-bg);
-      font-size: var(--bc-font-10) !important;
-      font-weight: var(--bc-fw-semibold) !important;
+      font-size: var(--bc-font-11) !important;
+      font-weight: var(--bc-fw-regular) !important;
       line-height: 1.15 !important;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      opacity: 1 !important;
-      color: var(--bc-color-text-soft) !important;
+      opacity: 0.72 !important;
     }
+    /* One line of facts under a hairline: the rating in its colour, then
+       hours as plain text. Nothing here is boxed or uppercase. */
     .${WIDGET_CLASS}-summary {
       display: flex;
       align-items: center;
-      gap: 4px;
+      column-gap: 8px;
+      row-gap: 2px;
       flex-wrap: wrap;
       min-width: 0;
-      font-size: var(--bc-font-10);
-      line-height: 1.1;
+      font-family: var(--bc-font-body);
+      font-size: var(--bc-font-11);
+      line-height: 16px;
+      font-variant-numeric: tabular-nums;
     }
     .${WIDGET_CLASS}-spinner {
       width: 10px;
       height: 10px;
       flex: 0 0 auto;
       border-radius: var(--bc-radius-circle);
-      border: 1.5px solid var(--bc-color-accent-fill-24);
-      border-top-color: var(--bc-color-accent-soft);
+      border: 1.5px solid var(--bc-color-ink-fill-08);
+      border-top-color: currentColor;
       animation: bc-paper-ctec-widget-spin 900ms linear infinite;
     }
     @keyframes bc-paper-ctec-widget-spin {
@@ -111,39 +115,41 @@ export function cardStyles(): string {
     }
     .${WIDGET_CLASS}-chip {
       display: inline-flex;
-      align-items: center;
+      align-items: baseline;
       gap: 3px;
       min-width: 0;
       max-width: 100%;
-      padding: 1px 4px;
-      border-radius: var(--bc-radius-pill);
-      border: 1px solid var(--bc-paper-ctec-chip-border, transparent);
-      background: var(--bc-paper-ctec-chip-bg, var(--bc-color-surface-translucent-56));
-      color: var(--bc-paper-ctec-chip-fg, var(--bc-color-text));
       white-space: nowrap;
-      font-weight: var(--bc-fw-semibold);
+      color: inherit;
     }
     .${WIDGET_CLASS}-chip-label {
+      font-size: var(--bc-font-11);
       opacity: 0.72;
-      font-size: var(--bc-font-9);
-      font-weight: var(--bc-fw-extrabold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
     }
     .${WIDGET_CLASS}-chip-value {
-      font-size: var(--bc-font-10);
-      font-weight: var(--bc-fw-extrabold);
+      font-size: var(--bc-font-11);
+      font-weight: var(--bc-fw-semibold);
+    }
+    /* The rating number is the one coloured thing: red through amber to
+       green, same scale as the CTEC sheet. */
+    .${WIDGET_CLASS}-chip.is-rating .${WIDGET_CLASS}-chip-value {
+      padding: 0 5px;
+      border-radius: 5px;
+      background: var(--bc-paper-ctec-chip-bg, var(--bc-color-ink-fill-06));
+      color: var(--bc-paper-ctec-chip-fg, inherit);
+    }
+    [data-bc-mode="dark"] .${WIDGET_CLASS}-chip.is-rating .${WIDGET_CLASS}-chip-value {
+      background: var(--bc-paper-ctec-chip-bg-dark, var(--bc-color-ink-fill-06));
+      color: var(--bc-paper-ctec-chip-fg-dark, inherit);
     }
     .${WIDGET_CLASS}-chip-scale {
-      margin-left: 1px;
-      font-size: var(--bc-font-9);
-      font-weight: var(--bc-fw-semibold);
-      opacity: 0.55;
+      font-size: var(--bc-font-11);
+      opacity: 0.6;
     }
     .${WIDGET_CLASS}-chip-stars {
       display: inline-flex;
       align-items: center;
-      margin-left: 1px;
+      align-self: center;
     }
     .${WIDGET_CLASS}-chip-stars .bc-paper-ctec-stars {
       gap: ${PAPER_CTEC_CONFIG.ui.summaryChipStarGapPx}px;
@@ -156,24 +162,37 @@ export function cardStyles(): string {
       width: ${PAPER_CTEC_CONFIG.ui.summaryChipIconSizePx}px;
       height: ${PAPER_CTEC_CONFIG.ui.summaryChipIconSizePx}px;
       flex: 0 0 auto;
+      align-self: center;
       stroke-width: ${PAPER_CTEC_CONFIG.ui.summaryChipStrokeWidth};
     }
     .${WIDGET_CLASS}-chip.is-muted {
-      font-weight: var(--bc-fw-medium);
-      color: var(--bc-color-text-muted);
+      opacity: 0.72;
     }
     .${WIDGET_CLASS}-chip.is-warn {
-      background: var(--bc-color-warn-rose-fill-12);
       color: var(--bc-color-warn-rose-text);
     }
+    /* "Load CTEC": a quiet pill on the card's own colour. */
     button.${WIDGET_CLASS}-chip-button {
       appearance: none;
-      cursor: pointer;
+      align-items: center;
+      height: 18px;
+      padding: 0 7px;
+      border: 0;
+      border-radius: 5px;
+      background: var(--bc-color-ink-fill-06);
+      color: inherit;
       font: inherit;
-      padding: 2px 9px;
-      transition: transform var(--bc-tx-base) var(--bc-easing),
-                  background var(--bc-tx-base) var(--bc-easing),
-                  box-shadow var(--bc-tx-base) var(--bc-easing);
+      font-weight: var(--bc-fw-medium);
+      opacity: 1;
+      cursor: pointer;
+      transition: background var(--bc-tx-base) var(--bc-easing);
+    }
+    button.${WIDGET_CLASS}-chip-button:hover {
+      background: var(--bc-color-ink-border-12);
+    }
+    button.${WIDGET_CLASS}-chip-button:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 1px;
     }
     /* Wrapped label so the text can truncate with an ellipsis when two
        classes share a timeslot and each card collapses to ~half width —
@@ -183,27 +202,6 @@ export function cardStyles(): string {
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-    button.${WIDGET_CLASS}-chip-button.is-muted {
-      background: var(--bc-color-accent-surface-soft);
-      border: 1px solid var(--bc-color-accent-border-45);
-      color: var(--bc-color-accent);
-      font-weight: var(--bc-fw-bold);
-      letter-spacing: var(--bc-ls-wide);
-      box-shadow: var(--bc-shadow-button);
-    }
-    button.${WIDGET_CLASS}-chip-button.is-muted:hover {
-      background: var(--bc-color-accent-surface-tile);
-      border-color: var(--bc-color-accent);
-      box-shadow: var(--bc-shadow-button-hover);
-      transform: translateY(-1px);
-    }
-    button.${WIDGET_CLASS}-chip-button.is-muted:active {
-      transform: translateY(0);
-      box-shadow: var(--bc-shadow-button);
-    }
-    button.${WIDGET_CLASS}-chip-button.is-warn {
-      border: 1px solid var(--bc-color-warn-rose-border-32);
     }
     /* Actions wrapper: hangs from the bottom-right corner of the schedule
        card so its position never depends on the card's own width — using
@@ -216,7 +214,7 @@ export function cardStyles(): string {
        cursor, drop back, and re-trigger hover. */
     .${WIDGET_CLASS}-actions-anchor {
       position: absolute;
-      bottom: -15px;
+      bottom: -13px;
       right: 6px;
       display: inline-flex;
       align-items: center;
@@ -224,10 +222,16 @@ export function cardStyles(): string {
       z-index: 12;
       pointer-events: auto;
     }
-    /* Both action buttons share a single base style so they collapse to
-       the same icon-only pill by default and expand to icon + label on
-       hover/focus. The label animates via max-width while the icon stays
-       at a fixed size. */
+    /* On a half-width card (two classes side by side) the Analytics label
+       would spill onto the neighbouring card's buttons, so it collapses to
+       its icon there. */
+    ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-actions-anchor) {
+      container-type: inline-size;
+    }
+    /* Both action buttons are the same small white control with a hairline
+       edge. The cart button is icon-only until hover/focus or until it has
+       something to say; the label animates via max-width while the icon
+       stays at a fixed size. */
     button.${WIDGET_CLASS}-analytics-btn,
     button.${WIDGET_CLASS}-cart-btn {
       appearance: none;
@@ -235,29 +239,23 @@ export function cardStyles(): string {
       align-items: center;
       justify-content: center;
       height: 22px;
+      min-width: 22px;
       padding: 0 6px;
-      border-radius: var(--bc-radius-pill);
+      border: 1px solid var(--bc-color-border-strong);
+      border-radius: 7px;
+      background: var(--bc-color-bg);
+      color: var(--bc-color-text-strong);
       cursor: pointer;
-      font: inherit;
-      font-size: var(--bc-font-9);
-      font-weight: var(--bc-fw-extrabold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
+      font-family: var(--bc-font-body);
+      font-size: var(--bc-font-11);
+      font-weight: var(--bc-fw-medium);
+      letter-spacing: 0;
+      text-transform: none;
       line-height: 1;
-      box-shadow: var(--bc-shadow-button);
+      box-shadow: var(--bc-shadow-elev-1);
       transition: background var(--bc-tx-base) var(--bc-easing),
                   border-color var(--bc-tx-base) var(--bc-easing),
-                  box-shadow var(--bc-tx-base) var(--bc-easing);
-    }
-    button.${WIDGET_CLASS}-analytics-btn {
-      border: 1px solid var(--bc-color-accent-border-45);
-      background: var(--bc-color-accent-soft);
-      color: var(--bc-color-accent-soft-on);
-    }
-    button.${WIDGET_CLASS}-cart-btn {
-      border: 1px solid var(--bc-color-cart-border);
-      background: var(--bc-color-cart-bg);
-      color: var(--bc-color-cart-text);
+                  color var(--bc-tx-base) var(--bc-easing);
     }
     button.${WIDGET_CLASS}-analytics-btn svg,
     button.${WIDGET_CLASS}-cart-btn svg {
@@ -283,6 +281,13 @@ export function cardStyles(): string {
       opacity: 1;
       margin-left: 4px;
     }
+    @container (max-width: 150px) {
+      .${WIDGET_CLASS}-analytics-btn-label {
+        max-width: 0;
+        opacity: 0;
+        margin-left: 0;
+      }
+    }
     button.${WIDGET_CLASS}-cart-btn:hover .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn:focus-visible .${WIDGET_CLASS}-cart-btn-label {
       max-width: 220px;
@@ -290,9 +295,9 @@ export function cardStyles(): string {
       margin-left: 4px;
     }
     /* Mid-flight and one-shot finish states stay expanded so the user can
-       read the status (Added #1234, Retry, Adding…) without hovering.
+       read the status (Added, Retry, Adding…) without hovering.
        Persistent badges (in-cart, enrolled) collapse to icon-only and
-       expand on hover, matching the analytics button's pattern. */
+       expand on hover. */
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="success"] .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="error"] .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="loading"] .${WIDGET_CLASS}-cart-btn-label {
@@ -300,38 +305,38 @@ export function cardStyles(): string {
       opacity: 1;
       margin-left: 4px;
     }
+    button.${WIDGET_CLASS}-analytics-btn:hover,
     button.${WIDGET_CLASS}-cart-btn:hover:not(:disabled) {
-      background: var(--bc-color-cart-bg-hover);
-      border-color: var(--bc-color-cart-border-hover);
-      box-shadow: var(--bc-shadow-button-hover);
+      background: var(--bc-color-surface-hover);
+      border-color: var(--bc-color-text-muted);
+    }
+    button.${WIDGET_CLASS}-analytics-btn:focus-visible,
+    button.${WIDGET_CLASS}-cart-btn:focus-visible {
+      outline: 2px solid var(--bc-color-accent);
+      outline-offset: 1px;
+    }
+    /* Cart states keep the white control and change only the ink, so a
+       green tick means "yours" and red means "try again". */
+    button.${WIDGET_CLASS}-cart-btn:disabled {
+      cursor: default;
     }
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="success"],
-    button.${WIDGET_CLASS}-cart-btn[data-cart-state="in-cart"] {
-      background: var(--bc-color-cart-success-bg);
-      border-color: var(--bc-color-cart-success-border);
-      color: var(--bc-color-cart-success-text);
+    button.${WIDGET_CLASS}-cart-btn[data-cart-state="in-cart"],
+    button.${WIDGET_CLASS}-cart-btn[data-cart-state="enrolled"] {
+      color: var(--bc-color-success);
     }
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="enrolled"] {
-      background: var(--bc-color-paper);
-      background: color-mix(in srgb, var(--bc-color-paper) 78%, white);
-      border-color: var(--bc-color-paper);
-      color: var(--bc-color-cart-text);
+      background: var(--bc-color-success-bg);
+      border-color: var(--bc-color-success-border);
+      color: var(--bc-color-success-text);
     }
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="error"] {
-      background: var(--bc-color-cart-error-bg);
-      border-color: var(--bc-color-cart-error-border);
-      color: var(--bc-color-cart-error-text);
+      border-color: var(--bc-color-danger-border);
+      color: var(--bc-color-danger);
     }
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="loading"] {
-      background: var(--bc-color-cart-loading-bg);
-      border-color: var(--bc-color-cart-loading-border);
-      color: var(--bc-color-cart-loading-text);
+      color: var(--bc-color-text-muted);
       cursor: progress;
-      animation: bc-paper-ctec-cart-pulse 1.6s ease-in-out infinite;
-    }
-    @keyframes bc-paper-ctec-cart-pulse {
-      0%, 100% { opacity: 0.85; }
-      50% { opacity: 1; }
     }
     /* Suppress paper.nu's card-hover effect while the cursor is on the
        actions wrapper — the wrapper visually overlaps the card so users
@@ -342,14 +347,6 @@ export function cardStyles(): string {
     }
     .${NO_HOVER_LIFT_CLASS} ${PAPER_CTEC_CONFIG.selectors.scheduleCard}:has(> .${WIDGET_CLASS}-actions-anchor:hover) {
       outline-color: transparent !important;
-    }
-    button.${WIDGET_CLASS}-analytics-btn:hover {
-      background: var(--bc-color-accent-soft-hover);
-      border-color: var(--bc-color-accent-border-45);
-      box-shadow: var(--bc-shadow-button-hover);
-    }
-    button.${WIDGET_CLASS}-chip-button:hover {
-      background: var(--bc-color-warn-rose-fill-20);
     }
     /* Hover preview popup. Anchors below the schedule card outer host
        (sibling to the analytics anchor) so it escapes the dense card's
@@ -367,7 +364,8 @@ export function cardStyles(): string {
       max-width: 92vw;
       padding: 16px 18px 14px;
       border: 1px solid var(--bc-color-border);
-      border-radius: var(--bc-radius-lg);
+      border-radius: var(--bc-radius-2xl);
+      font-family: var(--bc-font-body);
       background: var(--bc-color-bg);
       box-shadow: var(--bc-shadow-tooltip);
       opacity: 0;
@@ -416,11 +414,9 @@ export function cardStyles(): string {
       gap: 6px;
     }
     .${WIDGET_CLASS}-preview-section-title {
-      font-size: var(--bc-font-12);
-      font-weight: var(--bc-fw-extrabold);
-      letter-spacing: var(--bc-ls-widest);
-      text-transform: uppercase;
-      color: var(--bc-color-text-muted);
+      font-size: var(--bc-font-13);
+      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-strong);
     }
     .${WIDGET_CLASS}-preview-methodology {
       font-size: var(--bc-font-12);

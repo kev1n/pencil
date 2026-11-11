@@ -3,7 +3,7 @@ import { html, render } from "lit-html";
 import { PAPER_CTEC_CONFIG } from "./config";
 import { STATUS_BAR_ID } from "./constants";
 import type { PaperCtecStatusBarData } from "./types";
-import { iconTemplate, type IconName } from "./ui-shared";
+import { iconTemplate } from "./ui-shared";
 
 // Mounts (and re-renders) the persistent status bar in the paper.nu action
 // row. Auth-required is no longer a status state — the popup-and-retry
@@ -30,14 +30,15 @@ export function renderStatusBar(
   bar.className = data.state === "ready" ? "is-ready" : "is-loading";
   bar.title = buildStatusTitle(data);
 
+  // One quiet line in Paper.nu's toolbar: a spinner or a tick, then the
+  // fact. No box, no brand label.
   render(
-    html`<div class="bc-paper-ctec-status-mark">
-        ${iconTemplate(statusIcon(data.state))}<span
-          class="bc-paper-ctec-status-brand"
-          >pencil.nu</span
-        >
-      </div>
-      <div class="bc-paper-ctec-status-copy">${buildStatusCopy(data)}</div>`,
+    html`<span class="bc-paper-ctec-status-mark"
+        >${data.state === "ready"
+          ? iconTemplate("check")
+          : html`<span class="bc-paper-ctec-status-spinner"></span>`}</span
+      >
+      <span class="bc-paper-ctec-status-copy">${buildStatusCopy(data)}</span>`,
     bar
   );
 }
@@ -81,33 +82,32 @@ function hasPaperActions(candidate: HTMLElement): boolean {
     labels.some((label) => label.includes("clear"));
 }
 
+function plural(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? "" : "es"}`;
+}
+
 function buildStatusCopy(data: PaperCtecStatusBarData): string {
   if (data.state === "loading") {
     const detail = data.latestMessage
       ? ` · ${data.latestMessage}`
       : data.activeCount > 0
-        ? ` · ${data.activeCount} active`
+        ? ` · ${data.activeCount} in progress`
         : "";
-    return `Loading CTECs into Paper · ${data.resolvedCount}/${data.totalCount} classes checked${detail}`;
+    return `Loading CTECs · ${data.resolvedCount} of ${plural(data.totalCount, "class")}${detail}`;
   }
 
   const parts = [];
-  if (data.foundCount > 0) parts.push(`${data.foundCount} enriched`);
-  if (data.notFoundCount > 0) parts.push(`${data.notFoundCount} no CTEC`);
+  if (data.foundCount > 0) parts.push(`CTECs on ${plural(data.foundCount, "class")}`);
+  if (data.notFoundCount > 0) parts.push(`${data.notFoundCount} with none`);
   if (data.errorCount > 0) parts.push(`${data.errorCount} unavailable`);
-  if (parts.length === 0) parts.push("no visible classes");
-  return `CTEC sync complete on Paper · ${parts.join(" · ")}`;
+  if (parts.length === 0) parts.push("No classes on this schedule yet");
+  return parts.join(" · ");
 }
 
 function buildStatusTitle(data: PaperCtecStatusBarData): string {
   if (data.state === "loading") {
-    return "pencil.nu is reading Northwestern CTEC data and attaching summaries to the current Paper schedule.";
+    return "Pencil is reading CTEC reports for the classes on this schedule.";
   }
 
-  return "pencil.nu finished syncing Northwestern CTEC summaries into the current Paper schedule.";
-}
-
-function statusIcon(state: PaperCtecStatusBarData["state"]): IconName {
-  if (state === "ready") return "stack";
-  return "spark";
+  return "Pencil has checked CTEC reports for every class on this schedule.";
 }

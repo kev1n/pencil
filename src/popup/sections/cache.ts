@@ -20,7 +20,7 @@ export function makeClearCacheButton(options: {
   cleanup(): Promise<void>;
 }): void {
   const { containerId, buttonText, cleanup } = options;
-  const successText = options.successText ?? "Cleared!";
+  const successText = options.successText ?? "Cleared";
   const btn = document.getElementById(containerId);
   if (!(btn instanceof HTMLButtonElement)) return;
   bindActionButton(btn, {
@@ -38,7 +38,7 @@ export function makeClearCacheButton(options: {
 export function initCacheButtons(): void {
   makeClearCacheButton({
     containerId: "clear-ctec-cache",
-    buttonText: "Clear CTEC cache",
+    buttonText: "CTECs",
     cleanup: async () => {
       // Also clear the sticky "no CTEC access" flag so a reauthorized
       // student gets a fresh probe on the next CTEC click.
@@ -52,7 +52,7 @@ export function initCacheButtons(): void {
 
   makeClearCacheButton({
     containerId: "clear-catalog-cache",
-    buttonText: "Clear catalog cache",
+    buttonText: "Class catalog",
     cleanup: async () => {
       // Wipes every paper.nu source-data key (plan/subjects/per-term files)
       // by prefix — keys are versioned so they can't be enumerated up front.
@@ -64,7 +64,7 @@ export function initCacheButtons(): void {
 
   makeClearCacheButton({
     containerId: "clear-cart-cache",
-    buttonText: "Clear cart cache",
+    buttonText: "Cart",
     cleanup: async () => {
       await chrome.storage.local.remove(CART_CACHE_STORAGE_KEY);
     }
@@ -72,7 +72,7 @@ export function initCacheButtons(): void {
 
   makeClearCacheButton({
     containerId: "clear-course-history-cache",
-    buttonText: "Clear course history cache",
+    buttonText: "Course history",
     cleanup: async () => {
       await chrome.storage.local.remove(COURSE_HISTORY_STORAGE_KEY);
     }
@@ -80,7 +80,7 @@ export function initCacheButtons(): void {
 
   makeClearCacheButton({
     containerId: "clear-prereqs-cache",
-    buttonText: "Clear prereqs cache",
+    buttonText: "Prerequisites",
     cleanup: async () => {
       await clearParsedPrereqs();
     }

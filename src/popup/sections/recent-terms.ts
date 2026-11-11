@@ -33,12 +33,12 @@ export async function initRecentTermsInput(): Promise<void> {
 
   const labelTitle = document.createElement("span");
   labelTitle.className = "ctec-school-label-title";
-  labelTitle.textContent = "Recent terms aggregation";
+  labelTitle.textContent = "Terms in each rating";
 
   const labelHelp = document.createElement("span");
   labelHelp.className = "ctec-school-label-help";
   labelHelp.textContent =
-    "How many of a course's most recent terms get averaged into the schedule-card chips and the analytics KPIs.";
+    "How many of a class's most recent terms are averaged on schedule cards.";
 
   label.append(labelTitle, labelHelp);
 
@@ -50,7 +50,7 @@ export async function initRecentTermsInput(): Promise<void> {
   input.max = String(MAX_RECENT_AGGREGATION_TERMS);
   input.step = "1";
   input.value = String(initial);
-  input.style.maxWidth = "80px";
+  input.classList.add("ctec-school-select--number");
 
   const persist = async (): Promise<void> => {
     const next = clampRecent(Number.parseInt(input.value, 10));

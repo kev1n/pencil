@@ -32,7 +32,7 @@ function abortWithTimeoutReason(controller: AbortController, ms: number): void {
 // breaker sees and counts every NU request regardless of source page or
 // feature.
 const CIRCUIT_BREAKER_WINDOW_MS = 60_000;
-const CIRCUIT_BREAKER_MAX = 150;
+const CIRCUIT_BREAKER_MAX = 600;
 const CIRCUIT_BREAKER_HOSTS = new Set([CAESAR_HOSTNAME, ...BLUERA_HOSTNAMES]);
 const requestTimestamps: number[] = [];
 let circuitTripped = false;

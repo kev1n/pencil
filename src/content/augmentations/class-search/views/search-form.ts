@@ -8,6 +8,7 @@
 //
 // Extracted from augmentation.ts (Wave 5g). No behavior change.
 
+import { uiIcon } from "../../../design/ui-icons";
 import { listTerms, type DataMapInfo } from "../paper-data";
 import type { TabId } from "../types";
 
@@ -42,10 +43,10 @@ export function renderSearchShell(doc: Document, props: ShellViewProps): HTMLEle
   header.className = "bc-cs-header";
   const title = doc.createElement("h1");
   title.className = "bc-cs-title";
-  title.textContent = "Search for Classes";
+  title.textContent = "Search for classes";
   const subtitle = doc.createElement("div");
   subtitle.className = "bc-cs-subtitle";
-  subtitle.innerHTML = `Catalog from <a href="https://paper.nu" target="_blank" rel="noopener">paper.nu</a> · live status fetched from CAESAR on demand`;
+  subtitle.innerHTML = `Classes from <a href="https://paper.nu" target="_blank" rel="noopener">Paper.nu</a>. Seats and status come from CAESAR.`;
   header.append(title, subtitle);
   const nativeReturn = props.nativeReturnToCart;
   if (nativeReturn) {
@@ -60,7 +61,7 @@ export function renderSearchShell(doc: Document, props: ShellViewProps): HTMLEle
       returnToCart.addEventListener("click", () => nativeReturn.click());
     }
     returnToCart.className = "bc-btn bc-btn--ghost bc-btn--sm";
-    returnToCart.textContent = "← Return to cart";
+    returnToCart.append(uiIcon(doc, "arrow-left"), "Return to cart");
     header.appendChild(returnToCart);
   }
 
@@ -131,7 +132,7 @@ function buildQueryField(doc: Document, props: ShellViewProps): HTMLDivElement {
   input.id = "bc-cs-query";
   input.className = "bc-cs-input bc-cs-input-query";
   input.value = props.query ?? "";
-  input.placeholder = "comp_sci 111, machine learning, stat 21x, …";
+  input.placeholder = "Search classes: comp_sci 111, machine learning, stat 21x";
   input.autocomplete = "off";
   input.addEventListener("input", () => {
     props.onQueryInput(input.value);

@@ -6,7 +6,7 @@ import type {
   FetchTextResponse
 } from "../shared/messages";
 import { CAESAR_HOSTNAME, CAESAR_SERVICE_URL, safeHostname } from "../shared/nu-hosts";
-import { CaesarConnectionError } from "./peoplesoft/connection";
+import { CaesarConnectionError, CaesarWrongPageError } from "./peoplesoft/connection";
 
 type FetchTextOptions = {
   method?: "GET" | "POST";
@@ -38,6 +38,30 @@ export function toBackgroundWindowUrl(url: string): string {
   return parsed.toString();
 }
 
+// A PeopleSoft form post names its window twice: in the URL (`csnu_<n>`) and
+// in the body (`ICElementNum`). When they disagree CAESAR answers with its
+// home page, which parsers read as an empty result. The body is made to
+// follow the URL here, at the one place every request passes through, so no
+// caller can get it wrong.
+const WINDOW_IN_PATH = /^\/ps[cp]\/csnu(?:_(\d+))?\//;
+
+export function alignBodyWindow(url: string, body: string | undefined): string | undefined {
+  if (!body || safeHostname(url) !== CAESAR_HOSTNAME) return body;
+  const match = new URL(url).pathname.match(WINDOW_IN_PATH);
+  if (!match) return body;
+  const params = new URLSearchParams(body);
+  if (!params.has("ICSID") && !params.has("ICElementNum")) return body;
+  params.set("ICElementNum", match[1] ?? "0");
+  return params.toString();
+}
+
+const HOME_PAGE_RESPONSE = /<PAGE id='(?:PT_LANDINGPAGE|SCC_START_PAGE_FL)'/;
+const HOME_COMPONENTS = /\/c\/(?:NUI_FRAMEWORK\.PT_LANDINGPAGE|NW_PROFILE_START\.SCC_PROFILE_FL)\.GBL/;
+
+function isUnexpectedHomePage(url: string, method: string | undefined, text: string): boolean {
+  return method === "POST" && !HOME_COMPONENTS.test(url) && HOME_PAGE_RESPONSE.test(text);
+}
+
 let requestSequence = 0;
 function nextRequestId(): string {
   requestSequence += 1;
@@ -67,7 +91,7 @@ export async function fetchTextResultViaBackground(
       url,
       method: options?.method,
       headers: options?.headers,
-      body: options?.body,
+      body: alignBodyWindow(url, options?.body),
       requestId,
       timeoutMs: options?.timeoutMs
     } satisfies FetchTextMessage) as FetchTextResponse;
@@ -86,6 +110,9 @@ export async function fetchTextResultViaBackground(
     }
 
     if (safeHostname(url) !== CAESAR_HOSTNAME) return response;
+    if (isUnexpectedHomePage(url, options?.method, response.text)) {
+      throw new CaesarWrongPageError();
+    }
     return { ...response, text: response.text.replace(BACKGROUND_WINDOW_TOKEN, "win0") };
   } finally {
     if (signal) {

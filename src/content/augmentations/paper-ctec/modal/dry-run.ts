@@ -1,19 +1,10 @@
-// Dry-run dialog — two-stage wizard rendered as an overlay on top of
-// the analytics modal:
+// Shown in the sheet in place of the report when this professor has no
+// CTECs for this course: a directory of what is close. Who else has taught
+// the course, and what else this professor has taught in the subject, each
+// with its terms drawn as season icons. Clicking a row opens its reports.
 //
-//   Stage 1 (choose): no row detail. Just a top-line "no CTECs found"
-//     statement plus two cards naming each alternative pathway and how
-//     many sections it contains. User picks one — that's it.
-//
-//   Stage 2 (pick): a preset selector. No row-level picking. The user
-//     chooses between "most recent N" (default) and a handful of
-//     scoped substitutes — "only this professor's 281 sections", "max
-//     unique professors", etc. Whichever radio is active drives the
-//     eventual fetch.
-//
-// Auto-opens whenever the active strategy lands in not-found territory
-// so users always see actionable alternatives instead of a dead-end
-// empty state.
+// Opens by itself whenever the active view finds nothing, so the student
+// always has somewhere to go instead of a dead end.
 
 import { html, type TemplateResult } from "lit-html";
 
@@ -21,7 +12,6 @@ import { extractCatalogLabel, normalizeSearch } from "../../../ctec-index/helper
 import { instructorMatches } from "../../ctec-links/helpers";
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import type { CtecRowSeed } from "../../../ctec-index/types";
-import { preventAndStop, stopPropagation } from "../ui-shared";
 import type {
   AnalyticsModalCallbacks,
   AnalyticsModalInput,
@@ -31,257 +21,157 @@ import type {
   DryRunPreset,
   DryRunState
 } from "./types";
+import { seasonIcon, seasonOf } from "../../../design/icons";
+import { termName, termShortYear } from "./common";
 
 const DRY_RUN_CAPACITY = 3;
 
-export function renderDryRunOverlay(
+export function renderDryRun(
   input: AnalyticsModalInput,
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult | string {
-  if (!state.dryRun) return "";
-
-  return html`<div
-    class="bc-paper-ctec-dry-run-backdrop"
-    @click=${(event: Event) => {
-      preventAndStop(event);
-      callbacks.onDryRunCancel();
-    }}
-  >
-    <div
-      class="bc-paper-ctec-dry-run-dialog"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="bc-paper-ctec-dry-run-title"
-      @click=${stopPropagation}
-    >
-      ${state.dryRun.stage.kind === "choose"
-        ? renderChooseStage(input, state.dryRun, callbacks)
-        : renderPickStage(input, state.dryRun, state.dryRun.stage, callbacks)}
-    </div>
-  </div>`;
-}
-
-// ---------------------------------------------------------------------------
-// Stage 1: pathway picker. Two big cards with counts, no row detail.
-// ---------------------------------------------------------------------------
-
-function renderChooseStage(
-  input: AnalyticsModalInput,
-  dryRun: DryRunState,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
+  const dryRun = state.dryRun;
+  if (!dryRun) return "";
   const subject = input.identity.subject;
-  const catalog = input.identity.catalog;
-  const code = `${subject} ${catalog}`;
+  const code = `${subject} ${input.identity.catalog.replace(/-0$/, "")}`;
   const prof = input.identity.instructor.trim() || "this professor";
 
-  return html`<div class="bc-paper-ctec-dry-run-stage bc-paper-ctec-dry-run-stage--choose">
-    <header class="bc-paper-ctec-dry-run-header">
-      <div class="bc-paper-ctec-dry-run-heading">
-        <span class="bc-paper-ctec-dry-run-eyebrow">No data for this section</span>
-        <h2
-          id="bc-paper-ctec-dry-run-title"
-          class="bc-paper-ctec-dry-run-title"
-        >
-          ${prof} hasn't taught ${code}
-        </h2>
-        <p class="bc-paper-ctec-dry-run-subtitle">
-          We couldn't find any published CTEC evaluations for this
-          specific pairing. Pick a broader view to keep going:
-        </p>
-      </div>
+  // One screen, no steps: the people who have taught this course and the
+  // classes this professor has taught, each with the terms on record.
+  // Clicking a row opens that row's reports.
+  return html`<section class="bc-sheet-wiz" aria-labelledby="bc-sheet-wiz-title">
+    <h3 id="bc-sheet-wiz-title" class="bc-sheet-wiz-title">
+      No CTECs for ${prof} in ${code}
+    </h3>
+    <p class="bc-sheet-wiz-text">
+      Reports only exist once a class has been taught and evaluated. Pick someone or something close.
+    </p>
+    ${input.courseLensRedundant
+      ? ""
+      : renderDirectory("course", `Who has taught ${code}`, dryRun, input, callbacks)}
+    ${input.instructorLensRedundant
+      ? ""
+      : renderDirectory("instructor", `What else ${prof} teaches in ${subject}`, dryRun, input, callbacks)}
+    <div class="bc-sheet-wiz-foot">
+      <span></span>
       <button
         type="button"
-        class="bc-paper-ctec-dry-run-close"
-        aria-label="Close preview"
-        @click=${(event: Event) => {
-          preventAndStop(event);
-          callbacks.onDryRunCancel();
-        }}
-      >✕</button>
-    </header>
-
-    <div class="bc-paper-ctec-dry-run-choices">
-      ${input.courseLensRedundant
-        ? ""
-        : renderChoiceCard({
-            source: "course",
-            icon: COURSE_ICON,
-            title: html`Other times
-              <strong class="bc-paper-ctec-dry-run-choice-keyword"
-                >${code}</strong
-              >
-              has been taught`,
-            sublabel: html`Any professor &middot;
-              <strong>${code}</strong>`,
-            pool: dryRun.coursePool,
-            callbacks
-          })}
-      ${input.instructorLensRedundant
-        ? ""
-        : renderChoiceCard({
-            source: "instructor",
-            icon: INSTRUCTOR_ICON,
-            title: html`Other
-              <strong class="bc-paper-ctec-dry-run-choice-keyword"
-                >${subject}</strong
-              >
-              classes
-              <strong class="bc-paper-ctec-dry-run-choice-keyword"
-                >${prof}</strong
-              >
-              has taught`,
-            sublabel: html`Same professor &middot;
-              Other ${subject} courses`,
-            pool: dryRun.instructorPool,
-            callbacks
-          })}
-    </div>
-
-    <footer class="bc-paper-ctec-dry-run-footer bc-paper-ctec-dry-run-footer--choose">
-      <button
-        type="button"
-        class="bc-paper-ctec-dry-run-btn"
-        @click=${(event: Event) => {
-          preventAndStop(event);
-          callbacks.onDryRunCancel();
-        }}
+        class="bc-btn bc-btn--ghost bc-btn--sm"
+        @click=${() => callbacks.onDryRunCancel()}
       >Cancel</button>
-    </footer>
-  </div>`;
-}
-
-function renderChoiceCard(args: {
-  source: CtecAnalyticsStrategy;
-  icon: TemplateResult;
-  title: TemplateResult;
-  sublabel: TemplateResult;
-  pool: DryRunPoolStatus;
-  callbacks: AnalyticsModalCallbacks;
-}): TemplateResult {
-  const { source, icon, title, sublabel, pool, callbacks } = args;
-  const disabled =
-    pool.kind === "loading" ||
-    pool.kind === "empty" ||
-    pool.kind === "no-access" ||
-    pool.kind === "auth-required" ||
-    pool.kind === "error";
-
-  return html`<button
-    type="button"
-    class=${`bc-paper-ctec-dry-run-choice bc-paper-ctec-dry-run-choice--${source}${
-      disabled ? " is-disabled" : ""
-    }${pool.kind === "loading" ? " is-loading" : ""}`}
-    ?disabled=${disabled}
-    @click=${(event: Event) => {
-      preventAndStop(event);
-      if (disabled) return;
-      callbacks.onDryRunChooseSource(source);
-    }}
-  >
-    <span class="bc-paper-ctec-dry-run-choice-icon" aria-hidden="true">${icon}</span>
-    <div class="bc-paper-ctec-dry-run-choice-main">
-      <span class="bc-paper-ctec-dry-run-choice-title">${title}</span>
-      <span class="bc-paper-ctec-dry-run-choice-sublabel">${sublabel}</span>
     </div>
-    <div class="bc-paper-ctec-dry-run-choice-meta">
-      ${renderChoiceMeta(pool)}
-      <span class="bc-paper-ctec-dry-run-choice-chevron" aria-hidden="true"
-        >→</span
-      >
-    </div>
-  </button>`;
+  </section>`;
 }
 
-function renderChoiceMeta(pool: DryRunPoolStatus): TemplateResult {
-  if (pool.kind === "loading") {
-    return html`<span class="bc-paper-ctec-dry-run-choice-loading">
-      <span class="bc-paper-ctec-dry-run-choice-spinner" aria-hidden="true"></span>
-      <span class="bc-paper-ctec-dry-run-choice-loading-text">Checking…</span>
-    </span>`;
-  }
-  if (pool.kind === "ready") {
-    const n = pool.rows.length;
-    return html`<span class="bc-paper-ctec-dry-run-choice-count">${n}</span>
-      <span class="bc-paper-ctec-dry-run-choice-count-label"
-        >section${n === 1 ? "" : "s"} found</span
-      >`;
-  }
-  if (pool.kind === "empty") {
-    return html`<span class="bc-paper-ctec-dry-run-choice-status"
-      >None found</span
-    >`;
-  }
-  if (pool.kind === "no-access") {
-    return html`<span class="bc-paper-ctec-dry-run-choice-status is-error"
-      >No access</span
-    >`;
-  }
-  if (pool.kind === "auth-required") {
-    return html`<span class="bc-paper-ctec-dry-run-choice-status is-error"
-      >Sign in required</span
-    >`;
-  }
-  return html`<span
-    class="bc-paper-ctec-dry-run-choice-status is-error"
-    title=${pool.message}
-    >Couldn't load</span
-  >`;
-}
-
-const COURSE_ICON: TemplateResult = html`<svg
-  viewBox="0 0 24 24"
-  width="22"
-  height="22"
-  fill="currentColor"
-  aria-hidden="true"
->
-  <path
-    d="M12 3 1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"
-  />
-</svg>`;
-
-const INSTRUCTOR_ICON: TemplateResult = html`<svg
-  viewBox="0 0 24 24"
-  width="22"
-  height="22"
-  fill="currentColor"
-  aria-hidden="true"
->
-  <path
-    d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-  />
-</svg>`;
-
-// ---------------------------------------------------------------------------
-// Stage 2: preset picker. Radio cards — no row-level interaction.
-// ---------------------------------------------------------------------------
-
-function renderPickStage(
-  input: AnalyticsModalInput,
+function renderDirectory(
+  source: CtecAnalyticsStrategy,
+  heading: string,
   dryRun: DryRunState,
-  stage: { kind: "pick"; source: CtecAnalyticsStrategy; preset: DryRunPreset },
+  input: AnalyticsModalInput,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult {
-  const pool =
-    stage.source === "course" ? dryRun.coursePool : dryRun.instructorPool;
+  const pool = source === "course" ? dryRun.coursePool : dryRun.instructorPool;
+  const open = (preset: DryRunPreset) => {
+    callbacks.onDryRunChooseSource(source);
+    callbacks.onDryRunSelectPreset(preset);
+    callbacks.onDryRunConfirm();
+  };
 
-  return html`<div class="bc-paper-ctec-dry-run-stage bc-paper-ctec-dry-run-stage--pick">
-    ${renderPickHeader(input, stage.source, callbacks)}
-    ${renderPickBody(pool, stage, dryRun.capacity, input, callbacks)}
-  </div>`;
+  let body: TemplateResult;
+  if (pool.kind === "ready") {
+    const groups = filterRedundantPresets(computePresets(pool.rows, source), source, {
+      catalog: input.identity.catalog,
+      instructor: input.identity.instructor
+    }).filter((preset) => preset.kind === "by-instructor" || preset.kind === "by-catalog");
+    body =
+      groups.length === 0
+        ? html`<p class="bc-sheet-wiz-status">
+            ${source === "course" ? "Nobody else on record." : "Nothing else on record."}
+          </p>`
+        : html`<div class="bc-sheet-wiz-list">
+            ${groups.map((preset) => renderGroupRow(preset, pool.rows, open))}
+            ${groups.length > 1
+              ? html`<button
+                  type="button"
+                  class="bc-sheet-wiz-row bc-sheet-wiz-row--all"
+                  data-bc-action-button="controller"
+                  @click=${() => open({ kind: "recent" })}
+                ><span class="bc-sheet-wiz-row-title"
+                    >${source === "course" ? "Everyone, latest first" : "All of them, latest first"}</span
+                  >${termStrip(pool.rows.map((row) => row.term))}</button>`
+              : ""}
+          </div>`;
+  } else {
+    const message =
+      pool.kind === "loading"
+        ? "Looking"
+        : pool.kind === "empty"
+          ? source === "course"
+            ? "Nobody else on record."
+            : "Nothing else on record."
+          : pool.kind === "no-access"
+            ? "You don't have access to CTECs."
+            : pool.kind === "auth-required"
+              ? "Sign in to Northwestern to see these."
+              : pool.message;
+    body = html`<p class="bc-sheet-wiz-status">${message}</p>`;
+  }
+  return html`<h4 class="bc-sheet-wiz-head">${heading}</h4>
+    ${body}`;
+}
+
+// One professor (course view) or one class (professor view), with the
+// terms they have reports for drawn as season icons, newest first.
+function renderGroupRow(
+  preset: DryRunPreset,
+  rows: DryRunCandidate[],
+  open: (preset: DryRunPreset) => void
+): TemplateResult {
+  const mine =
+    preset.kind === "by-instructor"
+      ? rows.filter((row) => instructorMatches(row.instructor, preset.instructor))
+      : preset.kind === "by-catalog"
+        ? rows.filter((row) => row.catalogLabel === preset.catalog)
+        : rows;
+  const title =
+    preset.kind === "by-instructor"
+      ? preset.instructor
+      : preset.kind === "by-catalog"
+        ? preset.catalog
+        : "";
+  const about = preset.kind === "by-catalog" ? preset.title.trim() : "";
+  return html`<button
+    type="button"
+    class="bc-sheet-wiz-row"
+    data-bc-action-button="controller"
+    @click=${() => open(preset)}
+  ><span class="bc-sheet-wiz-row-body"
+      ><span class="bc-sheet-wiz-row-title">${title}</span
+      >${about ? html`<span class="bc-sheet-wiz-row-about">${about}</span>` : ""}</span
+    >${termStrip(mine.map((row) => row.term))}</button>`;
+}
+
+const TERM_STRIP_MAX = 4;
+
+function termStrip(terms: string[]): TemplateResult {
+  const unique = [...new Set(terms)];
+  const shown = unique.slice(0, TERM_STRIP_MAX);
+  const extra = unique.length - shown.length;
+  return html`<span class="bc-sheet-wiz-terms" aria-label=${unique.map(termName).join(", ")}
+    >${shown.map((term) => {
+      const season = seasonOf(term);
+      return html`<span class="bc-sheet-wiz-term" title=${termName(term)}
+        >${season ? seasonIcon(season, 13) : ""}<span>${termShortYear(term)}</span></span
+      >`;
+    })}${extra > 0 ? html`<span class="bc-sheet-wiz-term">+${extra}</span>` : ""}</span
+  >`;
 }
 
 // Drops presets that, when applied to the broader lens, would re-narrow
 // back to combo's exact (prof, course) pair: "Only [section's prof]" in
 // course view and "Only [section's catalog]" in instructor view are
-// just combo dressed up — pointless redundancy in the picker. Users
-// who want that data should switch to the combo tab. Returns the
-// filtered list verbatim — callers detect an empty result and render
-// a "no broader view available" message instead of presets so the
-// user isn't stranded on a picker whose only option is the one we
-// just hid.
+// just combo dressed up.
 function filterRedundantPresets(
   presets: DryRunPreset[],
   source: CtecAnalyticsStrategy,
@@ -308,244 +198,12 @@ function filterRedundantPresets(
 
 // Extracts the bare 3-digit catalog number from either side so a
 // preset of "GEN_ENG 205" matches both a "205" identity (default -0
-// section) and a "205-3" identity (sequence variant) — the broader
-// preset would surface the same course's data regardless of the
-// section's sequence suffix.
+// section) and a "205-3" identity (sequence variant).
 function catalogMatches(presetCatalog: string, sectionCatalog: string): boolean {
   const digits = (s: string) => s.match(/\d{3}/)?.[0];
   const presetDigits = digits(presetCatalog);
   if (!presetDigits) return false;
   return presetDigits === digits(sectionCatalog);
-}
-
-// Body switches based on pool status. Ready → preset radio cards.
-// Loading → skeleton placeholder. Anything else → terse status line +
-// Cancel button. Pick stage can open before discovery completes (when
-// the user clicks a strategy tab on the modal header), so a non-ready
-// pool is a normal first-paint state, not an error.
-function renderPickBody(
-  pool: DryRunPoolStatus,
-  stage: { kind: "pick"; source: CtecAnalyticsStrategy; preset: DryRunPreset },
-  capacity: number,
-  input: AnalyticsModalInput,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  if (pool.kind === "ready") {
-    const presets = filterRedundantPresets(
-      computePresets(pool.rows, stage.source),
-      stage.source,
-      { catalog: input.identity.catalog, instructor: input.identity.instructor }
-    );
-    if (presets.length === 0) {
-      const message =
-        stage.source === "course"
-          ? "This professor is the only one who's taught this course — combo already has these evaluations."
-          : "This is the only course this professor has taught in the subject — combo already has these evaluations.";
-      return html`<div class="bc-paper-ctec-dry-run-pick-status">${message}</div>
-        ${renderPickFooter(0, callbacks)}`;
-    }
-    const previewRows = applyPreset(pool.rows, stage.preset, capacity);
-    return html`<div class="bc-paper-ctec-dry-run-presets" role="radiogroup">
-        ${presets.map((preset, i) =>
-          renderPresetCard(preset, stage.preset, pool.rows, capacity, i === 0, callbacks)
-        )}
-      </div>
-      ${renderPickFooter(previewRows.length, callbacks)}`;
-  }
-  if (pool.kind === "loading") {
-    return html`<div class="bc-paper-ctec-dry-run-pick-status">
-        <span class="bc-paper-ctec-dry-run-choice-spinner" aria-hidden="true"></span>
-        <span>Looking up sections…</span>
-      </div>
-      ${renderPickFooter(0, callbacks)}`;
-  }
-  const message =
-    pool.kind === "empty"
-      ? stage.source === "course"
-        ? "No other sections found for this course."
-        : "No other classes found for this professor."
-      : pool.kind === "no-access"
-        ? "You don't have access to CTECs."
-        : pool.kind === "auth-required"
-          ? "Sign in to Northwestern to continue."
-          : pool.message;
-  return html`<div class="bc-paper-ctec-dry-run-pick-status">${message}</div>
-    ${renderPickFooter(0, callbacks)}`;
-}
-
-function renderPickHeader(
-  input: AnalyticsModalInput,
-  source: CtecAnalyticsStrategy,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  const subject = input.identity.subject;
-  const catalog = input.identity.catalog;
-  const code = `${subject} ${catalog}`;
-  const prof = input.identity.instructor.trim() || "this professor";
-
-  const title =
-    source === "course"
-      ? html`Pick from <strong>${code}</strong> sections`
-      : html`Pick from <strong>${prof}</strong>'s
-          <strong>${subject}</strong> classes`;
-  const subtitle =
-    source === "course"
-      ? `Which subset should we pull? Default loads the most recent regardless of professor.`
-      : `Which subset should we pull? Default loads the most recent regardless of class.`;
-
-  return html`<header class="bc-paper-ctec-dry-run-header">
-    <button
-      type="button"
-      class="bc-paper-ctec-dry-run-back"
-      aria-label="Back to alternatives"
-      @click=${(event: Event) => {
-        preventAndStop(event);
-        callbacks.onDryRunBack();
-      }}
-    >← Back</button>
-    <div class="bc-paper-ctec-dry-run-heading">
-      <h2
-        id="bc-paper-ctec-dry-run-title"
-        class="bc-paper-ctec-dry-run-title"
-      >${title}</h2>
-      <p class="bc-paper-ctec-dry-run-subtitle">${subtitle}</p>
-    </div>
-    <button
-      type="button"
-      class="bc-paper-ctec-dry-run-close"
-      aria-label="Close preview"
-      @click=${(event: Event) => {
-        preventAndStop(event);
-        callbacks.onDryRunCancel();
-      }}
-    >✕</button>
-  </header>`;
-}
-
-function renderPresetCard(
-  preset: DryRunPreset,
-  active: DryRunPreset,
-  rows: DryRunCandidate[],
-  capacity: number,
-  isDefault: boolean,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  const isActive = presetsEqual(preset, active);
-  const preview = applyPreset(rows, preset, capacity);
-  const meta = presetMeta(preset);
-
-  return html`<label
-    class=${`bc-paper-ctec-dry-run-preset${
-      isActive ? " is-active" : ""
-    }`}
-  >
-    <input
-      type="radio"
-      name="bc-paper-ctec-dry-run-preset"
-      class="bc-paper-ctec-dry-run-preset-radio"
-      ?checked=${isActive}
-      @change=${(event: Event) => {
-        event.stopPropagation();
-        callbacks.onDryRunSelectPreset(preset);
-      }}
-    />
-    <div class="bc-paper-ctec-dry-run-preset-body">
-      <div class="bc-paper-ctec-dry-run-preset-headline">
-        <span class="bc-paper-ctec-dry-run-preset-title">${meta.title}</span>
-        ${isDefault
-          ? html`<span class="bc-paper-ctec-dry-run-preset-badge">Default</span>`
-          : ""}
-      </div>
-      ${meta.sublabel
-        ? html`<span class="bc-paper-ctec-dry-run-preset-sublabel"
-            >${meta.sublabel}</span
-          >`
-        : ""}
-      ${preview.length > 0
-        ? html`<ul class="bc-paper-ctec-dry-run-preset-preview">
-            ${preview.map((row) => renderPreviewRow(row, preset))}
-          </ul>`
-        : html`<span class="bc-paper-ctec-dry-run-preset-empty"
-            >Nothing matches this filter</span
-          >`}
-    </div>
-  </label>`;
-}
-
-function renderPreviewRow(
-  row: DryRunCandidate,
-  preset: DryRunPreset
-): TemplateResult {
-  // Which axis we *highlight* depends on which dimension the preset is
-  // varying. For `recent`, both vary so we show term + instructor +
-  // course. For `by-catalog` (instructor mode), instructor is fixed —
-  // term + instructor. For `by-instructor` (course mode), course is
-  // fixed — term + course. For `diverse-instructors`, instructor is
-  // the varying axis we want to spotlight.
-  const showInstructor =
-    preset.kind === "recent" ||
-    preset.kind === "by-catalog" ||
-    preset.kind === "diverse-instructors";
-  const showCatalog =
-    preset.kind === "recent" ||
-    preset.kind === "by-instructor" ||
-    preset.kind === "diverse-instructors";
-
-  const courseTitle = extractCourseTitle(row.description);
-
-  return html`<li class="bc-paper-ctec-dry-run-preset-preview-row">
-    <span class="bc-paper-ctec-dry-run-preset-preview-term">${row.term}</span>
-    ${showInstructor
-      ? html`<span class="bc-paper-ctec-dry-run-preset-preview-sep"
-            >·</span
-          ><span class="bc-paper-ctec-dry-run-preset-preview-axis"
-            >${row.instructor}</span
-          >`
-      : ""}
-    ${showCatalog
-      ? html`<span class="bc-paper-ctec-dry-run-preset-preview-sep"
-            >·</span
-          ><span class="bc-paper-ctec-dry-run-preset-preview-axis-faint"
-            >${row.catalogLabel}${courseTitle
-              ? html` <span class="bc-paper-ctec-dry-run-preset-preview-title"
-                  >(${courseTitle})</span
-                >`
-              : ""}</span
-          >`
-      : ""}
-  </li>`;
-}
-
-function renderPickFooter(
-  loadCount: number,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  return html`<footer class="bc-paper-ctec-dry-run-footer">
-    <span class="bc-paper-ctec-dry-run-count">
-      Will load <strong>${loadCount}</strong>
-      ${loadCount === 1 ? "evaluation" : "evaluations"}
-    </span>
-    <div class="bc-paper-ctec-dry-run-actions">
-      <button
-        type="button"
-        class="bc-paper-ctec-dry-run-btn"
-        @click=${(event: Event) => {
-          preventAndStop(event);
-          callbacks.onDryRunCancel();
-        }}
-      >Cancel</button>
-      <button
-        type="button"
-        class="bc-paper-ctec-dry-run-btn bc-paper-ctec-dry-run-btn--primary"
-        ?disabled=${loadCount === 0}
-        @click=${(event: Event) => {
-          preventAndStop(event);
-          if (loadCount === 0) return;
-          callbacks.onDryRunConfirm();
-        }}
-      >${loadCount === 0 ? "Nothing to load" : "Load"}</button>
-    </div>
-  </footer>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -657,40 +315,6 @@ export function presetsEqual(a: DryRunPreset, b: DryRunPreset): boolean {
       normalizeSearch(b.instructor);
   }
   return true;
-}
-
-function presetMeta(preset: DryRunPreset): {
-  title: TemplateResult | string;
-  sublabel: string;
-} {
-  if (preset.kind === "recent") {
-    return {
-      title: "Most recent (mixed)",
-      sublabel: "Latest sections regardless of professor or class"
-    };
-  }
-  if (preset.kind === "diverse-instructors") {
-    return {
-      title: "Maximize unique professors",
-      sublabel: "One section per professor, most recent first"
-    };
-  }
-  if (preset.kind === "by-catalog") {
-    const titleText = preset.title.trim();
-    return {
-      title: titleText
-        ? html`Only <strong>${preset.catalog}</strong>
-            <span class="bc-paper-ctec-dry-run-preset-title-suffix"
-              >(${titleText})</span
-            >`
-        : html`Only <strong>${preset.catalog}</strong>`,
-      sublabel: `${preset.count} section${preset.count === 1 ? "" : "s"} found`
-    };
-  }
-  return {
-    title: html`Only <strong>${preset.instructor}</strong>`,
-    sublabel: `${preset.count} section${preset.count === 1 ? "" : "s"} found`
-  };
 }
 
 function groupByCatalog(

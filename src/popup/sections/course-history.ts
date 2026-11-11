@@ -53,14 +53,14 @@ function renderPanel(cache: CourseHistoryCache): HTMLElement {
     const empty = document.createElement("p");
     empty.className = "course-history-empty";
     empty.textContent =
-      "No courses cached yet. Open CAESAR (with this extension installed) and the list will populate within a minute.";
+      "No courses yet. Open CAESAR and your list fills in within a minute.";
     wrap.append(empty);
     return wrap;
   }
 
   const meta = document.createElement("p");
   meta.className = "course-history-meta";
-  meta.textContent = `${cache.entries.length} course${cache.entries.length === 1 ? "" : "s"} · last refreshed ${formatRelative(cache.refreshedAt)}`;
+  meta.textContent = `${cache.entries.length} course${cache.entries.length === 1 ? "" : "s"} · updated ${formatRelative(cache.refreshedAt)}`;
   wrap.append(meta);
 
   const groups = groupByTerm(cache.entries);
@@ -119,7 +119,7 @@ function renderRow(entry: CourseHistoryEntry): HTMLLIElement {
   if (entry.units !== null) {
     const units = document.createElement("span");
     units.className = "course-history-units";
-    units.textContent = `${entry.units.toFixed(2)} u`;
+    units.textContent = `${entry.units.toFixed(2)} ${entry.units === 1 ? "unit" : "units"}`;
     right.append(units);
   }
 

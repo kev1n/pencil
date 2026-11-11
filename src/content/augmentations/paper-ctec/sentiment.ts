@@ -27,10 +27,13 @@ export function classifySentiment(text: string): SentimentTone {
 
   let posMass = 0;
   let negMass = 0;
+  // Praise and complaint are added up separately, so one sentence that
+  // holds both ("great lecturer, but the textbook is useless") counts on
+  // both sides instead of cancelling out to nothing.
   for (const sentence of sentences) {
-    const score = scoreSentence(sentence);
-    if (score > 0) posMass += score;
-    else if (score < 0) negMass += -score;
+    const { pos, neg } = scoreSentence(sentence);
+    posMass += pos;
+    negMass += neg;
   }
 
   // Mixed beats positive/negative when both sides carry meaningful mass.
@@ -39,7 +42,7 @@ export function classifySentiment(text: string): SentimentTone {
   const total = posMass + negMass;
   if (total === 0) return "neu";
 
-  const mixedThreshold = 0.25;
+  const mixedThreshold = 0.15;
   const posShare = posMass / total;
   const negShare = negMass / total;
   const isMixed = posShare >= mixedThreshold && negShare >= mixedThreshold;
@@ -100,9 +103,9 @@ const DOWNTONERS: Record<string, number> = {
   sorta: 0.7
 };
 
-function scoreSentence(sentence: string): number {
+function scoreSentence(sentence: string): { pos: number; neg: number } {
   const tokens = tokenize(sentence);
-  if (tokens.length === 0) return 0;
+  if (tokens.length === 0) return { pos: 0, neg: 0 };
 
   // Find concession cue index (first occurrence). Halve weight before,
   // amplify after. Sentence-scoped only.
@@ -114,7 +117,8 @@ function scoreSentence(sentence: string): number {
     return CONCESSION_AFTER_WEIGHT;
   };
 
-  let total = 0;
+  let pos = 0;
+  let neg = 0;
   let negationRemaining = 0;
   let pendingMultiplier = 1;
 
@@ -139,14 +143,16 @@ function scoreSentence(sentence: string): number {
     if (baseScore != null) {
       let signed = baseScore * pendingMultiplier;
       if (negationRemaining > 0) signed = -signed;
-      total += signed * positionalWeight(i);
+      const weighted = signed * positionalWeight(i);
+      if (weighted > 0) pos += weighted;
+      else neg -= weighted;
       pendingMultiplier = 1;
     }
 
     if (negationRemaining > 0) negationRemaining -= 1;
   }
 
-  return total;
+  return { pos, neg };
 }
 
 function tokenize(text: string): string[] {
@@ -198,7 +204,23 @@ const GENERIC_LEXICON: Record<string, number> = {
   rough: -1, lacking: -1, missing: -1, shaky: -1,
   // CTEC complaint vocabulary — these recur often enough in student
   // comments that omitting them would meaningfully under-count negatives.
-  brutal: -2, stressful: -2, harsh: -2, punishing: -2, waste: -2
+  brutal: -2, stressful: -2, harsh: -2, punishing: -2, waste: -2,
+  // Everyday praise and complaints the base list missed. Without these,
+  // plainly positive comments ("best class I've taken", "office hours
+  // saved me") came out neutral.
+  best: 3, favorite: 3, favourite: 3,
+  rewarding: 2, worthwhile: 2, effective: 2, supportive: 2, accessible: 2,
+  knowledgeable: 2, funny: 2, hilarious: 2, entertaining: 2,
+  enthusiastic: 2, thoughtful: 2, responsive: 2, generous: 2,
+  straightforward: 2, reasonable: 2, valuable: 2, cares: 2, cared: 2,
+  saved: 2, relevant: 1, practical: 1, steady: 1, lenient: 1, worth: 1,
+  learned: 1, improved: 1,
+  nightmare: -3, condescending: -3, rude: -3,
+  arbitrary: -2, vague: -2, unprepared: -2, unresponsive: -2,
+  dismissive: -2, unreasonable: -2, impossible: -2, excessive: -2,
+  worse: -2, poorly: -2, poor: -2, irrelevant: -2, regret: -2,
+  outdated: -1, unnecessary: -1, struggled: -1, struggle: -1, lost: -1,
+  clearer: -1
 };
 
 // CTEC-domain adjustments. These reflect what students actually mean in
@@ -239,6 +261,7 @@ const CTEC_OVERRIDES: Record<string, number> = {
   busywork: -2,
   unclear: -2,
   disorganized: -3,
+  unorganized: -3,
   rushed: -2,
   tedious: -2,
   inconsistent: -2,

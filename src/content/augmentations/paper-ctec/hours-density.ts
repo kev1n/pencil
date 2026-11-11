@@ -159,8 +159,8 @@ export function renderHoursDensity(
   // Gradient fill (used by primary series only).
   const gradId = appendVerticalGradient(doc, svg, {
     idPrefix: "bc-paper-ctec-hours-grad",
-    topColor: "var(--bc-color-accent-fill-45)",
-    bottomColor: "var(--bc-color-accent-fill-05)"
+    topColor: "var(--bc-color-chart-fill-45)",
+    bottomColor: "var(--bc-color-chart-fill-05)"
   });
 
   // Y-axis ticks + horizontal gridlines + rotated title.
@@ -188,7 +188,7 @@ export function renderHoursDensity(
 
     const isPrimary = s.style === "primary";
     const strokeVar = isPrimary
-      ? "var(--bc-color-accent)"
+      ? "var(--bc-color-chart)"
       : "var(--bc-color-chart-axis-cool)";
 
     const curve = doc.createElementNS(SVG_NS, "path");
@@ -227,7 +227,7 @@ export function renderHoursDensity(
       // belongs to its curve. Primary uses maroon (filled-curve color);
       // secondary uses slate (dashed-line color).
       color: isPrimary
-        ? "var(--bc-color-accent)"
+        ? "var(--bc-color-chart)"
         : "var(--bc-color-chart-axis-cool)"
     });
   }

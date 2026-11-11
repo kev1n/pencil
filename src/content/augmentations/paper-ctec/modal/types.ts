@@ -1,5 +1,5 @@
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
-import type { ModalCommentTone, ModalDisplayData, ModalMetricKind } from "../modal-data";
+import type { ModalCommentTone, ModalDisplayData } from "../modal-data";
 
 // One CTEC report candidate the dry-run dialog can present. `source`
 // labels which strategy this row "came from" so the available-list can
@@ -64,27 +64,14 @@ export type DryRunState = {
   instructorPool: DryRunPoolStatus;
 };
 
-// Initial number of comment cards rendered when the comments tab opens, and
-// the increment per "Show more" click. Sized to keep tab-switch latency
-// imperceptible (~50 cards = a few ms of DOM work) while still giving users
-// a meaningful first screen of comments before they decide to expand.
+// Initial number of comments rendered, and the increment per "Show more"
+// click. Keeps the sheet quick to open on courses with hundreds of
+// evaluations while still giving a meaningful first screen.
 export const COMMENTS_PAGE_SIZE = 50;
 
 export type ModalCommentSentimentFilter = "all" | ModalCommentTone;
-export type ModalCommentSort =
-  | "recent"
-  | "longest"
-  | "shortest"
-  | "mostPositive"
-  | "mostCritical";
-export type ModalTab = "overview" | "comments" | "terms";
 
-// Active selection in the overview KPI strip. A specific metric kind shows
-// that metric's trend + distribution; "global" swaps in the heatmap +
-// stacked + trend-lines view that summarizes all metrics together.
-export type ModalActiveView = ModalMetricKind | "global";
-
-// Result banner shown after a "Check for new CTECs" pass. Lives in modal
+// Result line shown after a "Check for new CTECs" pass. Lives in the sheet
 // header; the augmentation owns lifecycle (set on completion, auto-dismiss
 // for success, sticky for errors).
 export type ModalRefreshFlash =
@@ -92,37 +79,23 @@ export type ModalRefreshFlash =
   | { kind: "error"; message: string };
 
 export type AnalyticsModalState = {
-  tab: ModalTab;
-  activeMetric: ModalActiveView;
+  // Which term the whole sheet shows. Null means all loaded terms.
   selectedTermId: string | null;
   commentsQuery: string;
   commentsSentimentFilter: ModalCommentSentimentFilter;
-  commentsActiveTopic: string | null;
-  commentsTermFilter: string;
-  commentsSortBy: ModalCommentSort;
-  // When false, the global-view heatmap shows only the most recent N terms
-  // (where N is the user's "recent terms aggregation" setting). The toggle
-  // is only meaningful when more terms are loaded than that window.
-  heatmapExpanded: boolean;
-  // Number of comment cards rendered in the comments tab. Pagination cap —
-  // courses with hundreds of evaluations would otherwise build thousands of
-  // DOM nodes on every tab switch and block the main thread for ~hundreds
-  // of ms. User clicks "Show more" to grow this; persists across re-renders
-  // so filtering/sorting after expanding doesn't reset the visible window.
+  // Number of comments rendered. Pagination cap: courses with hundreds of
+  // evaluations would otherwise build thousands of DOM nodes per render.
+  // "Show more" grows this; it resets when a filter changes.
   commentsVisibleCount: number;
-  // Non-null when the dry-run preview dialog is open. Lets the user
-  // inspect + reorder + toggle which CTECs would be pulled before the
-  // network call goes out. PROTOTYPE only — confirmation currently
-  // hands off to the existing switchStrategy path without consuming
-  // the user's selection.
+  // Non-null while the "pick a broader view" wizard is showing in place of
+  // the report.
   dryRun: DryRunState | null;
-  // Set when the user explicitly cancels out of the dry-run dialog.
-  // Suppresses the auto-open-on-not-found behavior so users don't get
-  // re-trapped in the same dialog they just dismissed. Cleared when
-  // the user explicitly re-opens via the "Reopen preview" button on
-  // the not-found body, when they switch strategy, or on modal close.
+  // Set when the user explicitly cancels out of the wizard. Suppresses the
+  // auto-open-on-not-found behavior so users don't get re-trapped in the
+  // same wizard they just dismissed. Cleared when the user re-opens it,
+  // switches strategy, or closes the sheet.
   dryRunDismissed: boolean;
-  // Active preset persisted from the most recent dry-run confirm. Used
+  // Active preset persisted from the most recent wizard confirm. Used
   // by the display layer to filter rows beyond the lens-level filter
   // — picking "Only Smith" or "by-catalog: CS 213" actually changes
   // what shows up in the body, not just what we promise to load.
@@ -133,17 +106,12 @@ export type AnalyticsModalState = {
 
 export type AnalyticsModalCallbacks = {
   onClose: () => void;
-  onTabChange: (tab: ModalTab) => void;
-  onMetricChange: (kind: ModalActiveView) => void;
-  onTermChange: (id: string) => void;
+  // Null selects all terms.
+  onTermChange: (id: string | null) => void;
   onCommentsSentimentChange: (filter: ModalCommentSentimentFilter) => void;
-  onCommentsTopicChange: (topic: string | null) => void;
-  onCommentsTermFilterChange: (term: string) => void;
-  onCommentsSortChange: (sort: ModalCommentSort) => void;
   onRefresh: () => void;
   onLoadMore: () => void;
   onDismissRefreshFlash: () => void;
-  onToggleHeatmapExpanded: () => void;
   // Switches the active analytics lens. Persists globally — the chip
   // rating on schedule cards and any future modal opens both pick up the
   // user's last choice. Triggers a re-fetch when the new lens has no
@@ -213,45 +181,4 @@ export type AnalyticsModalInput = {
   // the subject). Hides the option from the header selector and dry-run
   // choose stage.
   instructorLensRedundant: boolean;
-};
-
-// Per-tone visual metadata used by the comment cards (left border + tag pill)
-// and by the comments-rail dot row. Sentiment rail dots reuse `color` only.
-// Colors flow from the design tokens (--bc-color-sentiment-*) so the palette
-// adapts to the active theme + dark-mode mirror automatically.
-export const TONE_META: Record<ModalCommentTone, { color: string; bg: string; label: string }> = {
-  pos: {
-    color: "var(--bc-color-sentiment-pos-fg)",
-    bg: "var(--bc-color-sentiment-pos-bg)",
-    label: "Positive"
-  },
-  neg: {
-    color: "var(--bc-color-sentiment-neg-fg)",
-    bg: "var(--bc-color-sentiment-neg-bg)",
-    label: "Critical"
-  },
-  mix: {
-    color: "var(--bc-color-sentiment-mix-fg)",
-    bg: "var(--bc-color-sentiment-mix-bg)",
-    label: "Mixed"
-  },
-  neu: {
-    color: "var(--bc-color-sentiment-neu-fg)",
-    bg: "var(--bc-color-sentiment-neu-bg)",
-    label: "Neutral"
-  }
-};
-
-export const TOPIC_TONE_COLORS: Record<ModalCommentTone, string> = {
-  pos: "var(--bc-color-sentiment-pos-fg)",
-  mix: "var(--bc-color-sentiment-mix-fg)",
-  neu: "var(--bc-color-sentiment-neu-fg)",
-  neg: "var(--bc-color-sentiment-neg-fg)"
-};
-
-export const TOPIC_TONE_LABELS: Record<ModalCommentTone, string> = {
-  pos: "positive",
-  mix: "mixed",
-  neu: "neutral",
-  neg: "critical"
 };

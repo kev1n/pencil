@@ -15,6 +15,9 @@ import type { OutOfClassEstimate, SortMode } from "./scoring";
 import { isSortMode } from "./scoring";
 import type { ComboPool, Combination, ComboSection } from "./types";
 
+import { uiIcon } from "../../design/ui-icons";
+import { pickMetricHue } from "../paper-ctec/widget-chips";
+
 const HOUR_LABEL_RE = /^(\d{1,2})\s*(AM|PM)\s*$/i;
 const ACTION_ATTR = "data-bc-combos-action";
 
@@ -289,13 +292,12 @@ function formatRating(score: number): string {
 function buildRatingTooltipElement(doc: Document): HTMLElement {
   const card = el(doc, "div", { class: "bc-paper-combos-rating-tip-card" }, [
     el(doc, "span", { class: "bc-paper-combos-rating-tip-title" }, [
-      "Combo rating"
+      "Average rating"
     ]),
     el(doc, "div", { class: "bc-paper-combos-rating-tip-body" }, [
-      "Mean CTEC instructor rating across this combo's sections, on " +
-        "a 0–6 scale. Sections without cached CTEC data fall back to " +
-        "the neutral midpoint of 3 so missing data doesn't sink an " +
-        "otherwise strong combo."
+      "The average CTEC instruction rating across this schedule's " +
+        "classes, out of 6. A class with no CTEC loaded counts as 3, " +
+        "so missing data doesn't sink a good schedule."
     ])
   ]);
   return el(doc, "div", { class: "bc-paper-combos-rating-tip" }, [card]);
@@ -342,14 +344,14 @@ function findPaperHeaderHost(doc: Document): HTMLElement | null {
 }
 
 function describeChipValue(estimate: OutOfClassEstimate): string {
-  if (estimate.rated === 0) return "— hrs/wk";
+  if (estimate.rated === 0) return "Hours unknown";
   // Headline is the estimated total — what the user can actually expect
   // to spend on the full schedule. Fully-rated combos report the
   // unmodified sum (estimate.hours === estimate.knownSum). Partial-data
   // combos report the imputed total prefixed with "≈" so the user knows
   // some sections lean on the per-section mean. The tooltip breaks it
   // down so the source of every term is visible.
-  if (estimate.hours === null) return "— hrs/wk";
+  if (estimate.hours === null) return "Hours unknown";
   const rounded = Math.round(estimate.hours);
   return estimate.rated === estimate.total
     ? `${rounded} hrs/wk`
@@ -406,15 +408,14 @@ function buildHoursTooltipElement(
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-header" }, [
         el(doc, "span", { class: "bc-paper-combos-hours-tip-title" }, [
-          "No CTEC data yet"
+          "No CTEC hours yet"
         ])
       ])
     );
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-sub" }, [
-        "Open a course card's analytics panel on paper.nu to fetch CTEC " +
-          "out-of-class hours for that course. The tile updates as data " +
-          "warms up."
+        "Load CTECs for the classes on your schedule and the weekly " +
+          "total fills in."
       ])
     );
   } else {
@@ -427,7 +428,7 @@ function buildHoursTooltipElement(
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-header" }, [
         el(doc, "span", { class: "bc-paper-combos-hours-tip-title" }, [
-          fullyRated ? "Total time" : "Estimated total"
+          "Outside class"
         ]),
         el(doc, "span", { class: "bc-paper-combos-hours-tip-headline" }, [
           `${fullyRated ? "" : "≈ "}${formatHoursTooltip(total)} hrs/wk`
@@ -437,8 +438,8 @@ function buildHoursTooltipElement(
     children.push(
       el(doc, "div", { class: "bc-paper-combos-hours-tip-sub" }, [
         fullyRated
-          ? `All ${estimate.total} section${estimate.total === 1 ? "" : "s"} reporting · CTEC self-reported`
-          : `${estimate.rated} of ${estimate.total} section${estimate.total === 1 ? "" : "s"} reporting · CTEC self-reported`
+          ? `What students reported on CTECs, for all ${estimate.total} class${estimate.total === 1 ? "" : "es"}`
+          : `What students reported on CTECs, for ${estimate.rated} of ${estimate.total} classes`
       ])
     );
 
@@ -476,10 +477,10 @@ function buildHoursTooltipElement(
       children.push(
         el(doc, "div", { class: "bc-paper-combos-hours-tip-subhead" }, [
           el(doc, "span", { class: "bc-paper-combos-hours-tip-subhead-title" }, [
-            "Estimated"
+            "No CTEC hours yet"
           ]),
           el(doc, "span", { class: "bc-paper-combos-hours-tip-subhead-note" }, [
-            `≈ ${meanText} hrs each · mean of reporting`
+            "counted at the average"
           ])
         ])
       );
@@ -510,14 +511,14 @@ function buildHoursTooltipElement(
       children.push(
         el(doc, "div", { class: "bc-paper-combos-hours-tip-formula" }, [
           el(doc, "div", { class: "bc-paper-combos-hours-tip-formula-row" }, [
-            el(doc, "span", {}, ["Known"]),
+            el(doc, "span", {}, ["From CTECs"]),
             el(doc, "span", { class: "bc-paper-combos-hours-tip-formula-value" }, [
               `${formatHoursTooltip(estimate.knownSum)} hrs/wk`
             ])
           ]),
           el(doc, "div", { class: "bc-paper-combos-hours-tip-formula-note" }, [
-            `${formatHoursTooltip(estimate.knownSum)} known + ` +
-              `(${meanText} mean × ${unrated} unrated) ≈ ` +
+            `${formatHoursTooltip(estimate.knownSum)} + ` +
+              `${unrated} × ${meanText} average ≈ ` +
               `${formatHoursTooltip(estimate.hours)}`
           ])
         ])
@@ -586,10 +587,16 @@ export function ensureHoursChip(
   chip.removeAttribute("title");
   chip.setAttribute("aria-label", buildAriaLabel(estimate));
   chip.replaceChildren(
-    el(doc, "span", { class: "bc-paper-combos-hours-label" }, ["Out of class"]),
     el(doc, "span", { class: "bc-paper-combos-hours-value" }, [
       describeChipValue(estimate)
     ]),
+    ...(coverage === "none"
+      ? []
+      : [
+          el(doc, "span", { class: "bc-paper-combos-hours-label" }, [
+            "outside class"
+          ])
+        ]),
     buildHoursTooltipElement(doc, estimate)
   );
   return chip;
@@ -642,6 +649,7 @@ function buildSortControl(doc: Document, state: TopBarState): HTMLElement {
     sortSelect,
     display
   ]);
+  wrap.appendChild(uiIcon(doc, "chevron-down", 12));
   return el(doc, "label", { class: "bc-paper-combos-sort" }, [
     el(doc, "span", {}, ["Sort"]),
     wrap
@@ -671,15 +679,9 @@ function buildCreditsControl(doc: Document, state: TopBarState): HTMLElement {
   });
   return el(doc, "div", { class: "bc-paper-combos-credits" }, [
     el(doc, "span", { class: "bc-paper-combos-credits-heading" }, ["Credits"]),
-    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
-      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Min"]),
-      minInput
-    ]),
-    el(doc, "span", { class: "bc-paper-combos-credits-sep" }, ["–"]),
-    el(doc, "label", { class: "bc-paper-combos-credits-pair" }, [
-      el(doc, "span", { class: "bc-paper-combos-credits-label" }, ["Max"]),
-      maxInput
-    ])
+    minInput,
+    el(doc, "span", { class: "bc-paper-combos-credits-sep" }, ["to"]),
+    maxInput
   ]);
 }
 
@@ -724,7 +726,7 @@ export function renderTopBar(
     // max input — clutter-free until the user opts in.
     bar.appendChild(
       el(doc, "span", { class: "bc-paper-combos-toggle-hint" }, [
-        "Cycle non-overlapping schedules of your canvas classes."
+        "See every schedule your classes can make."
       ])
     );
     return;
@@ -741,8 +743,8 @@ export function renderTopBar(
   // on every click. .bc-paper-combos-counter sets white-space: pre so
   // the leading spaces survive in HTML.
   const counterText = state.total === 0
-    ? "0 / 0"
-    : `${String(state.cursor + 1).padStart(String(state.total).length, " ")} / ${state.total}${state.truncated ? "+" : ""}`;
+    ? "0 of 0"
+    : `${String(state.cursor + 1).padStart(String(state.total).length, " ")} of ${state.total}${state.truncated ? "+" : ""}`;
 
   const cycle = el(doc, "div", { class: "bc-paper-combos-cycle" }, [
     el(doc, "button", {
@@ -751,7 +753,7 @@ export function renderTopBar(
         "aria-label": "Previous combination",
         [ACTION_ATTR]: "prev"
       }
-    }, ["←"]),
+    }, [uiIcon(doc, "chevron-left")]),
     el(doc, "span", { class: "bc-paper-combos-counter" }, [counterText]),
     el(doc, "button", {
       attrs: {
@@ -759,18 +761,16 @@ export function renderTopBar(
         "aria-label": "Next combination",
         [ACTION_ATTR]: "next"
       }
-    }, ["→"])
+    }, [uiIcon(doc, "chevron-right")])
   ]);
 
-  // Rating chip is always rendered. When the active combo has zero CTEC
-  // coverage we show "★ ?.??" instead of a real number — keeps the
-  // chip's surface visible (so the user always knows where to look),
-  // preserves layout (the digit width matches "4.20" thanks to tabular-
-  // nums treating "?" as a digit slot via the placeholder span), and
-  // signals "data unknown" rather than fabricating a midpoint reading.
-  const ratingText = state.ratedCount > 0
-    ? `★ ${formatRating(state.score)}`
-    : "★ ?.??";
+  // Rating readout is always rendered so the centred cluster never
+  // shifts. With CTEC coverage it is the number in its rating colour
+  // (same red-to-green scale as the schedule-card chips); with none it
+  // is a neutral dash.
+  const rated = state.ratedCount > 0;
+  const ratingText = rated ? formatRating(state.score) : "–";
+  const ratingHue = rated ? pickMetricHue(state.score, 6, false) : null;
   const rating = el(
     doc,
     "span",
@@ -788,8 +788,25 @@ export function renderTopBar(
       }
     },
     [
-      el(doc, "span", { class: "bc-paper-combos-rating-value" }, [
-        ratingText
+      el(
+        doc,
+        "span",
+        {
+          class: "bc-paper-combos-rating-value",
+          attrs: {
+            style:
+              ratingHue === null
+                ? undefined
+                : `--bc-combos-rating-bg: hsl(${ratingHue} 85% 80%); ` +
+                  `--bc-combos-rating-fg: hsl(${ratingHue} 60% 16%); ` +
+                  `--bc-combos-rating-bg-dark: hsl(${ratingHue} 55% 26%); ` +
+                  `--bc-combos-rating-fg-dark: hsl(${ratingHue} 80% 90%)`
+          }
+        },
+        [ratingText]
+      ),
+      el(doc, "span", { class: "bc-paper-combos-rating-unit" }, [
+        "avg rating"
       ]),
       buildRatingTooltipElement(doc)
     ]
@@ -824,7 +841,7 @@ export function renderTopBar(
       "aria-haspopup": "true",
       "aria-expanded": String(bar.dataset.menuOpen === "true")
     }
-  }, ["⋯"]);
+  }, [uiIcon(doc, "dots")]);
 
   // Two flex spacers — one before cycle, one after rating — push the
   // [cycle + rating] cluster into the horizontal center of the bar.
@@ -852,7 +869,12 @@ export function renderTopBar(
 
   if (state.status) {
     bar.appendChild(
-      el(doc, "div", { class: "bc-paper-combos-status" }, [state.status])
+      el(
+        doc,
+        "div",
+        { class: "bc-paper-combos-status", attrs: { title: state.status } },
+        [state.status]
+      )
     );
   }
 
@@ -994,7 +1016,7 @@ function ensurePinButton(
     button.type = "button";
     button.className = CARD_PIN_BUTTON_CLASS;
     button.setAttribute("aria-label", "Pin section to lock it in every combination");
-    button.textContent = "📌";
+    button.appendChild(uiIcon(doc, "pin", 12));
     card.appendChild(button);
   }
 
@@ -1002,8 +1024,8 @@ function ensurePinButton(
   button.setAttribute(COURSE_ID_DATASET_ATTR, section.courseId);
   button.dataset.bcCombosCardSection = section.sectionId;
   button.title = isPinned
-    ? `Pinned ${section.subject} ${section.number} ${section.section} — click to unpin`
-    : `Pin ${section.subject} ${section.number} ${section.section} into every combination`;
+    ? `${section.subject} ${section.number} section ${section.section} is pinned. Click to unpin.`
+    : `Keep ${section.subject} ${section.number} section ${section.section} in every combination`;
 }
 
 function removePinButton(card: HTMLElement): void {
