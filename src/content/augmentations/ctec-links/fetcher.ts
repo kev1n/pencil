@@ -47,10 +47,12 @@ import {
 import { withSilentAuthRecovery } from "../../auth/silent-recovery";
 import { NOT_FOUND_ACTION_ID, REQUEST_OWNER } from "./constants";
 import {
+  ctecLookupCourses,
   descriptionMatchesCatalog,
   entryMatchesCourse,
   instructorMatches,
   isAuthResponse,
+  notFoundDescription,
   termToSortKey
 } from "./helpers";
 import { CTEC_BATCH_SIZE, CTEC_FETCH_TIMEOUT_MS } from "./rate-limit";
@@ -238,26 +240,46 @@ async function fetchCtecLinksCore(
       .map((e) => buildRowKey(e.term, e.description, e.instructor))
   );
 
-  // Try the careers that actually catalogue this subject (ordered by catalog-
-  // number lean) and stop on the first hit.
-  const candidates = resolveCareerCandidates(subject, catalogNumber);
-
-  let fetchResult: FetchCourseResult = { type: "not-found" };
-  for (let i = 0; i < candidates.length; i++) {
-    const candidate = candidates[i]!;
-    const label = SCHOOL_LABELS[candidate] ?? candidate;
-    onProgress?.(i === 0 ? `Searching ${label}…` : `Trying ${label}…`);
-    fetchResult = await fetchCourseEntries(
-      subject,
-      catalogNumber,
-      candidate,
-      instructor,
-      skipKeys,
-      CTEC_BATCH_SIZE,
-      onProgress
-    );
-    if (fetchResult.type !== "not-found") break;
+  // Search the course and each number it used to carry. For each, try the
+  // careers that actually catalogue the subject (ordered by catalog-number
+  // lean) and stop on the first hit. One batch is shared across them all.
+  const lookups = ctecLookupCourses(subject, catalogNumber);
+  const fetched: CtecIndexedEntry[] = [];
+  let pendingRowCount = 0;
+  let anyFound = false;
+  let firstError: string | null = null;
+  for (const lookup of lookups) {
+    const candidates = resolveCareerCandidates(lookup.subject, lookup.catalogNumber);
+    for (let i = 0; i < candidates.length; i++) {
+      const candidate = candidates[i]!;
+      const label = SCHOOL_LABELS[candidate] ?? candidate;
+      onProgress?.(i === 0 ? `Searching ${label}…` : `Trying ${label}…`);
+      const result = await fetchCourseEntries(
+        lookup.subject,
+        lookup.catalogNumber,
+        candidate,
+        instructor,
+        skipKeys,
+        Math.max(0, CTEC_BATCH_SIZE - fetched.length),
+        lookups.length === 1,
+        onProgress
+      );
+      if (result.type === "not-found") continue;
+      if (result.type === "error") {
+        firstError ??= result.message;
+      } else {
+        anyFound = true;
+        fetched.push(...result.entries);
+        pendingRowCount += result.pendingRowCount;
+      }
+      break;
+    }
   }
+  const fetchResult: FetchCourseResult = anyFound
+    ? { type: "entries", entries: fetched, pendingRowCount }
+    : firstError
+      ? { type: "error", message: firstError }
+      : { type: "not-found" };
 
   // Auth-required cases are surfaced as `CaesarAuthRequiredError` thrown
   // from `fetchCourseEntries`, caught by the outer `withSilentAuthRecovery`
@@ -473,22 +495,32 @@ async function discoverCourseRowsInternal(
 async function discoverCourseRowsCore(
   params: CtecLinkParams
 ): Promise<CourseDiscoveryResult> {
-  const { subject, catalogNumber } = params;
-  const candidates = resolveCareerCandidates(subject, catalogNumber);
-
+  const rows: CtecRowSeed[] = [];
   let lastError: string | null = null;
-  for (const candidate of candidates) {
-    const careerResult = await discoverFromCareer(
-      subject,
-      catalogNumber,
-      candidate
-    );
-    if (careerResult.state === "found") return careerResult;
-    if (careerResult.state === "error") {
-      lastError = careerResult.message;
-      // Try the next career — some careers will 404 the course while
-      // another holds it.
+  for (const lookup of ctecLookupCourses(params.subject, params.catalogNumber)) {
+    const candidates = resolveCareerCandidates(lookup.subject, lookup.catalogNumber);
+    for (const candidate of candidates) {
+      const careerResult = await discoverFromCareer(
+        lookup.subject,
+        lookup.catalogNumber,
+        candidate
+      );
+      if (careerResult.state === "found") {
+        rows.push(...careerResult.rows);
+        break;
+      }
+      if (careerResult.state === "error") {
+        lastError = careerResult.message;
+        // Try the next career — some careers will 404 the course while
+        // another holds it.
+      }
     }
+  }
+  if (rows.length > 0) {
+    return {
+      state: "found",
+      rows: rows.sort((a, b) => termToSortKey(b.term) - termToSortKey(a.term))
+    };
   }
   if (lastError) return { state: "error", message: lastError };
   return { state: "not-found" };
@@ -634,7 +666,7 @@ function writeSentinel(
   const sentinel: CtecIndexedEntry = {
     actionId: NOT_FOUND_ACTION_ID,
     term: "",
-    description: `${subject} ${catalogNumber}`,
+    description: notFoundDescription(subject, catalogNumber),
     instructor,
     blueraUrl: null,
     error: "not-found",
@@ -664,6 +696,7 @@ async function fetchCourseEntries(
   instructor: string,
   skipKeys: Set<string>,
   batchSize: number,
+  cacheDiscovery: boolean,
   onProgress?: (msg: string) => void
 ): Promise<FetchCourseResult> {
   const resultsUrl = buildSubjectResultsUrl(subject, career);
@@ -742,7 +775,9 @@ async function fetchCourseEntries(
       .filter((r) => descriptionMatchesCatalog(r.description, catalogNumber))
       .sort((a, b) => termToSortKey(b.term) - termToSortKey(a.term))
   );
-  if (catalogOnlyRows.length > 0) {
+  // Skipped when the course also has former numbers to search: this pass
+  // sees only one of them, and discoverCourseRows merges the full set.
+  if (cacheDiscovery && catalogOnlyRows.length > 0) {
     courseDiscoveryCache.set(
       courseDiscoveryCacheKey(subject, catalogNumber),
       { state: "found", rows: catalogOnlyRows }
@@ -778,7 +813,7 @@ async function fetchCourseEntries(
   const pendingRowCount = Math.max(0, todoAll.length - todo.length);
 
   if (todo.length === 0) {
-    return { type: "entries", entries: [], pendingRowCount: 0 };
+    return { type: "entries", entries: [], pendingRowCount };
   }
 
   const classParams = applyResponseState(baseParams, courseResponse);

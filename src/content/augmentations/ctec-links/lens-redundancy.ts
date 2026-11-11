@@ -2,7 +2,7 @@ import { readSubjectIndex } from "../../ctec-index/storage";
 import type { CtecIndexedEntry } from "../../ctec-index/types";
 import { NOT_FOUND_ACTION_ID } from "./constants";
 import {
-  descriptionMatchesCatalog,
+  descriptionMatchesCourse,
   entryMatchesByCourse,
   entryMatchesByInstructor,
   instructorMatches
@@ -25,7 +25,7 @@ function hasComboRow(
 ): boolean {
   return entries.some(
     (entry) =>
-      descriptionMatchesCatalog(entry.description, params.catalogNumber) &&
+      descriptionMatchesCourse(entry.description, params.subject, params.catalogNumber) &&
       instructorMatches(entry.instructor, params.instructor)
   );
 }
@@ -46,12 +46,12 @@ function isLensRedundant(
   if (!hasComboRow(entries, params)) return false;
   const matchesBroad = (entry: CtecIndexedEntry) =>
     strategy === "course"
-      ? entryMatchesByCourse(entry, params.catalogNumber)
+      ? entryMatchesByCourse(entry, params.subject, params.catalogNumber)
       : entryMatchesByInstructor(entry, params.instructor);
   const collapsesToCombo = (entry: CtecIndexedEntry) =>
     strategy === "course"
       ? instructorMatches(entry.instructor, params.instructor)
-      : descriptionMatchesCatalog(entry.description, params.catalogNumber);
+      : descriptionMatchesCourse(entry.description, params.subject, params.catalogNumber);
   const matching = entries.filter(matchesBroad);
   if (matching.length === 0) return false;
   return matching.every(collapsesToCombo);

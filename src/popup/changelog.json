@@ -11,6 +11,14 @@
   },
   "entries": [
     {
+      "version": "0.9.19",
+      "date": "2026-11-10",
+      "headline": "CTECs for renumbered courses",
+      "items": [
+        { "kind": "fix", "text": "CTECs now include a course's evaluations from before it was renumbered or its department was renamed, like COMP_SCI 208 (formerly 214), instead of saying the professor hasn't taught it." }
+      ]
+    },
+    {
       "version": "0.9.18",
       "date": "2026-11-10",
       "headline": "Enrollment dates on Paper.nu",
