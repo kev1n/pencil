@@ -217,9 +217,12 @@ async function fetchCtecLinksCore(
     instructor
   );
   const hasFetchFailed = realCached.some((e) => e.error === "Fetch failed");
-  const courseStateRecorded = !!cachedIndex?.courseState?.[
-    buildCourseStateKey(catalogNumber, instructor)
-  ];
+  const lookups = ctecLookupCourses(subject, catalogNumber);
+  const searched =
+    lookups.length > 1 ? notFoundDescription(subject, catalogNumber) : undefined;
+  const recordedState =
+    cachedIndex?.courseState?.[buildCourseStateKey(catalogNumber, instructor)];
+  const courseStateRecorded = !!recordedState && recordedState.searched === searched;
   if (
     accessConfirmed &&
     !forceRefresh &&
@@ -243,7 +246,6 @@ async function fetchCtecLinksCore(
   // Search the course and each number it used to carry. For each, try the
   // careers that actually catalogue the subject (ordered by catalog-number
   // lean) and stop on the first hit. One batch is shared across them all.
-  const lookups = ctecLookupCourses(subject, catalogNumber);
   const fetched: CtecIndexedEntry[] = [];
   let pendingRowCount = 0;
   let anyFound = false;
@@ -308,7 +310,8 @@ async function fetchCtecLinksCore(
     ...(cachedIndex?.courseState ?? {}),
     [courseStateKey]: {
       pendingRowCount: fetchResult.pendingRowCount,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      ...(searched ? { searched } : {})
     }
   };
   writeSubjectIndex(subject, {
@@ -394,13 +397,21 @@ function courseDiscoveryCacheKey(subject: string, catalogNumber: string): string
 // "discovery ran, found nothing" result, kept distinct from missing
 // keys (= never discovered) so the read path can short-circuit
 // without re-fetching.
+// A course with former numbers stores its rows under a key naming all of
+// them, so rows saved before those were known are not reused.
+function discoveryStorageKey(subject: string, catalogNumber: string): string {
+  return ctecLookupCourses(subject, catalogNumber).length > 1
+    ? notFoundDescription(subject, catalogNumber)
+    : catalogNumber;
+}
+
 function readPersistedCourseDiscovery(
   subject: string,
   catalogNumber: string
 ): CtecRowSeed[] | null {
   const index = readSubjectIndex(subject);
   if (!index?.courseDiscovery) return null;
-  const rows = index.courseDiscovery[catalogNumber];
+  const rows = index.courseDiscovery[discoveryStorageKey(subject, catalogNumber)];
   return Array.isArray(rows) ? rows : null;
 }
 
@@ -413,7 +424,7 @@ function writePersistedCourseDiscovery(
   const base: CtecSubjectIndex = existing ?? createEmptySubjectIndex(subject);
   const next: Record<string, CtecRowSeed[]> = {
     ...(base.courseDiscovery ?? {}),
-    [catalogNumber]: rows
+    [discoveryStorageKey(subject, catalogNumber)]: rows
   };
   writeSubjectIndex(subject, { ...base, courseDiscovery: next });
 }
