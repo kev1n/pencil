@@ -203,7 +203,7 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
   // mounts to the DOM.
   props.registerAddButton(addBtn, props.sigKey);
 
-  return el(doc, "div", { class: "bc-cs-section-actions" }, [addBtn, detailsBtn]);
+  return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn, addBtn]);
 }
 
 /**

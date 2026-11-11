@@ -11,7 +11,7 @@ export function detailStyles(): string {
     }
     .bc-cs-detail {
       max-width: 760px;
-      padding-top: 2px;
+      padding-top: 12px;
       display: flex;
       flex-direction: column;
       gap: 12px;
@@ -26,7 +26,7 @@ export function detailStyles(): string {
     .bc-cs-detail-loading-label {
       line-height: 1.3;
     }
-    /* Seat numbers first, then the bar, then "Loaded 4m ago · Refresh"
+    /* Seat numbers first, then "Loaded 4m ago · Refresh"
        as the quiet last line of the block. */
     .bc-cs-detail-stats-section {
       display: flex;
@@ -69,37 +69,31 @@ export function detailStyles(): string {
       font-size: var(--bc-font-12);
       color: var(--bc-color-text-muted);
     }
-    /* Capacity bar — total width = capacity. Left segment = seats still
-       open, coloured by how full the class is; right segment = taken. */
-    .bc-cs-capacity {
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    /* Open seats sit on a chip coloured by how full the class is. */
+    .bc-cs-stat-value[data-bc-seat-tone] {
+      align-self: flex-start;
+      padding: 0 8px;
+      border-radius: var(--bc-radius-sm, 6px);
     }
-    .bc-cs-capacity-bar {
-      display: flex;
-      flex: 1 1 auto;
-      max-width: 360px;
-      height: 6px;
-      border-radius: 3px;
-      overflow: hidden;
-      background: var(--bc-color-surface-hover);
+    .bc-cs-stat-value[data-bc-seat-tone="full"] {
+      background: var(--bc-color-seat-full-bg);
+      color: var(--bc-color-seat-full-ink);
     }
-    .bc-cs-capacity-avail {
-      flex: 0 0 auto;
-      border-right: 1px solid;
-      transition: width var(--bc-tx-fast), background-color var(--bc-tx-fast);
+    .bc-cs-stat-value[data-bc-seat-tone="warn"] {
+      background: var(--bc-color-seat-warn-bg);
+      color: var(--bc-color-seat-warn-ink);
     }
-    .bc-cs-capacity-used {
-      background: var(--bc-color-border-strong);
-      flex: 0 0 auto;
-      transition: width var(--bc-tx-fast);
+    .bc-cs-stat-value[data-bc-seat-tone="tight"] {
+      background: var(--bc-color-seat-tight-bg);
+      color: var(--bc-color-seat-tight-ink);
     }
-    .bc-cs-capacity-legend {
-      font-size: var(--bc-font-12);
-      color: var(--bc-color-text-muted);
-      font-variant-numeric: tabular-nums;
-      white-space: nowrap;
+    .bc-cs-stat-value[data-bc-seat-tone="room"] {
+      background: var(--bc-color-seat-room-bg);
+      color: var(--bc-color-seat-room-ink);
+    }
+    .bc-cs-stat-value[data-bc-seat-tone="open"] {
+      background: var(--bc-color-seat-open-bg);
+      color: var(--bc-color-seat-open-ink);
     }
     .bc-cs-detail-block {
       padding-top: 10px;

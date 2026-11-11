@@ -43,7 +43,7 @@ export function renderIdle(host: HTMLElement, onLoad: () => void, caesarUnreacha
           event.stopPropagation();
           onLoad();
         }}
-      ><span>${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
+      ><span>${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "CTEC"}</span></button>
     </div>`,
     host
   );
@@ -84,10 +84,9 @@ export function renderResolved(
 
   render(
     html`<div class="bc-cs-ctec-summary">
-      ${buildSummary(data)}
       ${data.state === "found"
-        ? renderAnalyticsButton(onAnalyticsClick)
-        : ""}
+        ? renderAnalyticsButton(onAnalyticsClick, buildSummary(data))
+        : buildSummary(data)}
     </div>`,
     host
   );
@@ -111,17 +110,23 @@ export function renderResolved(
   }
 }
 
-function renderAnalyticsButton(onClick: () => void): TemplateResult {
+// The loaded numbers are the button: one chip, same shape as the CTEC chip
+// it replaces, that opens the analytics sheet.
+function renderAnalyticsButton(
+  onClick: () => void,
+  summary: TemplateResult | TemplateResult[]
+): TemplateResult {
   return html`<button
     type="button"
-    class="bc-cs-ctec-analytics-btn"
+    class="bc-cs-ctec-load-btn bc-cs-ctec-analytics-btn"
     title="Open CTEC analytics for this section."
+    aria-label="Open CTEC analytics"
     @click=${(event: Event) => {
       event.preventDefault();
       event.stopPropagation();
       onClick();
     }}
-  >Analytics</button>`;
+  >${summary}</button>`;
 }
 
 function buildSummary(
