@@ -112,7 +112,8 @@ export function extractSideCardContext(doc: Document): PaperCtecSideCardContext 
     panel,
     key: buildCourseKey(params, titleHint),
     params,
-    titleHint
+    titleHint,
+    instructorName: instructorNames.join(", ")
   };
 }
 

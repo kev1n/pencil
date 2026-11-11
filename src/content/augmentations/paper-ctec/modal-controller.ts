@@ -351,7 +351,7 @@ export class ModalController {
           subject: source.params.subject,
           catalog: source.params.catalogNumber,
           title: source.titleHint || `${source.params.subject} ${source.params.catalogNumber}`,
-          instructor: source.params.instructor,
+          instructor: source.instructorName || source.params.instructor,
           sectionTerm: data?.course.sectionTerm ?? ""
         },
         data,

@@ -37,6 +37,7 @@ export type PaperCtecSideCardContext = {
   key: string;
   params: CtecLinkParams;
   titleHint: string;
+  instructorName?: string;
 };
 
 // Identity needed to fetch CTEC data and open the analytics modal. Both the
@@ -47,4 +48,7 @@ export type AnalyticsModalSource = {
   key: string;
   params: CtecLinkParams;
   titleHint: string;
+  // The professor's name as Paper.nu prints it, when the source has it.
+  // `params.instructor` is a matching label ("I Horswill"), not for display.
+  instructorName?: string;
 };

@@ -175,9 +175,15 @@ function sheetTemplate(
     body = renderStatus(input, callbacks);
   }
 
+  // After picking another class from the no-CTECs list, the numbers on
+  // screen belong to that class, so the heading names it.
+  const picked = !state.dryRun && data ? state.activePreset : null;
+  const shownCatalog = picked?.kind === "by-catalog" ? picked.catalog : null;
+  const shownTitle = picked?.kind === "by-catalog" ? picked.title : "";
+
   return html`<header class="bc-sheet-top">
       <div class="bc-sheet-top-line">
-        <span class="bc-sheet-code">${courseCode(input)}</span>
+        <span class="bc-sheet-code">${shownCatalog ?? courseCode(input)}</span>
         <div class="bc-sheet-top-right">
           ${renderLensMenu(input, callbacks, local, rerender)}
           ${input.canRefresh
@@ -201,7 +207,7 @@ function sheetTemplate(
           >${CLOSE_ICON}</button>
         </div>
       </div>
-      <h2 class="bc-sheet-title">${courseTitle(input)}</h2>
+      <h2 class="bc-sheet-title">${shownCatalog ? shownTitle || shownCatalog : courseTitle(input)}</h2>
       ${renderMeta(input, data, term)}
       ${renderNotice(input, callbacks)}
       ${data && !state.dryRun ? renderTermSwitch(input, data, term, selectTerm, callbacks) : ""}
