@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import { buildInstructorLastNameLabel } from "../paper-ctec/identity";
-import { instructorMatches } from "./helpers";
+import type { CtecIndexedEntry } from "../../ctec-index/types";
+import { NOT_FOUND_ACTION_ID } from "./constants";
+import {
+  ctecLookupCourses,
+  entryMatchesByCourse,
+  entryMatchesCourse,
+  instructorMatches,
+  notFoundDescription
+} from "./helpers";
 
 describe("instructorMatches", () => {
   it("matches identical full names", () => {
@@ -86,5 +94,67 @@ describe("buildInstructorLastNameLabel", () => {
     expect(instructorMatches("Alexander Smith", alexLabel)).toBe(true);
     expect(instructorMatches("Zachary Smith", alexLabel)).toBe(false);
     expect(instructorMatches("Zachary Smith", zachLabel)).toBe(true);
+  });
+});
+
+describe("former course numbers", () => {
+  const entry = (description: string, instructor = "Vincent St-Amour"): CtecIndexedEntry => ({
+    actionId: "MYLINK1$0",
+    term: "2026 Spring",
+    description,
+    instructor,
+    blueraUrl: "https://example.test/report",
+    error: null,
+    searchText: ""
+  });
+  const notFound = (description: string): CtecIndexedEntry => ({
+    actionId: NOT_FOUND_ACTION_ID,
+    term: "",
+    description,
+    instructor: "",
+    blueraUrl: null,
+    error: "not-found",
+    searchText: "208"
+  });
+
+  it("looks up a renumbered course under its old number too", () => {
+    expect(ctecLookupCourses("COMP_SCI", "208")).toEqual([
+      { subject: "COMP_SCI", catalogNumber: "208" },
+      { subject: "COMP_SCI", catalogNumber: "214" }
+    ]);
+    expect(ctecLookupCourses("MATH", "220-1")).toEqual([
+      { subject: "MATH", catalogNumber: "220-1" },
+      { subject: "MATH", catalogNumber: "220" }
+    ]);
+    expect(ctecLookupCourses("COMP_SCI", "211")).toHaveLength(1);
+  });
+
+  it("looks up a renamed department under its old code", () => {
+    expect(ctecLookupCourses("GSS", "220")).toEqual([
+      { subject: "GSS", catalogNumber: "220" },
+      { subject: "GNDR_ST", catalogNumber: "220" }
+    ]);
+  });
+
+  it("skips a former number that belonged to another department", () => {
+    // ENGLISH 220 was COMP_LIT 210, but ENGLISH has its own 210.
+    expect(ctecLookupCourses("ENGLISH", "220")).toHaveLength(1);
+  });
+
+  it("counts evaluations filed under the old number", () => {
+    const old = entry("COMP_SCI 214-0-1 Data Structures & Algorithms");
+    expect(entryMatchesCourse(old, "COMP_SCI", "208", "Vincent St-Amour")).toBe(true);
+    expect(entryMatchesCourse(old, "COMP_SCI", "208", "Sara Sood")).toBe(false);
+    expect(entryMatchesByCourse(old, "COMP_SCI", "208")).toBe(true);
+    expect(entryMatchesByCourse(old, "COMP_SCI", "211")).toBe(false);
+    // The old number does not pick up the new one's evaluations.
+    expect(entryMatchesByCourse(entry("COMP_SCI 208-0-1 Data Structures"), "COMP_SCI", "214")).toBe(false);
+  });
+
+  it("ignores a not-found marker that never searched the old number", () => {
+    expect(entryMatchesByCourse(notFound("COMP_SCI 208"), "COMP_SCI", "208")).toBe(false);
+    expect(
+      entryMatchesByCourse(notFound(notFoundDescription("COMP_SCI", "208")), "COMP_SCI", "208")
+    ).toBe(true);
   });
 });

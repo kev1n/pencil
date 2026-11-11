@@ -27,6 +27,26 @@ export function sheetStyles(): string {
       -webkit-font-smoothing: antialiased;
       animation: bc-sheet-in 140ms ease-out;
     }
+    /* Inside Paper.nu's Section Info panel: no frame of its own, and the
+       panel does the scrolling. */
+    .bc-sheet.bc-sheet--inline {
+      position: static;
+      z-index: auto;
+      width: auto;
+      max-width: none;
+      margin: 0 -16px;
+      border: 0;
+      background: transparent;
+      box-shadow: none;
+      animation: none;
+    }
+    .bc-sheet.bc-sheet--inline .bc-sheet-body {
+      overflow: visible;
+      padding-bottom: 8px;
+    }
+    .bc-sheet.bc-sheet--inline .bc-sheet-close {
+      display: none;
+    }
     @keyframes bc-sheet-in {
       from { transform: translateX(16px); opacity: 0; }
     }
@@ -797,12 +817,35 @@ export function sheetStyles(): string {
     .bc-sheet .bc-sheet-wiz-back:hover {
       color: var(--bc-color-text-strong);
     }
+    .bc-sheet .bc-sheet-wiz-head {
+      margin: 18px 0 6px;
+      font-size: 12.5px;
+      font-weight: var(--bc-fw-regular);
+      color: var(--bc-color-text-muted);
+    }
+    .bc-sheet .bc-sheet-wiz-terms {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5px;
+      color: var(--bc-color-text-soft);
+    }
+    .bc-sheet .bc-sheet-wiz-term {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .bc-sheet .bc-sheet-wiz-row--all .bc-sheet-wiz-row-title {
+      font-weight: var(--bc-fw-regular);
+      color: var(--bc-color-text-soft);
+    }
     .bc-sheet .bc-sheet-wiz-list {
       border-bottom: 1px solid var(--bc-color-border);
     }
     .bc-sheet .bc-sheet-wiz-row {
       display: flex;
-      align-items: baseline;
+      align-items: center;
       justify-content: space-between;
       gap: 12px;
       width: calc(100% + 16px);
@@ -820,9 +863,20 @@ export function sheetStyles(): string {
     .bc-sheet .bc-sheet-wiz-row:disabled .bc-sheet-wiz-row-title {
       color: var(--bc-color-text-muted);
     }
+    .bc-sheet .bc-sheet-wiz-row-body {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      text-align: left;
+    }
     .bc-sheet .bc-sheet-wiz-row-title {
       font-size: 13.5px;
-      color: var(--bc-color-text);
+      font-weight: var(--bc-fw-semibold);
+      color: var(--bc-color-text-strong);
+    }
+    .bc-sheet .bc-sheet-wiz-row-about {
+      font-size: 12.5px;
+      color: var(--bc-color-text-soft);
     }
     .bc-sheet .bc-sheet-wiz-row-meta {
       flex: none;
@@ -843,8 +897,23 @@ export function sheetStyles(): string {
       flex-direction: column;
       min-width: 0;
     }
+    .bc-sheet .bc-sheet-wiz-preset-body > .bc-sheet-wiz-row-meta {
+      margin-bottom: 4px;
+    }
     .bc-sheet .bc-sheet-wiz-preview {
-      font-size: 12px;
+      display: grid;
+      grid-template-columns: 104px 1fr;
+      column-gap: 8px;
+      align-items: center;
+      min-height: 22px;
+      font-size: 12.5px;
+      color: var(--bc-color-text);
+    }
+    .bc-sheet .bc-sheet-wiz-preview-what {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       color: var(--bc-color-text-soft);
     }
     .bc-sheet .bc-sheet-wiz-foot {

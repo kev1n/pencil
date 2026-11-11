@@ -42,6 +42,16 @@ export class AugmentationRunner {
     this.runAll();
   }
 
+  // Tears every enabled augmentation's DOM down and runs it again. For when
+  // page DOM is replaced with a saved copy (caesar-history's Back/Forward),
+  // which may carry augmentation markup whose listeners are gone.
+  reset(): void {
+    for (const augmentation of this.augmentations) {
+      if (isFeatureEnabled(augmentation.id)) augmentation.cleanup?.(document);
+    }
+    this.runAll();
+  }
+
   private runAll(): void {
     for (const augmentation of this.augmentations) {
       const enabled = isFeatureEnabled(augmentation.id);

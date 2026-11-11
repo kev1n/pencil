@@ -8,6 +8,12 @@ import {
 } from "./params";
 
 describe("buildActionParams", () => {
+  it("keeps the form's window number so background-window actions resolve", () => {
+    const base = new URLSearchParams();
+    base.set("ICElementNum", "37");
+    expect(buildActionParams(base, "MYLINK$56").get("ICElementNum")).toBe("37");
+  });
+
   it("preserves the base params and stamps the canonical IC* envelope", () => {
     const base = new URLSearchParams();
     base.set("ICSID", "abc123");

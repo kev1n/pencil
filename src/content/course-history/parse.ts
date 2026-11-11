@@ -60,13 +60,13 @@ export function parseCourseHistoryRow(row: HTMLTableRowElement): CourseHistoryEn
     `DERIVED_SSS_HST_SSR_CLASSNAME_LONG$83$$${idx}`
   );
   const linkTitle = row
-    .querySelector<HTMLElement>(`#win5divSSR_CLASS_BTN\\$${idx} .ps-link-wrapper`)
+    .querySelector<HTMLElement>(`${winDiv(`SSR_CLASS_BTN$${idx}`)} .ps-link-wrapper`)
     ?.getAttribute("title")
     ?.trim() ?? null;
   const description = pickDescription(linkTitle, descCellText);
 
   const termCell = row.querySelector<HTMLElement>(
-    `[id='win5divDERIVED_SSR_FL_SS_MESSAGE_LONG$${idx}']`
+    winDiv(`DERIVED_SSR_FL_SS_MESSAGE_LONG$${idx}`)
   );
   const termLabel = (termCell?.textContent ?? "").replace(/\s+/g, " ").trim();
   const termStartDate = readTermStartDate(termCell);
@@ -76,7 +76,7 @@ export function parseCourseHistoryRow(row: HTMLTableRowElement): CourseHistoryEn
   const gradeNode =
     row.querySelector<HTMLElement>(`#VIEW_HOLDS_LINK\\$${idx} .ps-text`) ??
     row.querySelector<HTMLElement>(
-      `[id='win5divDERIVED_SSS_HST_SSR_GRADE_LONG$${idx}'] .ps_box-value`
+      `${winDiv(`DERIVED_SSS_HST_SSR_GRADE_LONG$${idx}`)} .ps_box-value`
     );
   const gradeText = (gradeNode?.textContent ?? "").trim();
   const grade = gradeText.length > 0 ? gradeText : null;
@@ -89,7 +89,7 @@ export function parseCourseHistoryRow(row: HTMLTableRowElement): CourseHistoryEn
   // status htmlarea. Stays a free-form string — CAESAR could add new
   // states (e.g. "Withdrawn") and we want to surface them as-is.
   const statusImg = row.querySelector<HTMLImageElement>(
-    `[id='win5divDERIVED_SSS_HST_SSR_STATUS_LONG$${idx}'] img`
+    `${winDiv(`DERIVED_SSS_HST_SSR_STATUS_LONG$${idx}`)} img`
   );
   const status =
     statusImg?.getAttribute("alt")?.trim() ||
@@ -106,6 +106,13 @@ export function parseCourseHistoryRow(row: HTMLTableRowElement): CourseHistoryEn
     units,
     status
   };
+}
+
+// PeopleSoft prefixes wrapper ids with the window number from the URL
+// (`/csnu_5/` gives `win5div…`, `/csnu_2670/` gives `win2670div…`), which
+// varies with how the page was opened, so match any window.
+function winDiv(field: string): string {
+  return `[id^='win'][id$='div${field}']`;
 }
 
 function textById(row: HTMLElement, id: string): string {

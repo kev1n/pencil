@@ -8,12 +8,12 @@ import {
 import type { PaperCtecSideCardContext } from "./types";
 import { preventAndStop } from "./ui-shared";
 
-// Side-panel CTEC Analytics tab is now a thin launcher into the full-screen
-// modal. The rich rendering (aggregates, term picker, charts, comments,
-// Refresh, Load-more) all lives in the modal — see modal-ui.ts. Clicking
-// the tab in the side panel auto-opens the modal; the panel itself shows
-// a single "Open Analytics" button so there's still something there if
-// the user closes the modal while the tab is selected.
+// Paper.nu's Section Info panel gets a Paper.nu / CTECs tab pair. The CTECs
+// tab hides Paper.nu's own content, widens the panel, and returns an empty
+// host element that the analytics sheet (modal/view.ts) renders into, so
+// there is one side panel on the page instead of two.
+
+export const SIDECARD_WIDE_ATTR = "data-bc-ctec-wide";
 
 type SideCardAnalyticsRenderData = {
   selectedTab: "paper" | "analytics";
@@ -27,15 +27,14 @@ type SideCardAnalyticsRenderData = {
 export function renderSideCardAnalytics(
   context: PaperCtecSideCardContext,
   data: SideCardAnalyticsRenderData,
-  onSelectTab: (tab: "paper" | "analytics") => void,
-  onOpenModal: () => void
-): void {
+  onSelectTab: (tab: "paper" | "analytics") => void
+): HTMLElement | null {
   const header = ensureSideCardHeader(context.panel);
 
   if (!data.analyticsAvailable) {
     removeSideCardAnalyticsChrome(context.panel);
     restoreDefaultPanelChildren(context.panel, header);
-    return;
+    return null;
   }
 
   const tabsRoot = ensureSideCardTabs(context.panel, header);
@@ -44,16 +43,13 @@ export function renderSideCardAnalytics(
   renderSideCardTabs(tabsRoot, data.selectedTab, onSelectTab);
   applySideCardMode(context.panel, header, tabsRoot, panelRoot, data.selectedTab);
 
-  // lit-html owns panelRoot's children. When Analytics isn't selected we
-  // render an empty fragment (clears prior contents); when it is, the
-  // launcher template lights up.
-  render(
-    data.selectedTab === "analytics" ? renderLauncher(onOpenModal) : html``,
-    panelRoot
-  );
+  const showing = data.selectedTab === "analytics";
+  context.panel.parentElement?.toggleAttribute(SIDECARD_WIDE_ATTR, showing);
+  return showing ? panelRoot : null;
 }
 
 function removeSideCardAnalyticsChrome(panel: HTMLElement): void {
+  panel.parentElement?.removeAttribute(SIDECARD_WIDE_ATTR);
   panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
   panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
 }
@@ -70,26 +66,6 @@ function restoreDefaultPanelChildren(
     if (child === header) continue;
     if (child.hidden) child.hidden = false;
   }
-}
-
-function renderLauncher(onOpenModal: () => void) {
-  return html`<div class="bc-paper-ctec-analytics-body">
-    <div class="bc-paper-ctec-analytics-launcher">
-      <div class="bc-paper-ctec-analytics-launcher-copy">
-        Ratings, hours per week and student comments for this class, term
-        by term.
-      </div>
-      <button
-        type="button"
-        class="bc-paper-ctec-analytics-launcher-btn"
-        @pointerdown=${(event: Event) => {
-          preventAndStop(event);
-          onOpenModal();
-        }}
-        @click=${preventAndStop}
-      >Open analytics</button>
-    </div>
-  </div>`;
 }
 
 function ensureSideCardHeader(panel: HTMLElement): HTMLElement | null {

@@ -6,7 +6,7 @@ import type {
   FetchTextResponse
 } from "../shared/messages";
 import { CAESAR_HOSTNAME, CAESAR_SERVICE_URL, safeHostname } from "../shared/nu-hosts";
-import { CaesarConnectionError } from "./peoplesoft/connection";
+import { CaesarConnectionError, CaesarWrongPageError } from "./peoplesoft/connection";
 
 type FetchTextOptions = {
   method?: "GET" | "POST";
@@ -16,6 +16,51 @@ type FetchTextOptions = {
   signal?: AbortSignal;
   timeoutMs?: number;
 };
+
+// CAESAR keeps only the last few page states per PeopleSoft "window", and
+// every request in a window uses one up. Background requests therefore run
+// in their own window (`csnu_<n>`), otherwise a handful of lookups expires
+// the page the user is looking at ("This page is no longer available") and
+// every page the Back button could return to. Responses name their form and
+// helpers after the window (`win37`), so they are renamed back to `win0`
+// for the parsers.
+const BACKGROUND_WINDOW = "37";
+const MAIN_WINDOW_PATH = /^\/ps([cp])\/csnu\//;
+const BACKGROUND_WINDOW_TOKEN = new RegExp(`win${BACKGROUND_WINDOW}(?!\\d)`, "g");
+
+export function toBackgroundWindowUrl(url: string): string {
+  if (safeHostname(url) !== CAESAR_HOSTNAME) return url;
+  const parsed = new URL(url);
+  parsed.pathname = parsed.pathname.replace(
+    MAIN_WINDOW_PATH,
+    `/ps$1/csnu_${BACKGROUND_WINDOW}/`
+  );
+  return parsed.toString();
+}
+
+// A PeopleSoft form post names its window twice: in the URL (`csnu_<n>`) and
+// in the body (`ICElementNum`). When they disagree CAESAR answers with its
+// home page, which parsers read as an empty result. The body is made to
+// follow the URL here, at the one place every request passes through, so no
+// caller can get it wrong.
+const WINDOW_IN_PATH = /^\/ps[cp]\/csnu(?:_(\d+))?\//;
+
+export function alignBodyWindow(url: string, body: string | undefined): string | undefined {
+  if (!body || safeHostname(url) !== CAESAR_HOSTNAME) return body;
+  const match = new URL(url).pathname.match(WINDOW_IN_PATH);
+  if (!match) return body;
+  const params = new URLSearchParams(body);
+  if (!params.has("ICSID") && !params.has("ICElementNum")) return body;
+  params.set("ICElementNum", match[1] ?? "0");
+  return params.toString();
+}
+
+const HOME_PAGE_RESPONSE = /<PAGE id='(?:PT_LANDINGPAGE|SCC_START_PAGE_FL)'/;
+const HOME_COMPONENTS = /\/c\/(?:NUI_FRAMEWORK\.PT_LANDINGPAGE|NW_PROFILE_START\.SCC_PROFILE_FL)\.GBL/;
+
+function isUnexpectedHomePage(url: string, method: string | undefined, text: string): boolean {
+  return method === "POST" && !HOME_COMPONENTS.test(url) && HOME_PAGE_RESPONSE.test(text);
+}
 
 let requestSequence = 0;
 function nextRequestId(): string {
@@ -27,6 +72,7 @@ export async function fetchTextResultViaBackground(
   url: string,
   options?: FetchTextOptions
 ): Promise<Extract<FetchTextResponse, { ok: true }>> {
+  url = toBackgroundWindowUrl(url);
   const requestId = nextRequestId();
   const signal = options?.signal;
 
@@ -45,7 +91,7 @@ export async function fetchTextResultViaBackground(
       url,
       method: options?.method,
       headers: options?.headers,
-      body: options?.body,
+      body: alignBodyWindow(url, options?.body),
       requestId,
       timeoutMs: options?.timeoutMs
     } satisfies FetchTextMessage) as FetchTextResponse;
@@ -63,7 +109,11 @@ export async function fetchTextResultViaBackground(
       throw new Error(response?.error || "Background fetch failed.");
     }
 
-    return response;
+    if (safeHostname(url) !== CAESAR_HOSTNAME) return response;
+    if (isUnexpectedHomePage(url, options?.method, response.text)) {
+      throw new CaesarWrongPageError();
+    }
+    return { ...response, text: response.text.replace(BACKGROUND_WINDOW_TOKEN, "win0") };
   } finally {
     if (signal) {
       signal.removeEventListener("abort", onAbort);

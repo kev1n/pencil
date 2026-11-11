@@ -129,6 +129,16 @@ export class ModalController {
     return this.openModalSource !== null;
   }
 
+  openKey(): string | null {
+    return this.openModalKey;
+  }
+
+  // Paper.nu's Section Info panel hosts the sheet while its CTECs tab is
+  // selected; null puts the sheet back on the page's right edge.
+  setHost(host: HTMLElement | null): void {
+    this.view.setHost(host);
+  }
+
   hasInFlight(key: string): boolean {
     return this.state.analyticsInFlight.has(key);
   }

@@ -34,6 +34,9 @@ export interface ModalView {
   ): void;
   close(): void;
   isOpen(): boolean;
+  // Where the sheet lives. Null docks it to the right edge of the page;
+  // an element (Paper.nu's own Section Info panel) renders it in place.
+  setHost(host: HTMLElement | null): void;
 }
 
 export interface ModalViewDeps {
@@ -51,6 +54,7 @@ export function createModalView(deps: ModalViewDeps): ModalView {
   let root: HTMLElement | null = null;
   let current: Current | null = null;
   let shownFor = "";
+  let host: HTMLElement | null = null;
   const local: SheetLocal = {
     lensOpen: false,
     scrub: null,
@@ -85,14 +89,16 @@ export function createModalView(deps: ModalViewDeps): ModalView {
 
   return {
     open(input, state, callbacks) {
+      const inline = !!host && host.isConnected;
+      const parent = inline ? host! : doc.body ?? doc.documentElement;
       if (!root || !root.isConnected) {
         root = doc.createElement("aside");
         root.id = ANALYTICS_MODAL_ID;
-        root.className = "bc-sheet";
-        (doc.body ?? doc.documentElement).appendChild(root);
         doc.addEventListener("keydown", onKeydown);
         doc.addEventListener("pointerdown", onPointerDown, true);
       }
+      if (root.parentElement !== parent) parent.appendChild(root);
+      root.className = inline ? "bc-sheet bc-sheet--inline" : "bc-sheet";
       const key = `${input.identity.subject}|${input.identity.catalog}|${input.identity.instructor}|${input.strategy}`;
       if (key !== shownFor) {
         shownFor = key;
@@ -117,6 +123,9 @@ export function createModalView(deps: ModalViewDeps): ModalView {
     },
     isOpen() {
       return !!root && root.isConnected;
+    },
+    setHost(next) {
+      host = next;
     }
   };
 }
@@ -480,7 +489,7 @@ function renderStatus(
     type="button"
     class="bc-btn bc-btn--secondary bc-btn--sm"
     @click=${() => callbacks.onOpenDryRun()}
-  >See broader views</button>`;
+  >See other reports</button>`;
 
   let title: string;
   let text: string;
@@ -515,7 +524,8 @@ function renderStatus(
       text = "Northwestern hasn't published any for this professor in this subject yet.";
     } else {
       title = `No CTECs for ${prof} in ${code}`;
-      text = "A broader view can still give you a read on the course or the professor.";
+      text =
+        "Reports only exist once a class has been taught and evaluated. The course with other professors, or this professor's other classes, can still tell you what to expect.";
     }
   } else if (input.loading) {
     busy = true;
@@ -523,7 +533,7 @@ function renderStatus(
     text = `Pulling the most recent ${plural(input.loadMoreBatchSize, "term")} from Northwestern.`;
   } else {
     title = "Nothing loaded for this view yet";
-    text = "Pick another view from the menu above, or look at a broader one.";
+    text = "Pick another view from the menu above, or look at other reports.";
     action = broader;
   }
 

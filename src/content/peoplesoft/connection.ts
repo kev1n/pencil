@@ -11,6 +11,15 @@ export class CaesarConnectionError extends Error {
   }
 }
 
+// CAESAR answered an action with its home page: the request named a window
+// or page state it does not recognise. Never read that as "no results".
+export class CaesarWrongPageError extends Error {
+  constructor() {
+    super("CAESAR sent its home page instead of an answer. Try again.");
+    this.name = "CaesarWrongPageError";
+  }
+}
+
 export function caesarConnectionToastOptions() {
   return {
     tone: "warn" as const,

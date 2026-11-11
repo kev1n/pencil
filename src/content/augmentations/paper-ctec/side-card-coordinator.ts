@@ -10,6 +10,7 @@
 
 import type { ModalController } from "./modal-controller";
 import type {
+  AnalyticsModalSource,
   PaperCtecSideCardContext,
   PaperCtecWidgetData
 } from "./types";
@@ -41,14 +42,18 @@ export type SideCardCoordinatorDeps = {
   renderSideCardAnalytics(
     context: PaperCtecSideCardContext,
     state: { selectedTab: SideCardTab; analyticsAvailable: boolean },
-    onTabChange: (tab: SideCardTab) => void,
-    onOpenModal: () => void
-  ): void;
+    onTabChange: (tab: SideCardTab) => void
+  ): HTMLElement | null;
+  /** Schedule card for a chip key, used to open Paper.nu's own panel. */
+  findCard(key: string): HTMLElement | null;
 };
 
 export interface SideCardCoordinator {
   syncSideCard(doc: Document): void;
   start(doc: Document): void;
+  /** Analytics button on a schedule card: open Paper.nu's Section Info
+   *  panel on its CTECs tab, or the docked sheet if the panel won't open. */
+  openAnalytics(source: AnalyticsModalSource): void;
   stop(doc: Document): void;
 }
 
@@ -59,9 +64,24 @@ export function createSideCardCoordinator(
   // we restore the user's previous tab when the same course re-opens.
   const selectedTabs = new Map<string, SideCardTab>();
 
+  // Key of the section whose sheet is currently living inside Paper.nu's
+  // panel, or null when the sheet is docked or closed.
+  let hosting: string | null = null;
+
+  function releaseHost(): void {
+    if (!hosting) return;
+    const modal = deps.modalController();
+    modal.setHost(null);
+    if (modal.openKey() === hosting) modal.closeModal();
+    hosting = null;
+  }
+
   function syncSideCard(doc: Document): void {
     const context = deps.extractSideCardContext(doc);
-    if (!context) return;
+    if (!context) {
+      releaseHost();
+      return;
+    }
 
     const modal = deps.modalController();
     modal.mirrorFrontPageState(context);
@@ -77,37 +97,80 @@ export function createSideCardCoordinator(
         deps.getAggregateLimit()
       );
 
+    // The sheet was closed from inside (Escape): fall back to Paper.nu's tab
+    // instead of reopening it on the next tick.
+    if (hosting === context.key && modal.openKey() !== context.key) {
+      selectedTabs.set(context.key, "paper");
+    }
+
     // Reset the selected tab back to "paper" if Analytics is no longer
     // surfaced — otherwise a stale "analytics" choice would leave the panel
     // in an empty state.
     const requestedTab = selectedTabs.get(context.key) ?? "paper";
     const selectedTab: SideCardTab = analyticsAvailable ? requestedTab : "paper";
 
-    deps.renderSideCardAnalytics(
+    const host = deps.renderSideCardAnalytics(
       context,
       { selectedTab, analyticsAvailable },
       (tab) => {
         selectedTabs.set(context.key, tab);
-        // Selecting the CTEC Analytics tab opens the modal. The side panel
-        // itself just hosts a launcher button now — all rich content lives
-        // in the modal.
-        if (tab === "analytics") {
-          modal.openModal(context);
-        }
         syncSideCard(document);
-      },
-      () => {
-        modal.openModal(context);
       }
     );
+
+    if (!host) {
+      releaseHost();
+      return;
+    }
+    modal.setHost(host);
+    const alreadyOpen = modal.openKey() === context.key;
+    hosting = context.key;
+    if (alreadyOpen) modal.sync(doc);
+    else modal.openModal(context);
+  }
+
+  function openAnalytics(source: AnalyticsModalSource): void {
+    const card = deps.findCard(source.key);
+    if (!card) {
+      deps.modalController().openModal(source);
+      return;
+    }
+    card.click();
+    // Paper.nu mounts its panel a moment after the click. The panel names
+    // the professor more fully than the card does, so the two keys differ:
+    // match on the course instead. If the panel never shows up for this
+    // section (custom block, layout change), keep the feature working with
+    // the docked sheet.
+    let tries = 0;
+    const check = (): void => {
+      const context = deps.extractSideCardContext(document);
+      if (
+        context &&
+        context.params.subject === source.params.subject &&
+        context.params.catalogNumber === source.params.catalogNumber
+      ) {
+        selectedTabs.set(context.key, "analytics");
+        syncSideCard(document);
+        return;
+      }
+      tries += 1;
+      if (tries < 15) {
+        setTimeout(check, 100);
+        return;
+      }
+      deps.modalController().openModal(source);
+    };
+    setTimeout(check, 50);
   }
 
   return {
     syncSideCard,
+    openAnalytics,
     start(doc: Document): void {
       syncSideCard(doc);
     },
     stop(_doc: Document): void {
+      releaseHost();
       selectedTabs.clear();
     }
   };

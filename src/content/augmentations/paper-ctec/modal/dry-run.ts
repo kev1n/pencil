@@ -1,11 +1,7 @@
-// "Pick a broader view" wizard, shown in the sheet in place of the report:
-//
-//   Stage 1 (choose): the two broader views and how many sections each
-//     holds. The student picks one.
-//
-//   Stage 2 (pick): which sections of that view to load. No row-level
-//     picking: "most recent" (default) or a handful of scoped substitutes
-//     such as one professor's sections.
+// Shown in the sheet in place of the report when this professor has no
+// CTECs for this course: a directory of what is close. Who else has taught
+// the course, and what else this professor has taught in the subject, each
+// with its terms drawn as season icons. Clicking a row opens its reports.
 //
 // Opens by itself whenever the active view finds nothing, so the student
 // always has somewhere to go instead of a dead end.
@@ -25,6 +21,8 @@ import type {
   DryRunPreset,
   DryRunState
 } from "./types";
+import { seasonIcon, seasonOf } from "../../../design/icons";
+import { termName, termShortYear } from "./common";
 
 const DRY_RUN_CAPACITY = 3;
 
@@ -33,44 +31,28 @@ export function renderDryRun(
   state: AnalyticsModalState,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult | string {
-  if (!state.dryRun) return "";
-  return html`<section class="bc-sheet-wiz" aria-labelledby="bc-sheet-wiz-title">
-    ${state.dryRun.stage.kind === "choose"
-      ? renderChooseStage(input, state.dryRun, callbacks)
-      : renderPickStage(input, state.dryRun, state.dryRun.stage, callbacks)}
-  </section>`;
-}
-
-// ---------------------------------------------------------------------------
-// Stage 1: the two broader views, each with a count. No row detail.
-// ---------------------------------------------------------------------------
-
-function renderChooseStage(
-  input: AnalyticsModalInput,
-  dryRun: DryRunState,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
+  const dryRun = state.dryRun;
+  if (!dryRun) return "";
   const subject = input.identity.subject;
   const code = `${subject} ${input.identity.catalog.replace(/-0$/, "")}`;
   const prof = input.identity.instructor.trim() || "this professor";
 
-  return html`<h3 id="bc-sheet-wiz-title" class="bc-sheet-wiz-title">
+  // One screen, no steps: the people who have taught this course and the
+  // classes this professor has taught, each with the terms on record.
+  // Clicking a row opens that row's reports.
+  return html`<section class="bc-sheet-wiz" aria-labelledby="bc-sheet-wiz-title">
+    <h3 id="bc-sheet-wiz-title" class="bc-sheet-wiz-title">
       No CTECs for ${prof} in ${code}
     </h3>
-    <p class="bc-sheet-wiz-text">Pick a broader view to keep going.</p>
-    <div class="bc-sheet-wiz-list">
-      ${input.courseLensRedundant
-        ? ""
-        : renderChoice("course", `Everyone who taught ${code}`, dryRun.coursePool, callbacks)}
-      ${input.instructorLensRedundant
-        ? ""
-        : renderChoice(
-            "instructor",
-            `Everything ${prof} teaches in ${subject}`,
-            dryRun.instructorPool,
-            callbacks
-          )}
-    </div>
+    <p class="bc-sheet-wiz-text">
+      Reports only exist once a class has been taught and evaluated. Pick someone or something close.
+    </p>
+    ${input.courseLensRedundant
+      ? ""
+      : renderDirectory("course", `Who has taught ${code}`, dryRun, input, callbacks)}
+    ${input.instructorLensRedundant
+      ? ""
+      : renderDirectory("instructor", `What else ${prof} teaches in ${subject}`, dryRun, input, callbacks)}
     <div class="bc-sheet-wiz-foot">
       <span></span>
       <button
@@ -78,75 +60,118 @@ function renderChooseStage(
         class="bc-btn bc-btn--ghost bc-btn--sm"
         @click=${() => callbacks.onDryRunCancel()}
       >Cancel</button>
-    </div>`;
+    </div>
+  </section>`;
 }
 
-function renderChoice(
+function renderDirectory(
   source: CtecAnalyticsStrategy,
-  title: string,
-  pool: DryRunPoolStatus,
+  heading: string,
+  dryRun: DryRunState,
+  input: AnalyticsModalInput,
   callbacks: AnalyticsModalCallbacks
 ): TemplateResult {
-  const disabled = pool.kind !== "ready";
+  const pool = source === "course" ? dryRun.coursePool : dryRun.instructorPool;
+  const open = (preset: DryRunPreset) => {
+    callbacks.onDryRunChooseSource(source);
+    callbacks.onDryRunSelectPreset(preset);
+    callbacks.onDryRunConfirm();
+  };
+
+  let body: TemplateResult;
+  if (pool.kind === "ready") {
+    const groups = filterRedundantPresets(computePresets(pool.rows, source), source, {
+      catalog: input.identity.catalog,
+      instructor: input.identity.instructor
+    }).filter((preset) => preset.kind === "by-instructor" || preset.kind === "by-catalog");
+    body =
+      groups.length === 0
+        ? html`<p class="bc-sheet-wiz-status">
+            ${source === "course" ? "Nobody else on record." : "Nothing else on record."}
+          </p>`
+        : html`<div class="bc-sheet-wiz-list">
+            ${groups.map((preset) => renderGroupRow(preset, pool.rows, open))}
+            ${groups.length > 1
+              ? html`<button
+                  type="button"
+                  class="bc-sheet-wiz-row bc-sheet-wiz-row--all"
+                  data-bc-action-button="controller"
+                  @click=${() => open({ kind: "recent" })}
+                ><span class="bc-sheet-wiz-row-title"
+                    >${source === "course" ? "Everyone, latest first" : "All of them, latest first"}</span
+                  >${termStrip(pool.rows.map((row) => row.term))}</button>`
+              : ""}
+          </div>`;
+  } else {
+    const message =
+      pool.kind === "loading"
+        ? "Looking"
+        : pool.kind === "empty"
+          ? source === "course"
+            ? "Nobody else on record."
+            : "Nothing else on record."
+          : pool.kind === "no-access"
+            ? "You don't have access to CTECs."
+            : pool.kind === "auth-required"
+              ? "Sign in to Northwestern to see these."
+              : pool.message;
+    body = html`<p class="bc-sheet-wiz-status">${message}</p>`;
+  }
+  return html`<h4 class="bc-sheet-wiz-head">${heading}</h4>
+    ${body}`;
+}
+
+// One professor (course view) or one class (professor view), with the
+// terms they have reports for drawn as season icons, newest first.
+function renderGroupRow(
+  preset: DryRunPreset,
+  rows: DryRunCandidate[],
+  open: (preset: DryRunPreset) => void
+): TemplateResult {
+  const mine =
+    preset.kind === "by-instructor"
+      ? rows.filter((row) => instructorMatches(row.instructor, preset.instructor))
+      : preset.kind === "by-catalog"
+        ? rows.filter((row) => row.catalogLabel === preset.catalog)
+        : rows;
+  const title =
+    preset.kind === "by-instructor"
+      ? preset.instructor
+      : preset.kind === "by-catalog"
+        ? preset.catalog
+        : "";
+  const about = preset.kind === "by-catalog" ? preset.title.trim() : "";
   return html`<button
     type="button"
     class="bc-sheet-wiz-row"
-    ?disabled=${disabled}
-    title=${pool.kind === "error" ? pool.message : ""}
-    @click=${() => {
-      if (!disabled) callbacks.onDryRunChooseSource(source);
-    }}
-  ><span class="bc-sheet-wiz-row-title">${title}</span
-    ><span class="bc-sheet-wiz-row-meta">${poolLabel(pool)}</span></button>`;
+    data-bc-action-button="controller"
+    @click=${() => open(preset)}
+  ><span class="bc-sheet-wiz-row-body"
+      ><span class="bc-sheet-wiz-row-title">${title}</span
+      >${about ? html`<span class="bc-sheet-wiz-row-about">${about}</span>` : ""}</span
+    >${termStrip(mine.map((row) => row.term))}</button>`;
 }
 
-function poolLabel(pool: DryRunPoolStatus): string {
-  if (pool.kind === "loading") return "Checking";
-  if (pool.kind === "ready") {
-    return `${pool.rows.length} section${pool.rows.length === 1 ? "" : "s"}`;
-  }
-  if (pool.kind === "empty") return "None found";
-  if (pool.kind === "no-access") return "No access";
-  if (pool.kind === "auth-required") return "Sign in required";
-  return "Couldn't load";
-}
+const TERM_STRIP_MAX = 4;
 
-// ---------------------------------------------------------------------------
-// Stage 2: which sections to load. Radio rows, no row-level interaction.
-// ---------------------------------------------------------------------------
-
-function renderPickStage(
-  input: AnalyticsModalInput,
-  dryRun: DryRunState,
-  stage: { kind: "pick"; source: CtecAnalyticsStrategy; preset: DryRunPreset },
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  const pool =
-    stage.source === "course" ? dryRun.coursePool : dryRun.instructorPool;
-  const subject = input.identity.subject;
-  const code = `${subject} ${input.identity.catalog.replace(/-0$/, "")}`;
-  const prof = input.identity.instructor.trim() || "this professor";
-
-  return html`<button
-      type="button"
-      class="bc-sheet-wiz-back"
-      @click=${() => callbacks.onDryRunBack()}
-    >Back</button>
-    <h3 id="bc-sheet-wiz-title" class="bc-sheet-wiz-title">
-      ${stage.source === "course"
-        ? `Everyone who taught ${code}`
-        : `Everything ${prof} teaches in ${subject}`}
-    </h3>
-    <p class="bc-sheet-wiz-text">Choose which sections to load.</p>
-    ${renderPickBody(pool, stage, dryRun.capacity, input, callbacks)}`;
+function termStrip(terms: string[]): TemplateResult {
+  const unique = [...new Set(terms)];
+  const shown = unique.slice(0, TERM_STRIP_MAX);
+  const extra = unique.length - shown.length;
+  return html`<span class="bc-sheet-wiz-terms" aria-label=${unique.map(termName).join(", ")}
+    >${shown.map((term) => {
+      const season = seasonOf(term);
+      return html`<span class="bc-sheet-wiz-term" title=${termName(term)}
+        >${season ? seasonIcon(season, 13) : ""}<span>${termShortYear(term)}</span></span
+      >`;
+    })}${extra > 0 ? html`<span class="bc-sheet-wiz-term">+${extra}</span>` : ""}</span
+  >`;
 }
 
 // Drops presets that, when applied to the broader lens, would re-narrow
 // back to combo's exact (prof, course) pair: "Only [section's prof]" in
 // course view and "Only [section's catalog]" in instructor view are
-// just combo dressed up. Returns the filtered list verbatim; callers
-// detect an empty result and say so instead of offering a picker whose
-// only option is the one we just hid.
+// just combo dressed up.
 function filterRedundantPresets(
   presets: DryRunPreset[],
   source: CtecAnalyticsStrategy,
@@ -179,127 +204,6 @@ function catalogMatches(presetCatalog: string, sectionCatalog: string): boolean 
   const presetDigits = digits(presetCatalog);
   if (!presetDigits) return false;
   return presetDigits === digits(sectionCatalog);
-}
-
-// Body switches on pool status. Ready: preset radio rows. Anything else: a
-// one-line status. The pick stage can open before discovery completes (when
-// the student picks a view from the header menu), so a pool that isn't
-// ready yet is a normal first paint, not an error.
-function renderPickBody(
-  pool: DryRunPoolStatus,
-  stage: { kind: "pick"; source: CtecAnalyticsStrategy; preset: DryRunPreset },
-  capacity: number,
-  input: AnalyticsModalInput,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  if (pool.kind === "ready") {
-    const presets = filterRedundantPresets(
-      computePresets(pool.rows, stage.source),
-      stage.source,
-      { catalog: input.identity.catalog, instructor: input.identity.instructor }
-    );
-    if (presets.length === 0) {
-      const message =
-        stage.source === "course"
-          ? "This professor is the only one who has taught this course, so there is nothing more to add."
-          : "This is the only course this professor has taught in the subject, so there is nothing more to add.";
-      return html`<p class="bc-sheet-wiz-status">${message}</p>
-        ${renderPickFooter(0, callbacks)}`;
-    }
-    const previewRows = applyPreset(pool.rows, stage.preset, capacity);
-    return html`<div class="bc-sheet-wiz-list" role="radiogroup">
-        ${presets.map((preset) =>
-          renderPreset(preset, stage.preset, pool.rows, capacity, callbacks)
-        )}
-      </div>
-      ${renderPickFooter(previewRows.length, callbacks)}`;
-  }
-  const message =
-    pool.kind === "loading"
-      ? "Looking up sections"
-      : pool.kind === "empty"
-        ? stage.source === "course"
-          ? "No other sections found for this course."
-          : "No other classes found for this professor."
-        : pool.kind === "no-access"
-          ? "You don't have access to CTECs."
-          : pool.kind === "auth-required"
-            ? "Sign in to Northwestern to continue."
-            : pool.message;
-  return html`<p class="bc-sheet-wiz-status">${message}</p>
-    ${renderPickFooter(0, callbacks)}`;
-}
-
-function renderPreset(
-  preset: DryRunPreset,
-  active: DryRunPreset,
-  rows: DryRunCandidate[],
-  capacity: number,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  const isActive = presetsEqual(preset, active);
-  const preview = applyPreset(rows, preset, capacity);
-  const meta = presetMeta(preset);
-
-  return html`<label class="bc-sheet-wiz-row bc-sheet-wiz-preset">
-    <input
-      type="radio"
-      name="bc-sheet-wiz-preset"
-      .checked=${isActive}
-      @change=${() => callbacks.onDryRunSelectPreset(preset)}
-    />
-    <span class="bc-sheet-wiz-preset-body">
-      <span class="bc-sheet-wiz-row-title">${meta.title}</span>
-      <span class="bc-sheet-wiz-row-meta">${meta.sublabel}</span>
-      ${preview.length > 0
-        ? preview.map((row) => renderPreviewRow(row, preset))
-        : html`<span class="bc-sheet-wiz-row-meta">Nothing matches</span>`}
-    </span>
-  </label>`;
-}
-
-function renderPreviewRow(
-  row: DryRunCandidate,
-  preset: DryRunPreset
-): TemplateResult {
-  // Which axis we show depends on which dimension the preset varies. For
-  // `by-catalog` the course is fixed, so term + instructor; for
-  // `by-instructor` the professor is fixed, so term + course; the others
-  // vary both.
-  const parts = [row.term];
-  if (preset.kind !== "by-instructor") parts.push(row.instructor);
-  if (preset.kind !== "by-catalog") {
-    const courseTitle = extractCourseTitle(row.description);
-    parts.push(courseTitle ? `${row.catalogLabel} ${courseTitle}` : row.catalogLabel);
-  }
-  return html`<span class="bc-sheet-wiz-preview">${parts.join(" · ")}</span>`;
-}
-
-function renderPickFooter(
-  loadCount: number,
-  callbacks: AnalyticsModalCallbacks
-): TemplateResult {
-  return html`<div class="bc-sheet-wiz-foot">
-    <span class="bc-sheet-wiz-count"
-      >${loadCount === 0
-        ? "Nothing to load"
-        : `Loads ${loadCount} evaluation${loadCount === 1 ? "" : "s"}`}</span
-    >
-    <button
-      type="button"
-      class="bc-btn bc-btn--ghost bc-btn--sm"
-      @click=${() => callbacks.onDryRunCancel()}
-    >Cancel</button>
-    <button
-      type="button"
-      class="bc-btn bc-btn--primary bc-btn--sm"
-      data-bc-action-button="controller"
-      ?disabled=${loadCount === 0}
-      @click=${() => {
-        if (loadCount > 0) callbacks.onDryRunConfirm();
-      }}
-    >Load</button>
-  </div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -411,30 +315,6 @@ export function presetsEqual(a: DryRunPreset, b: DryRunPreset): boolean {
       normalizeSearch(b.instructor);
   }
   return true;
-}
-
-function presetMeta(preset: DryRunPreset): { title: string; sublabel: string } {
-  if (preset.kind === "recent") {
-    return {
-      title: "Most recent",
-      sublabel: "Latest sections, whoever taught them and whatever the class"
-    };
-  }
-  if (preset.kind === "diverse-instructors") {
-    return {
-      title: "One section per professor",
-      sublabel: "Most recent first"
-    };
-  }
-  const sublabel = `${preset.count} section${preset.count === 1 ? "" : "s"} found`;
-  if (preset.kind === "by-catalog") {
-    const titleText = preset.title.trim();
-    return {
-      title: titleText ? `Only ${preset.catalog} ${titleText}` : `Only ${preset.catalog}`,
-      sublabel
-    };
-  }
-  return { title: `Only ${preset.instructor}`, sublabel };
 }
 
 function groupByCatalog(

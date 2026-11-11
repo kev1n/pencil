@@ -89,32 +89,11 @@ export function sideCardStyles(): string {
       text-decoration: underline;
       text-underline-offset: 3px;
     }
-    .bc-paper-ctec-analytics-launcher {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .bc-paper-ctec-analytics-launcher-copy {
-      font-size: var(--bc-font-13);
-      line-height: 1.5;
-      color: var(--bc-color-text-soft);
-    }
-    /* The one action here, so it gets the yellow. */
-    .bc-paper-ctec-analytics-launcher-btn {
-      align-self: flex-start;
-      height: 34px;
-      padding: 0 14px;
-      border: 0;
-      border-radius: var(--bc-radius-lg);
-      background: var(--bc-color-cta);
-      color: var(--bc-color-cta-on);
-      font: inherit;
-      font-size: var(--bc-font-13);
-      font-weight: var(--bc-fw-semibold);
-      cursor: pointer;
-    }
-    .bc-paper-ctec-analytics-launcher-btn:hover {
-      background: var(--bc-color-cta-hover);
+    /* The CTECs tab needs more room than Paper.nu's 448px panel. Paper.nu
+       caps the panel's wrapper with md:max-w-md; lift that while our tab
+       is showing. */
+    [data-bc-ctec-wide] {
+      max-width: min(100vw, 520px) !important;
     }
   `;
 }

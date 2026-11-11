@@ -91,7 +91,10 @@ export function buildActionParams(baseParams: URLSearchParams, actionId: string)
   params.set("ICAJAX", "1");
   params.set("ICNAVTYPEDROPDOWN", "0");
   params.set("ICType", "Panel");
-  params.set("ICElementNum", "0");
+  // The form carries its PeopleSoft window number here. Background requests
+  // run in their own window, and CAESAR answers with an unrelated page when
+  // this says 0 while the URL says another window.
+  if (!params.get("ICElementNum")) params.set("ICElementNum", "0");
   params.set("ICAction", actionId);
   params.set("ICModelCancel", "0");
   params.set("ICXPos", "0");

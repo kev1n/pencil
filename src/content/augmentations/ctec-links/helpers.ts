@@ -1,3 +1,4 @@
+import { formerCourseIds } from "../../course-aliases";
 import type { CtecIndexedEntry } from "../../ctec-index/types";
 import { INSTRUCTOR_SELECTOR, NOT_FOUND_ACTION_ID } from "./constants";
 import type { CtecAnalyticsStrategy, CtecLinkParams } from "./types";
@@ -106,6 +107,64 @@ export function descriptionMatchesCatalog(
   );
 }
 
+export type CtecCourseRef = { subject: string; catalogNumber: string };
+
+// The course itself, then every number it used to carry. CAESAR files
+// evaluations under the number a course had when it was taught, so a
+// renumbered course (COMP_SCI 214 -> 208) or a renamed department
+// (GNDR_ST -> GSS) keeps its history under the old one.
+export function ctecLookupCourses(
+  subject: string,
+  catalogNumber: string
+): CtecCourseRef[] {
+  const courses: CtecCourseRef[] = [{ subject, catalogNumber }];
+  const id = `${subject} ${catalogNumber.includes("-") ? catalogNumber : `${catalogNumber}-0`}`;
+  for (const former of formerCourseIds(id)) {
+    // Letter-suffixed ids ("101-A") aren't a catalog form the lookup uses.
+    const match = former.match(/^(\S+) (\d+)-(\d)$/);
+    if (!match) continue;
+    const formerSubject = match[1]!;
+    const formerCatalog = match[3] === "0" ? match[2]! : `${match[2]}-${match[3]}`;
+    // Old evaluations are cached under the current subject and matched by
+    // number alone, so a different number from another department would
+    // be mistaken for this department's own course with that number.
+    if (formerSubject !== subject && formerCatalog !== catalogNumber) continue;
+    courses.push({ subject: formerSubject, catalogNumber: formerCatalog });
+  }
+  return courses;
+}
+
+// descriptionMatchesCatalog, widened to the course's former numbers.
+export function descriptionMatchesCourse(
+  description: string,
+  subject: string,
+  catalogNumber: string
+): boolean {
+  return ctecLookupCourses(subject, catalogNumber).some((course) =>
+    descriptionMatchesCatalog(description, course.catalogNumber)
+  );
+}
+
+// A not-found marker names every number that was searched, so one written
+// before a course's former numbers were known no longer counts.
+export function notFoundDescription(subject: string, catalogNumber: string): string {
+  return ctecLookupCourses(subject, catalogNumber)
+    .map((course) => `${course.subject} ${course.catalogNumber}`)
+    .join(" / ");
+}
+
+function sentinelMatchesCourse(
+  entry: CtecIndexedEntry,
+  subject: string,
+  catalogNumber: string
+): boolean {
+  return (
+    catalogTokenRegex(catalogNumber).test(entry.searchText) &&
+    (ctecLookupCourses(subject, catalogNumber).length === 1 ||
+      entry.description === notFoundDescription(subject, catalogNumber))
+  );
+}
+
 // Any-overlap match across all comma-separated names in either string.
 // CTEC lists co-instructors in unstable order, so we compare every pair.
 // Asymmetric policy:
@@ -154,12 +213,10 @@ export function entryMatchesCourse(
   instructor: string
 ): boolean {
   // Subject is implicit in readSubjectIndex(subject); descriptions often
-  // omit the prefix, so checking it here would produce false negatives.
-  void subject;
-
+  // omit the prefix, so it only picks the course's former numbers here.
   if (entry.actionId === NOT_FOUND_ACTION_ID) {
-    if (!catalogTokenRegex(catalogNumber).test(entry.searchText)) return false;
-  } else if (!descriptionMatchesCatalog(entry.description, catalogNumber)) {
+    if (!sentinelMatchesCourse(entry, subject, catalogNumber)) return false;
+  } else if (!descriptionMatchesCourse(entry.description, subject, catalogNumber)) {
     return false;
   }
 
@@ -172,12 +229,13 @@ export function entryMatchesCourse(
 // CTECs yet) — falls back on the broader cohort.
 export function entryMatchesByCourse(
   entry: CtecIndexedEntry,
+  subject: string,
   catalogNumber: string
 ): boolean {
   if (entry.actionId === NOT_FOUND_ACTION_ID) {
-    return catalogTokenRegex(catalogNumber).test(entry.searchText);
+    return sentinelMatchesCourse(entry, subject, catalogNumber);
   }
-  return descriptionMatchesCatalog(entry.description, catalogNumber);
+  return descriptionMatchesCourse(entry.description, subject, catalogNumber);
 }
 
 // "instructor" lens — drops the catalog filter. Any course this instructor
@@ -205,7 +263,7 @@ export function entryMatchesStrategy(
   strategy: CtecAnalyticsStrategy
 ): boolean {
   if (strategy === "course") {
-    return entryMatchesByCourse(entry, params.catalogNumber);
+    return entryMatchesByCourse(entry, params.subject, params.catalogNumber);
   }
   if (strategy === "instructor") {
     return entryMatchesByInstructor(entry, params.instructor);

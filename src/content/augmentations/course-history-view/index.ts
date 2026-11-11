@@ -4,7 +4,7 @@ import { el, ensureStyle, type Augmentation } from "../../framework";
 import { STYLE_ID, styles } from "./styles";
 
 // CAESAR Course History: groups the native grid by term, filters it by
-// status (In Progress off by default) and subject with inline chips, and
+// status (In Cart off by default) and subject with inline chips, and
 // downloads the visible rows as CSV. The native <tr>s are only reordered and hidden, never
 // cloned, so each row's own onclick (OnRowAction with its row index) still
 // opens CAESAR's class detail.
@@ -15,8 +15,8 @@ const ROW_SELECTOR = 'tr.ps_grid-row[id^="CRSE_HIST2$0_row_"]';
 const ROW_INDEX_RE = /_row_(\d+)$/;
 const TERM_ROW_CLASS = "bc-ch-term-row";
 const HIDDEN_ATTR = "data-bc-ch-hidden";
-const STATE_KEY = "better-caesar:course-history-view:v3";
-const DEFAULT_HIDDEN_STATUSES = ["In Progress"];
+const STATE_KEY = "better-caesar:course-history-view:v4";
+const DEFAULT_HIDDEN_STATUSES = ["In Cart"];
 const STATUS_ORDER = ["Taken", "Transferred", "In Cart", "Planned", "In Progress"];
 const VISIBLE_SUBJECTS = 6;
 

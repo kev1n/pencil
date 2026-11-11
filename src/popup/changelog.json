@@ -19,8 +19,24 @@
         },
         {
           "kind": "feat",
+          "text": "Your browser's Back and Forward buttons now move between CAESAR pages, like search results and class details, instead of leaving CAESAR."
+        },
+        {
+          "kind": "feat",
           "text": "Pencil has a cleaner look everywhere. Prefer the old colours? Switch back under Theme in this popup." },
+        {
+          "kind": "fix",
+          "text": "Loading seats or searching with Pencil no longer makes CAESAR say \"This page is no longer available\" on your next click."
+        },
         { "kind": "fix", "text": "The sign-in, About and calendar export dialogs are simpler and easier to read." }
+      ]
+    },
+    {
+      "version": "0.9.19",
+      "date": "2026-11-10",
+      "headline": "CTECs for renumbered courses",
+      "items": [
+        { "kind": "fix", "text": "CTECs now include a course's evaluations from before it was renumbered or its department was renamed, like COMP_SCI 208 (formerly 214), instead of saying the professor hasn't taught it." }
       ]
     },
     {
