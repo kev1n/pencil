@@ -54,7 +54,14 @@ jobs:
         run: |
           $want = node -p "require('./package.json').version"
           Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait
-          $exe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Pencil.exe | Select-Object -First 1).FullName
+          # The installer can hand back control before its files are in place.
+          $exe = $null
+          foreach ($i in 1..30) {
+            $exe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Pencil.exe -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+            if ($exe) { break }
+            Start-Sleep 2
+          }
+          Start-Sleep 5
           if (-not $exe) { throw "The installer did not install Pencil" }
           "Installed $exe, version $((Get-Item $exe).VersionInfo.ProductVersion)"
           Start-Process $exe -ArgumentList "--shot=$PWD\shot.png", "--after=10" -Wait
