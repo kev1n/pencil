@@ -17,6 +17,10 @@ const bundle = app.isPackaged ? path.join(process.resourcesPath, "dist") : path.
 const flag = (name) => process.argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3) ?? "";
 const linkIn = (argv) => argv.find((a) => a.startsWith(`${LINK_SCHEME}://`)) ?? "";
 
+// A development run keeps its data apart from an installed copy (and, on a
+// Mac, from the Mac app, which uses the same folder name).
+if (!app.isPackaged) app.setPath("userData", path.join(app.getPath("appData"), "Pencil-desktop-dev"));
+
 protocol.registerSchemesAsPrivileged([
   { scheme: SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
 ]);
