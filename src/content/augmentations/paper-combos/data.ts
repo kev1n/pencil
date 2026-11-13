@@ -13,7 +13,7 @@ import type { ComboPool, ComboSection, CourseGroup, MeetingBlock } from "./types
 // or sometimes a range like "0-1"). We parse the leading numeric token
 // and fall back to DEFAULT_UNITS for unparseable values — the budget is
 // only meaningful when courses have a usable weight.
-function parseUnits(raw: string | undefined): number {
+export function parseUnits(raw: string | undefined): number {
   if (!raw) return DEFAULT_UNITS;
   const match = raw.trim().match(/^[-]?[\d.]+/);
   if (!match) return DEFAULT_UNITS;
@@ -112,7 +112,7 @@ function instructorNames(section: PaperSection): string[] {
     .filter(Boolean);
 }
 
-function toComboSection(section: PaperSection): ComboSection | null {
+export function toComboSection(section: PaperSection): ComboSection | null {
   const blocks = flattenBlocks(section);
   if (blocks.length === 0) return null;
   return {
@@ -179,7 +179,7 @@ function resolveSchedule(
   return { sections, byId, unresolved };
 }
 
-function groupByCourse(
+export function groupByCourse(
   sections: ComboSection[],
   unitsByCourse: Map<string, number>
 ): CourseGroup[] {

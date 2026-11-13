@@ -1,0 +1,7 @@
+name = "pencil-sync"
+main = "worker.js"
+compatibility_date = "2026-06-01"
+
+[[kv_namespaces]]
+binding = "BLOBS"
+id = "9c772a18f6d24b8fbc7e74650036332d"

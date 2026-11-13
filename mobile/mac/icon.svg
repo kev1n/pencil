@@ -1,0 +1,35 @@
+<!-- The Mac app's icon: the extension's pencil (src/assets/icons/pencil.svg)
+     on a sheet of warm paper, on Apple's icon grid (824 of 1024, rounded).
+     AppIcon.icns is made from this by mac/icon.sh. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="100" x2="0" y2="924" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fffdf6" />
+      <stop offset="1" stop-color="#f3ead3" />
+    </linearGradient>
+    <filter id="drop" x="0" y="0" width="1024" height="1024" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.28" />
+    </filter>
+    <clipPath id="sheet"><rect x="100" y="100" width="824" height="824" rx="186" /></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#paper)" filter="url(#drop)" />
+  <!-- ruled lines, as on a notebook page -->
+  <g clip-path="url(#sheet)" stroke="#9fb8d6" stroke-width="9">
+    <line x1="100" y1="330" x2="924" y2="330" />
+    <line x1="100" y1="466" x2="924" y2="466" />
+    <line x1="100" y1="602" x2="924" y2="602" />
+    <line x1="100" y1="738" x2="924" y2="738" />
+  </g>
+  <g transform="translate(212 212) scale(9.375)">
+    <g transform="rotate(135 32 32)" stroke="#2a2a2e" stroke-width="2" stroke-linejoin="round">
+      <rect x="4" y="22" width="10" height="20" rx="3" fill="#ef8da6" />
+      <rect x="14" y="22" width="9" height="20" fill="#c2c7cb" />
+      <line x1="17" y1="23" x2="17" y2="41" stroke="#7d848a" stroke-width="1" />
+      <line x1="20" y1="23" x2="20" y2="41" stroke="#7d848a" stroke-width="1" />
+      <rect x="23" y="22" width="26" height="20" fill="#f5c842" />
+      <polygon points="49,22 56,22 56,42 49,42" fill="#d4a373" />
+      <polygon points="56,22 64,32 56,42" fill="#2a2a2e" />
+    </g>
+  </g>
+  <rect x="100.5" y="100.5" width="823" height="823" rx="185.5" stroke="#000" stroke-opacity="0.08" />
+</svg>

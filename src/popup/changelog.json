@@ -11,6 +11,17 @@
   },
   "entries": [
     {
+      "version": "1.0.2",
+      "date": "2026-11-11",
+      "headline": "CTECs that don't go blank",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "When Northwestern's CTEC site fails to open a report, Pencil now says so and lets you try again, instead of showing the class as having no ratings."
+        }
+      ]
+    },
+    {
       "version": "1.0.1",
       "date": "2026-11-11",
       "headline": "Tidier search, smaller screens",

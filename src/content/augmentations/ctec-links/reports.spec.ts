@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { CtecIndexedEntry } from "../../ctec-index/types";
-import { selectEntriesForTitle } from "./reports";
+import { isCtecSiteErrorPage, selectEntriesForTitle } from "./reports";
 
 function entry(description: string, term = "2025 Fall"): CtecIndexedEntry {
   return {
@@ -93,5 +93,25 @@ describe("selectEntriesForTitle", () => {
     const intro = entry("COMP_SCI 214-0-1 Data Structures and Algorithms");
     const other = entry("COMP_SCI 214-0-1 Intro to Robotics Lab");
     expect(selectEntriesForTitle([intro, other], "Data Structures & Algorithms")).toEqual([intro]);
+  });
+});
+
+describe("isCtecSiteErrorPage", () => {
+  it("recognizes the CTEC site's own failure page", () => {
+    const html =
+      "<html><head><title>Runtime Error</title></head><body><h1>Server Error in '/' Application.</h1>" +
+      "<h2>Runtime Error</h2><b>Description:</b> An application error occurred on the server.</body></html>";
+    expect(isCtecSiteErrorPage(html)).toBe(true);
+  });
+
+  it("leaves a real report alone, even one that mentions an error", () => {
+    const html =
+      '<html><head><title>Student Report</title></head><body><div class="report-block">' +
+      "<span>Server Error in '/' Application</span></div></body></html>";
+    expect(isCtecSiteErrorPage(html)).toBe(false);
+  });
+
+  it("leaves a report with nothing to show alone", () => {
+    expect(isCtecSiteErrorPage("<html><head><title>Student Report</title></head><body></body></html>")).toBe(false);
   });
 });

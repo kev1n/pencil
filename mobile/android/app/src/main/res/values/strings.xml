@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pencil</string>
+    <string name="title_activity_main">Pencil</string>
+    <string name="package_name">nu.pencil.app</string>
+    <string name="custom_url_scheme">nu.pencil.app</string>
+</resources>

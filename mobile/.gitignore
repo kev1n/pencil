@@ -1,0 +1,6 @@
+node_modules
+dist
+.derived
+.sim-udid
+.derived-mac
+mac/build
