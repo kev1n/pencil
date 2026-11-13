@@ -33,8 +33,10 @@ import {
   continueCartAddWithRelated,
   searchCaesarCatalog
 } from "@ext/content/augmentations/class-search/caesar-search/flow";
+import { parseAjaxFragment } from "@ext/content/augmentations/class-search/caesar-search/parser";
 import { INSTITUTION_DEFAULT } from "@ext/content/augmentations/class-search/caesar-search/types";
 import { bareCatalogNumber } from "@ext/content/augmentations/class-search/catalog-format";
+import { cartPage } from "@ext/content/enroll/flow";
 import { toSeatsNotesResult } from "@ext/content/augmentations/seats-notes/parser";
 import {
   buildPeopleSoftCreditToast,
@@ -193,7 +195,24 @@ export function liveSectionFor(course: LiveCourse | null, section: PaperSection)
 
 // ── section details ────────────────────────────────────────────────────────
 
-export function cachedSectionDetails(classNumber: string): SeatsNotesResult | null {
+// What else CAESAR's class page states, beyond seats and notes.
+export type ClassFacts = { units?: string; grading?: string; components?: string; career?: string; session?: string; campus?: string };
+export type SectionDetails = SeatsNotesResult & { facts?: ClassFacts };
+
+function classFacts(page: string | null): ClassFacts {
+  const doc = parseAjaxFragment(page ?? "");
+  const read = (id: string) => (doc.getElementById(id)?.textContent ?? "").replace(/\s+/g, " ").trim() || undefined;
+  return {
+    units: read("SSR_CLS_DTL_WRK_UNITS_RANGE"),
+    grading: read("GRADE_BASIS_TBL_DESCRFORMAL"),
+    components: (doc.querySelector("[id^='SSR_CLS_DTL_WRK_SSR_COMPONENT_LONG']")?.textContent ?? "").replace(/\s+/g, " ").trim() || undefined,
+    career: read("PSXLATITEM_XLATLONGNAME"),
+    session: read("PSXLATITEM_XLATLONGNAME$31$"),
+    campus: read("CAMPUS_TBL_DESCR")
+  };
+}
+
+export function cachedSectionDetails(classNumber: string): SectionDetails | null {
   return readCachedEntry(classNumber)?.result ?? null;
 }
 
@@ -220,7 +239,7 @@ export async function loadSectionDetails(input: {
   classNumber: string;
   // A check nobody tapped for waits its turn and never cancels other loads.
   quiet?: boolean;
-}): Promise<SeatsNotesResult> {
+}): Promise<SectionDetails> {
   spendCredit("app-detail");
   const bare = bareCatalogNumber(input.catalog);
   const lookup = () => needsSession(() =>
@@ -237,8 +256,9 @@ export async function loadSectionDetails(input: {
     )
   );
   const response = await (input.quiet ? backInLine(lookup) : lookup());
-  const result = toSeatsNotesResult(response);
+  const result: SectionDetails = toSeatsNotesResult(response);
   if (result.ok) {
+    if (response.ok) result.facts = classFacts(response.detailResponseText);
     writeCachedEntry(input.classNumber, { result, fetchedAt: Date.now() });
     seatChecks.update((n) => n + 1);
   }
@@ -258,10 +278,13 @@ async function readCart(): Promise<void> {
   cart.set((saved as CartCache | undefined) ?? null);
 }
 
-export async function refreshCart(): Promise<void> {
-  const html = await needsSession(() => fetchTextViaBackground(CART_URL));
-  const parsed = parseCartPage(new DOMParser().parseFromString(html, "text/html"), html);
-  if (!parsed) throw new Error("CAESAR didn’t send the shopping cart page. Try again.");
+export async function refreshCart(termId?: string | null): Promise<void> {
+  const html = await needsSession(() => cartPage(termId));
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const parsed = parseCartPage(doc, html);
+  // CAESAR's own reason when it shows no cart for the term.
+  const said = (doc.querySelector("[id^='DERIVED_SASSMSG_ERROR_TEXT']")?.textContent ?? "").trim();
+  if (!parsed) throw new Error(said || "CAESAR didn’t send the shopping cart page. Try again.");
   replaceTermFromCartPage(parsed.termId, parsed.cart, parsed.enrolled);
 }
 

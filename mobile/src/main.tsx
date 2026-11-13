@@ -59,10 +59,10 @@ async function start(): Promise<void> {
       at("pointerup", dragBy[0]!, dragBy[1]!);
     }, 3500);
   }
-  // `?scroll=<selector>` scrolls that element to its end a moment after
-  // launch (same aid), to check a pane really scrolls.
+  // `?scroll=<selector>` keeps that element scrolled to its end (same aid),
+  // to check a pane really scrolls and to see what is at its foot.
   const scroll = params.get("scroll");
-  if (scroll) setTimeout(() => document.querySelector(scroll)?.scrollTo(0, 1e6), 3500);
+  if (scroll) setInterval(() => document.querySelector(scroll)?.scrollTo(0, 1e6), 2000);
   // `?over=<selector>` puts the pointer over that element (same aid), to
   // check what pointing at it previews. It also gets the class `is-over`,
   // styled like `:hover`, which a script cannot set.
@@ -73,9 +73,11 @@ async function start(): Promise<void> {
       target?.classList.add("is-over");
       target?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
     }, 6000);
-  // `?click=<selector>` clicks that element a moment after launch (same aid).
-  const click = params.get("click");
-  if (click) setTimeout(() => (document.querySelector(click) as HTMLElement | null)?.click(), 6000);
+  // `?click=<selector>` clicks that element a moment after launch (same aid);
+  // `a;;b` clicks one after the other.
+  (params.get("click") ?? "").split(";;").filter(Boolean).forEach((selector, i) =>
+    setTimeout(() => (document.querySelector(selector) as HTMLElement | null)?.click(), 6000 + i * 2500)
+  );
   startKeepAlive();
   listenForLinks(NUSession.launchLink());
   void startSync();

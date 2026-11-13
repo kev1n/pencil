@@ -10,7 +10,7 @@ import {
   resolveLiveSection,
   useCart,
   useLiveCourse,
-  type SeatsNotesResult
+  type SectionDetails
 } from "../data/caesar";
 import type { PaperSection, PaperTermCourse } from "../data/catalog";
 import { ctecIdentity, loadCtec, overallRating, useCtec, type CtecState } from "../data/ctec";
@@ -19,6 +19,7 @@ import { getSessionState } from "../platform/session-state";
 import { describeError } from "../platform/sign-in";
 import { AnalyticsSheet } from "./AnalyticsSheet";
 import { MiniWeek } from "./MiniWeek";
+import { RegisterOne } from "./Register";
 import { useCartAdd } from "./useCartAdd";
 import {
   componentName,
@@ -77,7 +78,7 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
   const inCart = classNumber ? Boolean(cart?.cart[classNumber]) : false;
   const enrolled = classNumber ? Boolean(cart?.enrolled[classNumber]) : false;
 
-  const [details, setDetails] = useState<SeatsNotesResult | null>(null);
+  const [details, setDetails] = useState<SectionDetails | null>(null);
   const [seatsBusy, setSeatsBusy] = useState(false);
   const [seatsError, setSeatsError] = useState<string | null>(null);
   const cartAdd = useCartAdd({ termId, subject, catalog });
@@ -140,6 +141,7 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const facts = details?.ok ? details.facts : undefined;
   const rooms = roomLines(section);
   const times = meetingLines(section);
   const hasTags = Boolean(liveSection) || enrolled || inCart || onSchedule;
@@ -165,9 +167,14 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
           <button className={`bc-btn ${onSchedule ? "bc-btn--secondary" : "bc-btn--primary"}`} onClick={toggleSchedule}>
             <Icon name="schedule" />{onSchedule ? "Remove" : "Add to schedule"}
           </button>
-          <button className="bc-btn bc-btn--secondary" disabled={cartBusy || inCart || enrolled} onClick={() => void cartAdd.add(section, classNumber)}>
-            {cartBusy ? <Spin /> : <><Icon name="cart" />{enrolled ? "Enrolled" : inCart ? "In cart" : "Add to cart"}</>}
-          </button>
+          {inCart && !enrolled && classNumber ? (
+            // In the cart: the same spot now registers.
+            <RegisterOne termId={termId} classNumber={classNumber} />
+          ) : (
+            <button className="bc-btn bc-btn--secondary" disabled={cartBusy || enrolled} onClick={() => void cartAdd.add(section, classNumber)}>
+              {cartBusy ? <Spin /> : <><Icon name="cart" />{enrolled ? "Enrolled" : "Add to cart"}</>}
+            </button>
+          )}
         </div>
         <MiniWeek termId={termId} section={section} />
 
@@ -198,11 +205,19 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
               <span className="fact-value">{formatDateRange(section.start_date, section.end_date)}</span>
             </div>
           )}
-          {liveSection?.grading && (
+          {(facts?.grading ?? liveSection?.grading) && (
             <div className="fact">
               <span className="fact-label">Grading</span>
-              <span className="fact-value">{liveSection.grading}</span>
+              <span className="fact-value">{facts?.grading ?? liveSection?.grading}</span>
             </div>
+          )}
+          {([["Units", facts?.units], ["Comes with", facts?.components], ["Level", facts?.career], ["Session", facts?.session], ["Campus", facts?.campus]] as const).map(
+            ([label, value]) => value && (
+              <div key={label} className="fact">
+                <span className="fact-label">{label}</span>
+                <span className="fact-value">{value}</span>
+              </div>
+            )
           )}
           {section.capacity && (
             <div className="fact">
@@ -353,7 +368,7 @@ function Ctecs(props: { state: CtecState; instructor: string; onLoad: () => void
   );
 }
 
-function Seats(props: { details: SeatsNotesResult | null; busy: boolean; error: string | null; first: boolean; onCheck: () => void }) {
+function Seats(props: { details: SectionDetails | null; busy: boolean; error: string | null; first: boolean; onCheck: () => void }) {
   const { details, busy, error } = props;
   const action = busy ? <Spin /> : <button className="link" onClick={props.onCheck}>{details?.ok ? "Refresh" : "Check"}</button>;
 

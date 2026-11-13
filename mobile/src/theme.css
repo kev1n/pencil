@@ -602,3 +602,19 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .ratings-ask > div { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; font-size: 13.5px; color: var(--bc-color-text-muted); }
 .ratings-ask b { font-size: 14.5px; font-weight: var(--bc-fw-semibold); color: var(--bc-color-text-strong); }
 .ratings-ask .bc-btn { flex: none; }
+
+/* Registering from the cart list: a button under it turns the rows into
+   tick boxes, then registers the ticked ones and shows CAESAR's answers. */
+.register { margin-top: 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.register .bc-btn { flex: none; }
+.row-tick { width: 17px; height: 17px; margin: 3px 2px 0 0; accent-color: var(--bc-color-accent); flex: none; pointer-events: none; }
+.register-panel { margin-top: 14px; padding: 12px 16px; border: 1px solid var(--bc-color-border); border-radius: 12px; }
+.register-panel .row { padding-left: 0; padding-right: 0; }
+.register-panel .actions { padding: 12px 0 0; justify-content: flex-start; }
+.register-panel .actions .bc-btn { flex: none; }
+.row-register { display: inline-flex; align-items: center; gap: 10px; white-space: nowrap; }
+.row-register .bc-btn { padding: 5px 14px; min-height: 0; font-size: 13px; }
+.row-answer { display: block; margin-top: 4px; font-size: 13px; color: var(--bc-color-text-soft); }
+/* Ratings and seats keep their stack; the row's own button sits beside it. */
+.row-meta-col { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.row-meta:has(.row-register) { flex-direction: row; align-items: center; gap: 16px; }

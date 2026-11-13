@@ -154,7 +154,15 @@ final class NUSessionCore {
                 self.saveCookies()
                 let http = response as? HTTPURLResponse
                 // Development aid: `PENCIL_TRACE=1` prints each request's outcome.
-                if ProcessInfo.processInfo.environment["PENCIL_TRACE"] != nil {
+                // Given a folder instead, it also saves each whole answer there.
+                if let trace = ProcessInfo.processInfo.environment["PENCIL_TRACE"] {
+                    if trace.hasPrefix("/") {
+                        let name = "\(Int(Date().timeIntervalSince1970 * 1000))-\(req.httpMethod ?? "").txt"
+                        let sent = req.httpBody.map { String(decoding: $0, as: UTF8.self) } ?? ""
+                        var whole = "\(urlString)\n\(sent)\n----\n".data(using: .utf8)!
+                        whole.append(data ?? Data())
+                        try? whole.write(to: URL(fileURLWithPath: trace).appendingPathComponent(name))
+                    }
                     let body = String(decoding: (data ?? Data()).prefix(900), as: UTF8.self).replacingOccurrences(of: "\n", with: " ")
                     FileHandle.standardError.write("TRACE \(req.httpMethod ?? "") \(urlString) -> \(http?.statusCode ?? 0) \(http?.url?.absoluteString ?? "") :: \(body)\n".data(using: .utf8)!)
                 }

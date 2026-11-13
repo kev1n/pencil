@@ -32,6 +32,7 @@ import { useSessionState } from "../platform/session-state";
 import { useWide } from "../platform/wide";
 import { describeError, signInToCaesar } from "../platform/sign-in";
 import { device } from "../platform/native";
+import { useRegister } from "../components/Register";
 import { CourseView } from "./CoursePage";
 import { useSearch, type Picked } from "./SearchPage";
 
@@ -126,7 +127,7 @@ export function SchedulePage() {
   async function refresh(): Promise<void> {
     setBusy(true);
     try {
-      await refreshCart();
+      await refreshCart(termId);
     } catch (error) {
       void toast({ message: describeError(error), duration: 4000, position: "top" });
     } finally {
@@ -347,6 +348,7 @@ export function SchedulePage() {
           {!wide && combosBar}
     </>
   );
+  const register = useRegister(termId, classes.filter((c) => c.state === "cart" && c.classNumber).map((c) => c.classNumber!));
   const lists = (
     <>
               {GROUPS.map(([state, title]) => {
@@ -396,10 +398,15 @@ export function SchedulePage() {
                         const rating = overallRating(ctec);
                         const hours = ctec?.metrics.hours?.mean;
                         const pinned = section ? pins.has(section.section_id) : false;
+                        // While picking classes to register, a cart row is a tick box.
+                        const picking = state === "cart" && entry.classNumber ? register.picked : null;
+                        const ticked = Boolean(picking?.has(entry.classNumber!));
+                        const own = state === "cart" && entry.classNumber && !combosOn ? register.button(entry.classNumber) : null;
                         return (
                           <Row
                             key={entry.key}
                             faint={Boolean(inCombo && section && !inCombo.has(section.section_id))}
+                            on={ticked}
                             actions={
                               combosOn && section && state !== "enrolled" ? (
                                 <button className={`link${pinned ? "" : " quiet"}`} onClick={() => togglePin(section.section_id)}>
@@ -407,7 +414,13 @@ export function SchedulePage() {
                                 </button>
                               ) : undefined
                             }
-                            lead={<span className="swatch" style={colorOf(entry.subject, entry.catalog)} />}
+                            lead={
+                              picking ? (
+                                <input type="checkbox" className="row-tick" checked={ticked} readOnly />
+                              ) : (
+                                <span className="swatch" style={colorOf(entry.subject, entry.catalog)} />
+                              )
+                            }
                             code={
                               <>
                                 {courseCode(entry.subject, entry.catalog)}
@@ -422,8 +435,9 @@ export function SchedulePage() {
                               ) : undefined
                             }
                             meta={
-                              (rating !== undefined || seats) && (
+                              (rating !== undefined || seats || own) && (
                                 <>
+                                  <span className="row-meta-col">
                                   <RatingChip rating={rating} hours={hours} />
                                   {seats && (
                                     <>
@@ -433,14 +447,17 @@ export function SchedulePage() {
                                       <span>{seats.capacity !== null ? `of ${seats.capacity} · ` : ""}{timeAgo(seats.at)}</span>
                                     </>
                                   )}
+                                  </span>
+                                  {own}
                                 </>
                               )
                             }
-                            onClick={section ? () => open(entry as Timed) : undefined}
+                            onClick={picking ? () => register.toggle(entry.classNumber!) : section ? () => open(entry as Timed) : undefined}
                           />
                         );
                       })}
                     </div>
+                    {state === "cart" && register.bar}
                   </Section>
                   </div>
                 );

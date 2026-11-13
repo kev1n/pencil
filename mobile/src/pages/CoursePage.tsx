@@ -26,6 +26,7 @@ import { PrereqTree } from "../components/PrereqTree";
 import { MiniWeekOf } from "../components/MiniWeek";
 import { useCartAdd } from "../components/useCartAdd";
 import { SectionSheet, type SheetTarget } from "../components/SectionSheet";
+import { RegisterOne } from "../components/Register";
 import { liveSectionFor, loadLiveCourse, useCart, useLiveCourse } from "../data/caesar";
 import { loadCourse, loadTerms, selectedTerm, type CourseDetail, type PaperSection } from "../data/catalog";
 import { addToSchedule, removeFromSchedule, usePlannedKeys } from "../data/schedule";
@@ -313,7 +314,9 @@ export function CourseView({ termId, subject, catalog, search = "", onPreview, o
                                     <Icon name="schedule" />{onSchedule ? "Remove from schedule" : "Add to schedule"}
                                   </button>
                                 )}
-                                {enrolled || inCart ? null : cartAdd.busy === section.section_id ? (
+                                {enrolled ? null : inCart && number ? (
+                                  <RegisterOne termId={termId} classNumber={number} link />
+                                ) : cartAdd.busy === section.section_id ? (
                                   <Spin />
                                 ) : (
                                   <button
