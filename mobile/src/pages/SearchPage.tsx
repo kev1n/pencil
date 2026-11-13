@@ -11,7 +11,6 @@ import { describeError } from "../platform/sign-in";
 import type { ColorOf } from "../components/bits";
 import { useCourseHistory } from "../data/caesar";
 import { loadEligibility } from "../data/prereqs";
-import { device } from "../platform/native";
 
 const PAGE = 40;
 const RECENT_KEY = "pencil.recent-searches";
@@ -176,9 +175,7 @@ export function useSearch(opts: {
 
           {!error && !ready && (
             <Section bare>
-              <Status title={<><Spin /> Getting the {termName || "course"} catalog</>}>
-                This happens once; after that it’s saved on your {device}.
-              </Status>
+              <Status title={<><Spin /> Getting the {termName || "course"} catalog</>} />
             </Section>
           )}
 
@@ -193,7 +190,7 @@ export function useSearch(opts: {
                   </div>
                 </Section>
               )}
-              <Section title="Subjects" ctx="Or type a course, title or topic" bare>
+              <Section title="Subjects" bare>
                 <div className="rows">
                   {subjects.map((subject) => (
                     <Row
@@ -210,7 +207,7 @@ export function useSearch(opts: {
 
           {ready && rows !== null && rows.length === 0 && (
             <Section bare>
-              <Status title="Nothing found">No {termName} course matches “{query.trim()}”.</Status>
+              <Status title={`Nothing in ${termName} matches “${query.trim()}”`} />
             </Section>
           )}
 

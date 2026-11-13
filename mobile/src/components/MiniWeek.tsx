@@ -53,13 +53,7 @@ export function MiniWeekOf(props: { classes: TermClass[]; section: PaperSection;
           </div>
         ))}
       </div>
-      {(!compact || clashing.length > 0) && <p className={`note-text${clashing.length > 0 ? " is-error" : ""}`}>
-        {clashing.length > 0
-          ? `Overlaps with ${clashing.join(" and ")}.`
-          : others.length > 0
-            ? "Fits with the rest of your week."
-            : "Nothing else in your week yet."}
-      </p>}
+      {clashing.length > 0 && <p className="note-text is-error">Overlaps with {clashing.join(" and ")}.</p>}
     </div>
   );
 }

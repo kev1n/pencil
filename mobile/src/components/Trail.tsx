@@ -169,7 +169,7 @@ export function Trail({ entries, colorOf }: { entries: Timed[]; colorOf: ColorOf
   const legs = placed.slice(1).map((to, i) => ({ from: placed[i]!, to })).filter((leg) => leg.from.place !== leg.to.place);
 
   return (
-    <Section first ctx="Walking times are estimates · map shapes © OpenStreetMap contributors">
+    <Section first ctx="Map © OpenStreetMap contributors">
       <div className="trail-pick">
         <div className="trail-days">
           {shownDays.map((i) => (
