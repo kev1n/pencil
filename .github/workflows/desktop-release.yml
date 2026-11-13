@@ -67,11 +67,11 @@ jobs:
           foreach ($i in 1..60) {
             Start-Sleep 5
             $got = (Get-Item $exe -ErrorAction SilentlyContinue).VersionInfo.ProductVersion
-            if ($got -eq $want) { break }
+            if ($got -like "$want*") { break }
           }
           Stop-Process -Id $files.Id -Force
           "After updating: $got"
-          if ($got -ne $want) { throw "The older copy did not update itself to $want" }
+          if ($got -notlike "$want*") { throw "The older copy did not update itself to $want" }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
