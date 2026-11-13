@@ -1,6 +1,6 @@
 name: mac-release
 # Builds the Mac app, signs it with the Developer ID certificate, has Apple
-# notarize it, and attaches Pencil.zip to a GitHub Release. Runs on tags like
+# notarize it, and attaches Pencil.dmg to a GitHub Release. Runs on tags like
 # mac-v0.1.0 (the extension's own releases use plain v* tags).
 on:
   push:
@@ -54,5 +54,5 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: mobile/mac/build/Pencil.zip
+          files: mobile/mac/build/Pencil.dmg
           generate_release_notes: true

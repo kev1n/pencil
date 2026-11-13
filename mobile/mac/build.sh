@@ -36,8 +36,18 @@ if [ "$MODE" = release ]; then
   xcrun notarytool submit "$ZIP" --keychain-profile pencil --wait
   xcrun stapler staple "$APP"
   rm -f "$ZIP"
-  ditto -c -k --keepParent "$APP" "$ZIP"
-  echo "$ZIP"
+  # The download: a disk image holding the app beside a shortcut to the
+  # Applications folder, signed and checked by Apple like the app itself.
+  DMG=mac/build/Pencil.dmg
+  STAGE="$(mktemp -d)"
+  cp -R "$APP" "$STAGE/Pencil.app"
+  ln -s /Applications "$STAGE/Applications"
+  rm -f "$DMG"
+  hdiutil create -quiet -volname Pencil -srcfolder "$STAGE" -format UDZO "$DMG"
+  codesign --force --timestamp --sign "Developer ID Application" "$DMG"
+  xcrun notarytool submit "$DMG" --keychain-profile pencil --wait
+  xcrun stapler staple "$DMG"
+  echo "$DMG"
 else
   codesign --force --sign - "$APP" >/dev/null 2>&1
 fi
