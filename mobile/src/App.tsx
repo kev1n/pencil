@@ -12,6 +12,7 @@ import { SchedulePage } from "./pages/SchedulePage";
 import { SearchPage } from "./pages/SearchPage";
 import { WalkPage } from "./pages/WalkPage";
 import { YouPage } from "./pages/YouPage";
+import { Welcome } from "./components/Welcome";
 
 const TABS = [
   { tab: "schedule", label: "Schedule", icon: calendarOutline },
@@ -144,6 +145,7 @@ export function App({ initialRoute }: { initialRoute: string }) {
           </IonTabBar>
         </IonTabs>
       </IonReactMemoryRouter>
+      <Welcome />
     </IonApp>
   );
 }

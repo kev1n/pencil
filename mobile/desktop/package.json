@@ -1,0 +1,27 @@
+{
+  "name": "pencil-desktop",
+  "productName": "Pencil",
+  "version": "0.1.0",
+  "description": "Pencil for Windows and Linux",
+  "author": "Kevin Wang & Jason Latz",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --publish never"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "nu.pencil.app.desktop",
+    "productName": "Pencil",
+    "files": ["main.js", "preload.js"],
+    "extraResources": [{ "from": "../dist", "to": "dist" }],
+    "protocols": [{ "name": "Pencil plan link", "schemes": ["pencilnu"] }],
+    "win": { "target": "nsis", "icon": "icon.png" },
+    "nsis": { "oneClick": true, "perMachine": false, "artifactName": "Pencil-Setup.exe" },
+    "linux": { "target": "AppImage", "icon": "icon.png", "category": "Education", "artifactName": "Pencil.AppImage" }
+  }
+}

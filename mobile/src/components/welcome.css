@@ -1,0 +1,6 @@
+/* First-launch welcome (Welcome.tsx). */
+.welcome-body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 34px; text-align: center; }
+.welcome-body h1 { margin: 4px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+.welcome-body .text { max-width: 30em; margin: 0; }
+.welcome-love { margin: 6px 0 10px; font-family: "Caveat", cursive; font-weight: 600; color: var(--bc-color-text-strong); font-size: 24px; line-height: 1.25; }
+@media (min-width: 900px) { ion-modal.sheet.welcome { --width: 520px; --height: 500px; } }

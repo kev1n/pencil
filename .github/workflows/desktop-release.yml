@@ -1,0 +1,36 @@
+name: desktop-release
+# Builds the Windows installer for Pencil (mobile/desktop, an Electron shell
+# around the same web bundle as the other apps) and attaches Pencil-Setup.exe
+# to a GitHub Release. Runs on tags like desktop-v0.1.0. The installer is not
+# signed, so Windows shows its "unknown publisher" warning.
+on:
+  push:
+    tags:
+      - "desktop-v*"
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      - run: npx tsc --noEmit
+        working-directory: mobile
+      - run: npx vite build
+        working-directory: mobile
+      - run: npm ci
+        working-directory: mobile/desktop
+      - run: npm run dist
+        working-directory: mobile/desktop
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile/desktop/dist/Pencil-Setup.exe
+          prerelease: true
+          generate_release_notes: true

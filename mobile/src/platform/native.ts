@@ -45,9 +45,11 @@ type Session = {
 type MacHandler = { postMessage(message: { method: string; options: unknown }): Promise<unknown> };
 const mac = (window as unknown as { webkit?: { messageHandlers?: { pencil?: MacHandler } } }).webkit?.messageHandlers?.pencil;
 
+// True for every desktop shell: the Mac app, and the Windows and Linux app
+// (mobile/desktop), which answers through a handler of the same shape.
 export const isMac = mac !== undefined;
 // What the app calls the thing it runs on.
-export const device = isMac ? "Mac" : "phone";
+export const device = isMac ? ((window as unknown as { pencilDevice?: string }).pencilDevice ?? "Mac") : "phone";
 
 export const NUSession: Session = mac
   ? (new Proxy({}, {
