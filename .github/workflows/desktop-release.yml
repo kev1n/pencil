@@ -53,7 +53,8 @@ jobs:
         working-directory: mobile/desktop
         run: |
           $want = node -p "require('./package.json').version"
-          Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait
+          $setup = Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait -PassThru
+          "Installer finished with code $($setup.ExitCode)"
           # The installer can hand back control before its files are in place.
           $exe = $null
           foreach ($i in 1..30) {
@@ -62,7 +63,11 @@ jobs:
             Start-Sleep 2
           }
           Start-Sleep 5
-          if (-not $exe) { throw "The installer did not install Pencil" }
+          if (-not $exe) {
+            Get-ChildItem old, "$env:LOCALAPPDATA\Programs" | Out-String
+            Get-ChildItem "$env:ProgramFiles", "$env:LOCALAPPDATA" -Filter "*encil*" | Out-String
+            throw "The installer did not install Pencil"
+          }
           "Installed $exe, version $((Get-Item $exe).VersionInfo.ProductVersion)"
           Start-Process $exe -ArgumentList "--shot=$PWD\shot.png", "--after=10" -Wait
           if (-not (Test-Path shot.png)) { throw "The app did not open and draw its window" }
