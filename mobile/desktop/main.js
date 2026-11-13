@@ -7,6 +7,7 @@ const { app, BrowserWindow, ipcMain, nativeTheme, net, protocol, session, shell 
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
+const { autoUpdater } = require("electron-updater");
 
 const SCHEME = "pencil";
 const LINK_SCHEME = "pencilnu";
@@ -159,6 +160,19 @@ const methods = {
   debugRoute: () => ({ route: flag("route") })
 };
 
+// Keeps the Windows app current. The installer's update files are read from
+// pencil.nu/download/windows, which forwards to one release; pointing it at a
+// new release is what rolls an update out. A newer version is downloaded
+// quietly and installed when the app quits.
+function keepCurrent() {
+  if (!app.isPackaged || process.platform !== "win32" || flag("shot")) return;
+  // Development aids: `PENCIL_UPDATE_URL` reads the update files from
+  // somewhere else, and `PENCIL_UPDATE=now` installs without waiting.
+  if (process.env.PENCIL_UPDATE_URL) autoUpdater.setFeedURL({ provider: "generic", url: process.env.PENCIL_UPDATE_URL });
+  if (process.env.PENCIL_UPDATE === "now") autoUpdater.on("update-downloaded", () => autoUpdater.quitAndInstall(true, false));
+  autoUpdater.checkForUpdatesAndNotify().catch(() => undefined);
+}
+
 function send(name, detail = "") {
   void win?.webContents.executeJavaScript(
     `window.dispatchEvent(new CustomEvent('pencil:${name}', { detail: ${JSON.stringify(detail)} }))`
@@ -227,6 +241,7 @@ if (!app.requestSingleInstanceLock()) {
       return run(options ?? {});
     });
     openWindow();
+    keepCurrent();
   });
 
   app.on("window-all-closed", () => app.quit());
