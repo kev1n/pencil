@@ -46,6 +46,7 @@ export const FEATURE_GROUPS: Record<string, "caesar" | "paper"> = {
   "paper-brand": "paper",
   "paper-enrollment-dates": "paper",
   "paper-register": "paper",
+  "paper-walk": "paper",
   "paper-ctec": "paper",
   "paper-ctec-single-summary-card": "paper",
   "paper-ctec-compact-cards": "paper",

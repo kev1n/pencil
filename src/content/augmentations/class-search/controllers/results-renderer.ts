@@ -9,6 +9,7 @@
 // controllers, and paints any cache hits the moment the card mounts.
 
 import { readTermCart } from "../../../cart-cache";
+import { lookupBySignature } from "../../../cart-cache/storage";
 
 import { bareCatalogNumber } from "../catalog-format";
 import { readCatalogCache } from "../catalog-cache";
@@ -141,8 +142,11 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
     hasLecture: boolean,
     seenCtecKeys: Set<string>
   ): HTMLLIElement {
+    // The term this row was drawn for: Register looks the class up and
+    // enrolls in this same term even if the term picker changes later.
+    const termId = deps.filters.termId;
     const sigKey = deps.cartButtons.encodeSigKey({
-      termId: deps.filters.termId,
+      termId,
       subject: row.course.subject,
       catalog: row.course.catalog,
       sectionLabel: `${section.section}-${section.component}`
@@ -159,6 +163,18 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
       section,
       sigKey,
       showActions,
+      register: {
+        termId,
+        classNumber: () => {
+          const hit = lookupBySignature(
+            termId,
+            row.course.subject,
+            row.course.catalog,
+            `${section.section}-${section.component}`
+          );
+          return hit?.status === "in-cart" ? hit.entry.classNumber : null;
+        }
+      },
       registerAddButton: (button) => {
         deps.cartButtons.register(sigKey, button);
         deps.cartCachePainter.applyForSection(row, section, button);
@@ -221,6 +237,7 @@ export function createResultsRenderer(deps: ResultsRendererDeps): ResultsRendere
     // `parentElement?.insertBefore`, which needs the `<ul>` parent.
     const autoOpens: Array<() => void> = [];
     const myClassesEl = renderMyClassesView(doc, {
+      termId: deps.filters.termId,
       paperCourses: courses ?? [],
       catalogIndex: deps.catalogIndex,
       enrolled,

@@ -33,7 +33,6 @@ import {
   continueCartAddWithRelated,
   searchCaesarCatalog
 } from "@ext/content/augmentations/class-search/caesar-search/flow";
-import { parseAjaxFragment } from "@ext/content/augmentations/class-search/caesar-search/parser";
 import { INSTITUTION_DEFAULT } from "@ext/content/augmentations/class-search/caesar-search/types";
 import { bareCatalogNumber } from "@ext/content/augmentations/class-search/catalog-format";
 import { cartPage } from "@ext/content/enroll/flow";
@@ -195,25 +194,15 @@ export function liveSectionFor(course: LiveCourse | null, section: PaperSection)
 
 // ── section details ────────────────────────────────────────────────────────
 
-// What else CAESAR's class page states, beyond seats and notes.
-export type ClassFacts = { units?: string; grading?: string; components?: string; career?: string; session?: string; campus?: string };
-export type SectionDetails = SeatsNotesResult & { facts?: ClassFacts };
-
-function classFacts(page: string | null): ClassFacts {
-  const doc = parseAjaxFragment(page ?? "");
-  const read = (id: string) => (doc.getElementById(id)?.textContent ?? "").replace(/\s+/g, " ").trim() || undefined;
-  return {
-    units: read("SSR_CLS_DTL_WRK_UNITS_RANGE"),
-    grading: read("GRADE_BASIS_TBL_DESCRFORMAL"),
-    components: (doc.querySelector("[id^='SSR_CLS_DTL_WRK_SSR_COMPONENT_LONG']")?.textContent ?? "").replace(/\s+/g, " ").trim() || undefined,
-    career: read("PSXLATITEM_XLATLONGNAME"),
-    session: read("PSXLATITEM_XLATLONGNAME$31$"),
-    campus: read("CAMPUS_TBL_DESCR")
-  };
-}
+export type SectionDetails = SeatsNotesResult;
 
 export function cachedSectionDetails(classNumber: string): SectionDetails | null {
   return readCachedEntry(classNumber)?.result ?? null;
+}
+
+// When the saved details for a class were read from CAESAR.
+export function sectionDetailsCheckedAt(classNumber: string): number | null {
+  return readCachedEntry(classNumber)?.fetchedAt ?? null;
 }
 
 // Saved seat counts and when they were checked, for a list of classes.
@@ -258,7 +247,6 @@ export async function loadSectionDetails(input: {
   const response = await (input.quiet ? backInLine(lookup) : lookup());
   const result: SectionDetails = toSeatsNotesResult(response);
   if (result.ok) {
-    if (response.ok) result.facts = classFacts(response.detailResponseText);
     writeCachedEntry(input.classNumber, { result, fetchedAt: Date.now() });
     seatChecks.update((n) => n + 1);
   }

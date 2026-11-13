@@ -78,6 +78,13 @@ export function renderSectionDetail(
     }
   }
 
+  const facts = props.detail.facts;
+  appendDetailBlock(
+    doc,
+    wrap,
+    "Units and grading",
+    [facts?.units, facts?.grading, facts?.components, facts?.career, facts?.session, facts?.campus].filter(Boolean).join(" · ") || null
+  );
   appendDetailBlock(doc, wrap, "Class attributes", props.detail.classAttributes);
   appendDetailBlock(doc, wrap, "Enrollment requirements", props.detail.enrollmentRequirements);
   appendDetailBlock(doc, wrap, "Class notes", props.detail.classNotes);

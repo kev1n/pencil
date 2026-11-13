@@ -1,5 +1,6 @@
 // The student's planned schedule, kept on the phone. Each entry carries a
 // copy of the section so the schedule draws without the catalog loaded.
+import { meetingsOf } from "@ext/content/campus/buildings";
 import type { PaperSection } from "./catalog";
 import { createStore, useStore } from "./store";
 
@@ -80,28 +81,7 @@ export function usePlannedKeys(): Record<string, PlannedSection> {
   return useStore(store);
 }
 
-// One meeting of a section on one weekday, in minutes from midnight.
-export type Meeting = { day: number; start: number; end: number; room: string | null };
-
-export function meetingsOf(section: PaperSection): Meeting[] {
-  const out: Meeting[] = [];
-  section.meeting_days.forEach((days, index) => {
-    const start = section.start_time[index];
-    const end = section.end_time[index];
-    if (!days || !start || !end) return;
-    for (const ch of days) {
-      const day = Number(ch);
-      if (!Number.isInteger(day) || day < 0 || day > 6) continue;
-      out.push({
-        day,
-        start: start.h * 60 + start.m,
-        end: end.h * 60 + end.m,
-        room: section.room[index] ?? null
-      });
-    }
-  });
-  return out;
-}
+export { meetingsOf, type Meeting } from "@ext/content/campus/buildings";
 
 export function conflictsWith(section: PaperSection, others: PlannedSection[]): PlannedSection | null {
   const mine = meetingsOf(section);

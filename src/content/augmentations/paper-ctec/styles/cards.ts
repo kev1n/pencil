@@ -309,7 +309,7 @@ export function cardStyles(): string {
        read the status (Added, Retry, Adding…) without hovering.
        Persistent badges (in-cart, enrolled) collapse to icon-only and
        expand on hover. */
-    button.${WIDGET_CLASS}-cart-btn[data-cart-state="success"] .${WIDGET_CLASS}-cart-btn-label,
+    button.${WIDGET_CLASS}-cart-btn[data-cart-state="confirm"] .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="error"] .${WIDGET_CLASS}-cart-btn-label,
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="loading"] .${WIDGET_CLASS}-cart-btn-label {
       max-width: 220px;
@@ -335,6 +335,14 @@ export function cardStyles(): string {
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="in-cart"],
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="enrolled"] {
       color: var(--bc-color-success);
+    }
+    /* In the cart, the button registers: it stays a quiet green tick on the
+       card and says "Register" when pointed at. Asking to confirm is the
+       one moment it speaks up. */
+    button.${WIDGET_CLASS}-cart-btn[data-cart-state="confirm"] {
+      color: var(--bc-color-text);
+      border-color: var(--bc-color-text-muted);
+      font-weight: 600;
     }
     button.${WIDGET_CLASS}-cart-btn[data-cart-state="enrolled"] {
       background: var(--bc-color-success-bg);

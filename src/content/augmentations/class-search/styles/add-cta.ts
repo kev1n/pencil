@@ -61,6 +61,23 @@ export function addCtaStyles(): string {
       color: var(--bc-color-text-soft);
       cursor: default;
     }
+    /* Register: there once the class is in the cart. */
+    .bc-cs-register {
+      display: none;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border: 0;
+      border-radius: var(--bc-radius-pill, 999px);
+      background: var(--bc-color-cta);
+      color: var(--bc-color-cta-on);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .bc-cs-register.is-always,
+    .bc-cs-add[data-state="in-cart"] ~ .bc-cs-register { display: inline-flex; }
+    .bc-cs-register[disabled] { opacity: 0.7; cursor: progress; }
     .bc-cs-add[data-state="enrolled"],
     .bc-cs-add[disabled][data-state="enrolled"] {
       background: transparent;

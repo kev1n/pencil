@@ -13,8 +13,21 @@ export type CombinedSectionRow = {
   waitlist: string | null; // per-section waitlist total
 };
 
+// What else CAESAR's class page states about a section.
+export type ClassFacts = {
+  units?: string;
+  grading?: string;
+  // Which components come with the class, e.g. "Discussion Required, Lecture Required".
+  components?: string;
+  career?: string;
+  session?: string;
+  campus?: string;
+};
+
 export type SeatsNotesSuccess = {
   ok: true;
+  // Absent on entries saved before these were read.
+  facts?: ClassFacts;
   requestedClassNumber: string;
   criteriaClassNumber: string | null;
   classCapacity: string | null;

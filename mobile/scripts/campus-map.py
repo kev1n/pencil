@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds src/data/campus-map.ts: the Evanston campus as SVG path data.
+"""Builds ../src/content/campus/campus-map.ts: the Evanston campus as SVG path data.
 
 The app draws its own map from these shapes, in its own colours, and never
 fetches map tiles. Geometry is from OpenStreetMap (ODbL), fetched once here:
@@ -149,9 +149,9 @@ def main():
             kept = line + [(WIDTH + pad, line[-1][1]), (WIDTH + pad, -pad), (WIDTH + 2 * pad, -pad), (WIDTH + 2 * pad, HEIGHT + pad), (WIDTH + pad, HEIGHT + pad), (WIDTH + pad, line[0][1])]
         water.append(kept)
 
-    # Each classroom building in data/buildings.ts gets its own outline, so a
+    # Each classroom building in buildings.ts gets its own outline, so a
     # stop on the walk can be filled in.
-    table = re.findall(r'\{ name: "([^"]+)", lat: ([\d.]+), lon: (-[\d.]+)', (ROOT / "src/data/buildings.ts").read_text())
+    table = re.findall(r'\{ name: "([^"]+)", lat: ([\d.]+), lon: (-[\d.]+)', (ROOT.parent / "src/content/campus/buildings.ts").read_text())
     named, used = {}, set()
     for name, lat, lon in table:
         pt = xy({"lat": float(lat), "lon": float(lon)})
@@ -181,11 +181,11 @@ def main():
         f"export const STREETS = {json.dumps(''.join(path(s, False) for s in streets))};",
         f"export const WALKS = {json.dumps(''.join(path(w, False) for w in walks))};",
         f"export const OTHER_BUILDINGS = {json.dumps(rest)};",
-        "// Outlines of the buildings in data/buildings.ts, by name.",
+        "// Outlines of the buildings in buildings.ts, by name.",
         f"export const BUILDING_SHAPES: Record<string, string> = {json.dumps(named, indent=2)};",
         "",
     ]
-    target = ROOT / "src/data/campus-map.ts"
+    target = ROOT.parent / "src/content/campus/campus-map.ts"
     target.write_text("\n".join(out))
     missing = [n for n, _, _ in table if n not in named]
     print(f"{target.name}: {target.stat().st_size // 1024} KB, {len(buildings)} buildings, {len(named)} named, water chains {len(water)}; no outline for {missing}")

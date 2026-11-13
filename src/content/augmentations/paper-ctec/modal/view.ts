@@ -5,6 +5,7 @@ import { seasonIcon, seasonOf } from "../../../design/icons";
 import type { CtecAnalyticsStrategy } from "../../ctec-links/types";
 import { ANALYTICS_MODAL_ID } from "../constants";
 import type { ModalDisplayData, ModalTerm } from "../modal-data";
+import { renderCaesarBody, renderFoot } from "./caesar-info";
 import { renderComments } from "./comments";
 import {
   plural,
@@ -170,7 +171,18 @@ function sheetTemplate(
       rerender,
       selectTerm
     };
-    body = html`${renderSummary(ctx)}${renderRatings(ctx)}${renderWorkload(ctx)}${renderComments(ctx)}`;
+    // What CAESAR says about the class this term sits between the CTEC
+    // numbers and the comments.
+    const caesar = input.caesarInfo
+      ? html`<section class="bc-sheet-sec bc-sheet-from-caesar">
+          <div class="bc-sheet-sec-head">
+            <h3 class="bc-sheet-sec-title">From CAESAR</h3>
+            <span class="bc-sheet-sec-ctx">the term you’re planning</span>
+          </div>
+          ${renderCaesarBody(input.caesarInfo, () => callbacks.onCaesarRefresh?.())}
+        </section>`
+      : "";
+    body = html`${renderSummary(ctx)}${renderRatings(ctx)}${renderWorkload(ctx)}${caesar}${renderComments(ctx)}`;
   } else {
     body = renderStatus(input, callbacks);
   }
@@ -218,7 +230,8 @@ function sheetTemplate(
         const el = event.currentTarget as HTMLElement;
         el.previousElementSibling?.classList.toggle("is-raised", el.scrollTop > 2);
       }}
-    >${body}</div>`;
+    >${body}</div>
+    ${renderFoot(input.cartAction, input.caesarInfo)}`;
 }
 
 // "STAT 210-0 - Introductory Statistics" -> "Introductory Statistics".

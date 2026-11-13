@@ -117,6 +117,128 @@ export function sheetStyles(): string {
       align-items: center;
       gap: 4px;
     }
+    /* Registering sits at the foot of the panel, clear of the numbers. */
+    .bc-sheet .bc-sheet-foot {
+      position: sticky;
+      bottom: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 24px;
+      background: var(--bc-color-bg);
+      border-top: 1px solid var(--bc-color-border);
+      font-size: 13px;
+      color: var(--bc-color-text-muted);
+    }
+    /* Paper.nu's panel pads its scrolling box at the foot: sit over that. */
+    .bc-sheet.bc-sheet--inline .bc-sheet-foot { bottom: -16px; }
+    .bc-sheet .bc-sheet-foot-info {
+      min-width: 0;
+      flex: 1;
+    }
+    .bc-sheet .bc-sheet-foot small {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      color: var(--bc-color-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    /* Seats: a meter of how full the class is, in the colour of how
+       pressing that is. */
+    .bc-sheet .bc-seat {
+      --seat: var(--bc-color-success);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--bc-color-text);
+    }
+    .bc-sheet .bc-seat[data-tone="filling"] { --seat: var(--bc-color-warn); }
+    .bc-sheet .bc-seat[data-tone="last"],
+    .bc-sheet .bc-seat[data-tone="full"] { --seat: var(--bc-color-danger); }
+    .bc-sheet .bc-seat b { font-weight: 600; white-space: nowrap; }
+    .bc-sheet .bc-seat[data-tone="last"] b,
+    .bc-sheet .bc-seat[data-tone="full"] b { color: var(--bc-color-danger); }
+    .bc-sheet .bc-seat-bar {
+      flex: 0 0 56px;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--bc-color-border);
+      overflow: hidden;
+    }
+    .bc-sheet .bc-seat-bar i {
+      display: block;
+      height: 100%;
+      min-width: 3px;
+      border-radius: 3px;
+      background: var(--seat);
+    }
+    .bc-sheet .bc-sheet-caesar {
+      padding: 16px 0;
+      border-bottom: 1px solid var(--bc-color-border);
+    }
+    .bc-sheet .bc-sheet-caesar:last-child { border-bottom: 0; }
+    .bc-sheet .bc-sheet-from-caesar .bc-sheet-caesar:first-of-type { padding-top: 4px; }
+    .bc-sheet .bc-sheet-caesar .bc-seat { font-size: 16px; }
+    .bc-sheet .bc-sheet-caesar .bc-seat-bar { flex-basis: 96px; height: 8px; border-radius: 4px; }
+    .bc-sheet .bc-sheet-caesar-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .bc-sheet .bc-sheet-caesar-note {
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--bc-color-text-muted);
+    }
+    .bc-sheet .bc-sheet-caesar-refresh {
+      margin-left: 6px;
+      padding: 0;
+      border: 0;
+      background: none;
+      font: inherit;
+      color: var(--bc-color-text-strong);
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+    }
+    .bc-sheet .bc-sheet-caesar-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px 20px;
+      margin: 0;
+    }
+    .bc-sheet .bc-sheet-caesar-grid dt {
+      font-size: 12px;
+      color: var(--bc-color-text-muted);
+    }
+    .bc-sheet .bc-sheet-caesar-grid dd {
+      margin: 1px 0 0;
+      font-size: 14px;
+      color: var(--bc-color-text);
+    }
+    .bc-sheet .bc-sheet-caesar-block {
+      font-size: 13.5px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      white-space: pre-line;
+    }
+    .bc-sheet .bc-sheet-register {
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      border: 0;
+      border-radius: var(--bc-radius-pill, 999px);
+      background: var(--bc-color-cta);
+      color: var(--bc-color-cta-on);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .bc-sheet .bc-sheet-register[disabled] { opacity: 0.7; cursor: progress; }
     .bc-sheet .bc-sheet-icon-btn {
       width: 28px;
       height: 28px;

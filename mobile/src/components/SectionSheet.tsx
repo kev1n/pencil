@@ -1,4 +1,6 @@
 import { formatDateRange, formatInstructors } from "@ext/content/augmentations/class-search/filter";
+import { knownClassNumber, rememberClassNumber } from "@ext/content/augmentations/seats-notes/storage";
+import { seatUrgency, tidyUnits, type SeatUrgency } from "@ext/content/augmentations/seats-notes/urgency";
 import { IonContent, IonModal } from "@ionic/react";
 import { useEffect, useMemo, useState } from "react";
 import { useWide } from "../platform/wide";
@@ -8,6 +10,7 @@ import {
   liveSectionFor,
   loadSectionDetails,
   resolveLiveSection,
+  sectionDetailsCheckedAt,
   useCart,
   useLiveCourse,
   type SectionDetails
@@ -34,7 +37,8 @@ import {
   Section,
   Sep,
   Spin,
-  tidyCourseText
+  tidyCourseText,
+  timeAgo
 } from "./bits";
 
 export type SheetTarget = {
@@ -74,11 +78,13 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
   const live = useLiveCourse(termId, subject, catalog);
   const liveSection = liveSectionFor(live, section);
   const cart = useCart()?.byTerm[termId];
-  const classNumber = liveSection?.classNumber ?? null;
+  // A number found on an earlier visit saves the catalog search.
+  const classNumber = liveSection?.classNumber ?? knownClassNumber(termId, section.section_id);
   const inCart = classNumber ? Boolean(cart?.cart[classNumber]) : false;
   const enrolled = classNumber ? Boolean(cart?.enrolled[classNumber]) : false;
 
   const [details, setDetails] = useState<SectionDetails | null>(null);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
   const [seatsBusy, setSeatsBusy] = useState(false);
   const [seatsError, setSeatsError] = useState<string | null>(null);
   const cartAdd = useCartAdd({ termId, subject, catalog });
@@ -86,7 +92,9 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
   const [analytics, setAnalytics] = useState<AnalyticsModalSource | null>(null);
 
   useEffect(() => {
-    if (classNumber) setDetails((current) => current ?? cachedSectionDetails(classNumber));
+    if (!classNumber) return;
+    setDetails((current) => current ?? cachedSectionDetails(classNumber));
+    setCheckedAt((current) => current ?? sectionDetailsCheckedAt(classNumber));
   }, [classNumber]);
 
   const course = useMemo<PaperTermCourse>(
@@ -104,7 +112,10 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
       // Seats need CAESAR's class number, which comes with the live list.
       const number = classNumber ?? (await resolveLiveSection(termId, subject, catalog, section))?.classNumber;
       if (!number) throw new Error(NOT_LISTED);
-      setDetails(await loadSectionDetails({ termId, subject, catalog, classNumber: number, quiet }));
+      rememberClassNumber(termId, section.section_id, number);
+      const result = await loadSectionDetails({ termId, subject, catalog, classNumber: number, quiet });
+      setDetails(result);
+      if (result.ok) setCheckedAt(Date.now());
     } catch (error) {
       setSeatsError(describeError(error));
     } finally {
@@ -142,6 +153,8 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
   }, []);
 
   const facts = details?.ok ? details.facts : undefined;
+  const urgency = details?.ok ? seatUrgency(details) : null;
+  const units = tidyUnits(facts?.units);
   const rooms = roomLines(section);
   const times = meetingLines(section);
   const hasTags = Boolean(liveSection) || enrolled || inCart || onSchedule;
@@ -176,13 +189,40 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
             </button>
           )}
         </div>
+        {/* Seats, grading and units at a glance, next to the buttons that act
+            on them. Nothing until CAESAR has answered, and never more than one
+            line, so it can't shove the rest of the sheet around. */}
+        {details?.ok && (urgency || facts?.grading || units) && (
+          <div className="glance">
+            {urgency && (
+              <span className={`glance-seats tone-${urgency.tone}`}>
+                <span className="meter"><span style={{ width: `${Math.round(urgency.filled * 100)}%` }} /></span>
+                {urgency.headline}
+              </span>
+            )}
+            {(facts?.grading || units) && (
+              <span className="glance-facts">{[facts?.grading, units].filter(Boolean).join(" · ")}</span>
+            )}
+          </div>
+        )}
         <MiniWeek termId={termId} section={section} />
 
         {identity && (
           <Ctecs state={ctec} instructor={instructors} onLoad={() => void loadCtec(identity)} onOpen={openAnalytics} />
         )}
 
-        <Seats details={details} busy={seatsBusy} error={seatsError} first={!identity} onCheck={() => void checkSeats()} />
+        <FromCaesar
+          details={details}
+          urgency={urgency}
+          grading={facts?.grading ?? liveSection?.grading}
+          units={units}
+          classNumber={classNumber}
+          checkedAt={checkedAt}
+          busy={seatsBusy}
+          error={seatsError}
+          first={!identity}
+          onCheck={() => void checkSeats()}
+        />
 
         <Section title="Details" bare>
           <div className="fact">
@@ -205,36 +245,11 @@ function SheetBody({ target, onClose }: { target: SheetTarget; onClose: () => vo
               <span className="fact-value">{formatDateRange(section.start_date, section.end_date)}</span>
             </div>
           )}
-          {(facts?.grading ?? liveSection?.grading) && (
-            <div className="fact">
-              <span className="fact-label">Grading</span>
-              <span className="fact-value">{facts?.grading ?? liveSection?.grading}</span>
-            </div>
-          )}
-          {([["Units", facts?.units], ["Comes with", facts?.components], ["Level", facts?.career], ["Session", facts?.session], ["Campus", facts?.campus]] as const).map(
-            ([label, value]) => value && (
-              <div key={label} className="fact">
-                <span className="fact-label">{label}</span>
-                <span className="fact-value">{value}</span>
-              </div>
-            )
-          )}
-          {section.capacity && (
+          {/* Paper.nu's catalog size, only until CAESAR's own count is in. */}
+          {!urgency?.detail && section.capacity && (
             <div className="fact">
               <span className="fact-label">Class size</span>
               <span className="fact-value">{section.capacity} seats</span>
-            </div>
-          )}
-          {details?.ok && details.classAttributes && (
-            <div className="fact">
-              <span className="fact-label">Counts for</span>
-              <span className="fact-value">{details.classAttributes.split(/\n+/).map((line) => <div key={line}>{line}</div>)}</span>
-            </div>
-          )}
-          {classNumber && (
-            <div className="fact">
-              <span className="fact-label">Class number</span>
-              <span className="fact-value">{classNumber}</span>
             </div>
           )}
         </Section>
@@ -368,37 +383,75 @@ function Ctecs(props: { state: CtecState; instructor: string; onLoad: () => void
   );
 }
 
-function Seats(props: { details: SectionDetails | null; busy: boolean; error: string | null; first: boolean; onCheck: () => void }) {
-  const { details, busy, error } = props;
-  const action = busy ? <Spin /> : <button className="link" onClick={props.onCheck}>{details?.ok ? "Refresh" : "Check"}</button>;
-
-  if (!details?.ok) {
-    return (
-      <Section first={props.first} title="Seats" ctx={action}>
-        <p className={`note-text${error ? " is-error" : ""}`}>
-          {error ?? (details ? details.error : "Open seats, waitlist and notes, live from CAESAR.")}
-        </p>
-      </Section>
-    );
-  }
-
-  const capacity = Number(details.classCapacity);
-  const taken = Number(details.enrollmentTotal);
-  const open = details.availableSeats ?? (Number.isFinite(capacity - taken) ? String(capacity - taken) : "–");
-  const filled = capacity > 0 ? Math.min(100, Math.round((taken / capacity) * 100)) : 0;
-  const waiting = Number(details.waitListTotal);
-  return (
-    <Section first={props.first} title={details.isCombinedSection ? "Seats, combined section" : "Seats"} ctx={action}>
-      <div className="rate" style={{ gridTemplateColumns: "92px 1fr auto" }}>
-        <span className="rate-label">{open} open</span>
-        <span className="rate-bar"><span className="rate-fill ink" style={{ width: `${filled}%` }} /></span>
-        <span className="rate-val" style={{ fontWeight: 400, color: "var(--bc-color-text-muted)" }}>
-          {details.enrollmentTotal ?? "–"} of {details.classCapacity ?? "–"}
-        </span>
+// Everything CAESAR's class page says about the section, in one place, so
+// it is clear which facts are live from CAESAR and which come from Paper.nu.
+function FromCaesar(props: {
+  details: SectionDetails | null;
+  urgency: SeatUrgency | null;
+  grading: string | undefined;
+  units: string | undefined;
+  classNumber: string | null;
+  checkedAt: number | null;
+  busy: boolean;
+  error: string | null;
+  first: boolean;
+  onCheck: () => void;
+}) {
+  const { details, urgency, error } = props;
+  const ok = details?.ok ? details : null;
+  const ctx = (
+    <>
+      {ok && props.checkedAt !== null && <>Checked {timeAgo(props.checkedAt)}<Sep /></>}
+      {props.busy ? <Spin /> : <button className="link" onClick={props.onCheck}>{ok ? "Refresh" : "Check"}</button>}
+    </>
+  );
+  const facts = ok?.facts;
+  const waiting = Number(ok?.waitListTotal ?? 0);
+  const fact = (label: string, value: string | null | undefined) =>
+    value && (
+      <div className="fact">
+        <span className="fact-label">{label}</span>
+        <span className="fact-value">{value}</span>
       </div>
-      {waiting > 0 && <p className="note-text">{waiting} on the waitlist</p>}
-      {details.enrollmentRequirements && <LongText label="Requirements" text={details.enrollmentRequirements} />}
-      {details.classNotes && <LongText label="Notes" text={details.classNotes} />}
+    );
+
+  return (
+    <Section first={props.first} title="From CAESAR" ctx={ctx}>
+      {!ok && (
+        <p className={`note-text${error ? " is-error" : ""}`}>
+          {error ?? (details && !details.ok ? details.error :"Open seats, waitlist and notes, live from CAESAR.")}
+        </p>
+      )}
+      {ok && error && <p className="note-text is-error">{error}</p>}
+      {urgency && (
+        <div className={`rate seat-rate tone-${urgency.tone}`}>
+          <span className="rate-label">{urgency.headline}</span>
+          <span className="rate-bar"><span className="rate-fill" style={{ width: `${Math.round(urgency.filled * 100)}%` }} /></span>
+          <span className="rate-val is-empty">{urgency.detail}</span>
+        </div>
+      )}
+      {/* A full class already names its waitlist in the headline. */}
+      {waiting > 0 && urgency?.tone !== "full" && <p className="note-text">{waiting} on the waitlist</p>}
+      {ok?.isCombinedSection && <p className="note-text">Seats are shared with a cross-listed section.</p>}
+      {(ok || props.grading || props.classNumber) && (
+        <div style={{ marginTop: 6 }}>
+          {fact("Units", props.units)}
+          {fact("Grading", props.grading)}
+          {fact("Comes with", facts?.components)}
+          {fact("Session", facts?.session)}
+          {fact("Campus", facts?.campus)}
+          {fact("Level", facts?.career)}
+          {ok?.classAttributes && (
+            <div className="fact">
+              <span className="fact-label">Counts for</span>
+              <span className="fact-value">{ok.classAttributes.split(/\n+/).map((line) => <div key={line}>{line}</div>)}</span>
+            </div>
+          )}
+          {ok?.enrollmentRequirements && <LongText label="Requirements" text={ok.enrollmentRequirements} />}
+          {ok?.classNotes && <LongText label="Notes" text={ok.classNotes} />}
+          {fact("Class number", props.classNumber)}
+        </div>
+      )}
     </Section>
   );
 }

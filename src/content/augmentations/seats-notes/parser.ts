@@ -43,7 +43,15 @@ export function toSeatsNotesResult(response: LookupClassResponse): SeatsNotesRes
     enrollmentRequirements: extractEnrollmentRequirements(detailText),
     classNotes: extractLongTextById(detailText, "DERIVED_CLSRCH_SSR_CLASSNOTE_LONG"),
     isCombinedSection,
-    combinedSectionRows: isCombinedSection ? extractCombinedSectionRows(detailText) : []
+    combinedSectionRows: isCombinedSection ? extractCombinedSectionRows(detailText) : [],
+    facts: {
+      units: extractTextById(detailText, "SSR_CLS_DTL_WRK_UNITS_RANGE") ?? undefined,
+      grading: extractTextById(detailText, "GRADE_BASIS_TBL_DESCRFORMAL") ?? undefined,
+      components: extractComponents(detailText) ?? undefined,
+      career: extractTextById(detailText, "PSXLATITEM_XLATLONGNAME") ?? undefined,
+      session: extractTextById(detailText, "PSXLATITEM_XLATLONGNAME$31$") ?? undefined,
+      campus: extractTextById(detailText, "CAMPUS_TBL_DESCR") ?? undefined
+    }
   };
 
   return success;
@@ -109,6 +117,13 @@ function extractStatusForIndex(responseText: string, index: string): string | nu
   );
   const altMatch = containerPattern.exec(responseText)?.[1];
   return altMatch ? decodeEntities(altMatch) : null;
+}
+
+// "Discussion Required, Lecture Required". CAESAR writes it as a small
+// table, escaped, inside a span whose id ends in a number that changes.
+function extractComponents(responseText: string): string | null {
+  const escaped = /id=['"]SSR_CLS_DTL_WRK_SSR_COMPONENT_LONG\$\d+\$['"][^>]*>([^<]+)</i.exec(responseText)?.[1];
+  return normalizeText(decodeEntitiesPure(escaped ?? "").replace(/<[^>]+>/g, " "));
 }
 
 function extractEnrollmentRequirements(responseText: string): string | null {

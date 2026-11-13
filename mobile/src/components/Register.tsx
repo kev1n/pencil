@@ -12,7 +12,7 @@ type Step =
   | { at: "stopped"; message: string };
 
 // Registering from the cart list. A class's own Register button turns the
-// list into a pick-several list with that class ticked; the bar under the
+// list into a pick-several list with nothing ticked; the bar under the
 // list then registers the ticked classes and shows CAESAR's answer for each.
 export function useRegister(termId: string | null, all: string[]): {
   // While picking: which classes are ticked. Otherwise null.
@@ -51,7 +51,7 @@ export function useRegister(termId: string | null, all: string[]): {
           className="bc-btn bc-btn--primary"
           onClick={(event) => {
             event.stopPropagation();
-            start([classNumber]);
+            start([]);
           }}
         >
           Register

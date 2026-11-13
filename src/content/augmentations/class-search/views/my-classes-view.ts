@@ -27,6 +27,9 @@ import { renderCourseCard } from "./course-card";
 import { renderSectionRow } from "./section-row";
 
 export type MyClassesProps = {
+  /** The term these classes belong to. With it, a class in the cart gets
+   *  a Register button. */
+  termId?: string;
   /** paper.nu term sections used to enrich cards with title / instructors
    *  / meeting pattern / room. May be empty when the term hasn't loaded
    *  yet — the fallback path renders a minimal card from cart data. */
@@ -161,7 +164,7 @@ function renderCard(
   const sectionsForRow: PaperSection[] = [];
   for (const { entry, paper } of resolved) {
     if (!paper) continue;
-    sectionRows.push(buildSectionLi(doc, entry, paper, props));
+    sectionRows.push(buildSectionLi(doc, entry, paper, props, status));
     sectionsForRow.push(paper.section);
   }
 
@@ -189,8 +192,11 @@ function buildSectionLi(
   doc: Document,
   entry: CartEntry,
   paper: { course: PaperTermCourse; section: PaperSection },
-  props: MyClassesProps
+  props: MyClassesProps,
+  status: "in-cart" | "enrolled"
 ): HTMLLIElement {
+  // A discussion or lab is enrolled with its lecture, not by itself.
+  const ownClass = paper.section.component !== "DIS" && paper.section.component !== "LAB";
   // The section row's framework click handler routes through
   // onToggleDetails; we forward it with the live `<li>` so the cart-
   // card details controller can mount its sibling detail row.
@@ -200,6 +206,10 @@ function buildSectionLi(
     sigKey: encodeSigKey(entry),
     showActions: true,
     showAdd: false,
+    register:
+      status === "in-cart" && ownClass && props.termId
+        ? { termId: props.termId, classNumber: () => entry.classNumber, always: true }
+        : undefined,
     registerAddButton: () => {
       /* Add suppressed — entry is already in cart / enrolled. */
     },

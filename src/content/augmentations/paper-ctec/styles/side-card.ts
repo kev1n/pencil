@@ -1,5 +1,7 @@
 import {
   SIDECARD_ANALYTICS_PANEL_CLASS,
+  SIDECARD_CAESAR_PANEL_CLASS,
+  SIDECARD_FOOT_CLASS,
   SIDECARD_TABS_CLASS
 } from "../constants";
 
@@ -15,8 +17,8 @@ export function sideCardStyles(): string {
     .${SIDECARD_TABS_CLASS} {
       display: flex;
       flex: 0 0 auto;
-      gap: 2px;
-      margin: 0 4px 0 0;
+      gap: 1px;
+      margin: 0 2px 0 0;
       font-family: var(--bc-font-body);
       position: relative;
       z-index: 2;
@@ -24,7 +26,7 @@ export function sideCardStyles(): string {
     }
     .bc-paper-ctec-side-tab {
       height: 28px;
-      padding: 0 10px;
+      padding: 0 8px;
       border: 0;
       border-radius: 7px;
       background: transparent;
@@ -47,6 +49,18 @@ export function sideCardStyles(): string {
       color: var(--bc-color-accent-on);
     }
     /* The panel is not a card: it sits on Paper.nu's panel surface. */
+    /* Three tabs leave Paper.nu's "Section Info" label less room: keep it
+       on one line. */
+    :has(> .${SIDECARD_TABS_CLASS}) > :first-child { white-space: nowrap; }
+    /* The bar under Paper.nu's own tab stays in view as the panel scrolls. */
+    .${SIDECARD_FOOT_CLASS} {
+      position: sticky;
+      bottom: -16px;
+      z-index: 2;
+      font-family: var(--bc-font-body);
+    }
+    .${SIDECARD_FOOT_CLASS} .bc-sheet-foot { position: static; }
+    .${SIDECARD_CAESAR_PANEL_CLASS},
     .${SIDECARD_ANALYTICS_PANEL_CLASS} {
       margin: 0 0 12px;
       font-family: var(--bc-font-body);

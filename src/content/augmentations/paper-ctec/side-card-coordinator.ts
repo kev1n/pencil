@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import type { CtecLinkParams } from "../ctec-links/types";
 
-export type SideCardTab = "paper" | "analytics";
+export type SideCardTab = "paper" | "caesar" | "analytics";
 
 export type SideCardCoordinatorDeps = {
   /** Read the current side-panel context (or null if no panel is open). */
@@ -43,7 +43,13 @@ export type SideCardCoordinatorDeps = {
     context: PaperCtecSideCardContext,
     state: { selectedTab: SideCardTab; analyticsAvailable: boolean },
     onTabChange: (tab: SideCardTab) => void
-  ): HTMLElement | null;
+  ): { analytics: HTMLElement | null; caesar: HTMLElement | null; foot?: HTMLElement | null } | null;
+  /** Draw the seats-and-register bar under Paper.nu's own tab. */
+  renderPanelFoot?(context: PaperCtecSideCardContext, host: HTMLElement): void;
+  /** The panel has opened on a class: load what Pencil shows for it. */
+  onClassOpened?(context: PaperCtecSideCardContext): void;
+  /** Draw CAESAR's facts for the panel's class into the CAESAR tab. */
+  renderCaesarTab?(context: PaperCtecSideCardContext, host: HTMLElement): void;
   /** Schedule card for a chip key, used to open Paper.nu's own panel. */
   findCard(key: string): HTMLElement | null;
 };
@@ -67,6 +73,8 @@ export function createSideCardCoordinator(
   // Key of the section whose sheet is currently living inside Paper.nu's
   // panel, or null when the sheet is docked or closed.
   let hosting: string | null = null;
+  // The class the panel last opened on, so each opening loads once.
+  let opened: string | null = null;
 
   function releaseHost(): void {
     if (!hosting) return;
@@ -79,8 +87,13 @@ export function createSideCardCoordinator(
   function syncSideCard(doc: Document): void {
     const context = deps.extractSideCardContext(doc);
     if (!context) {
+      opened = null;
       releaseHost();
       return;
+    }
+    if (opened !== context.key) {
+      opened = context.key;
+      deps.onClassOpened?.(context);
     }
 
     const modal = deps.modalController();
@@ -107,9 +120,11 @@ export function createSideCardCoordinator(
     // surfaced — otherwise a stale "analytics" choice would leave the panel
     // in an empty state.
     const requestedTab = selectedTabs.get(context.key) ?? "paper";
-    const selectedTab: SideCardTab = analyticsAvailable ? requestedTab : "paper";
+    // CAESAR's facts move into the CTECs tab once that tab exists.
+    const selectedTab: SideCardTab =
+      requestedTab === "analytics" && !analyticsAvailable ? "paper" : requestedTab === "caesar" && analyticsAvailable ? "analytics" : requestedTab;
 
-    const host = deps.renderSideCardAnalytics(
+    const hosts = deps.renderSideCardAnalytics(
       context,
       { selectedTab, analyticsAvailable },
       (tab) => {
@@ -118,6 +133,9 @@ export function createSideCardCoordinator(
       }
     );
 
+    if (hosts?.caesar) deps.renderCaesarTab?.(context, hosts.caesar);
+    if (hosts?.foot) deps.renderPanelFoot?.(context, hosts.foot);
+    const host = hosts?.analytics ?? null;
     if (!host) {
       releaseHost();
       return;
@@ -171,6 +189,7 @@ export function createSideCardCoordinator(
     },
     stop(_doc: Document): void {
       releaseHost();
+      opened = null;
       selectedTabs.clear();
     }
   };

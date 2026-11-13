@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildingOf, CAMPUS, walkMinutes, type Building } from "../data/buildings";
-import { BUILDING_SHAPES, FIELDS, MAP, OTHER_BUILDINGS, STREETS, WALKS, WATER } from "../data/campus-map";
+import { BUILDING_SHAPES, FIELDS, MAP, OTHER_BUILDINGS, STREETS, WALKS, WATER } from "@ext/content/campus/campus-map";
 import { meetingsOf } from "../data/schedule";
 import { courseCode, Section, type ColorOf } from "./bits";
 import type { Timed } from "./WeekGrid";
