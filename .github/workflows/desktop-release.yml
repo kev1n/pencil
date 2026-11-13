@@ -1,0 +1,91 @@
+name: desktop-release
+# Builds the Windows installer for Pencil (mobile/desktop, an Electron shell
+# around the same web bundle as the other apps), tries it on the build
+# machine (installs it, opens it, and updates an older copy to it), and on
+# tags like desktop-v0.1.0 attaches it to a GitHub Release with the files its
+# updater reads. The installer is not signed, so Windows shows its "unknown
+# publisher" warning. Pull requests that touch the shell run everything but
+# the release.
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  pull_request:
+    paths:
+      - "mobile/desktop/**"
+      - ".github/workflows/desktop-release.yml"
+permissions:
+  contents: write
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: npm ci
+      - run: npm ci
+        working-directory: mobile
+      - run: npx tsc --noEmit
+        working-directory: mobile
+      - run: npx vite build
+        working-directory: mobile
+      - run: npm ci
+        working-directory: mobile/desktop
+      - name: Verify tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        working-directory: mobile/desktop
+        run: |
+          APP_VERSION=$(node -p "require('./package.json').version")
+          if [ "${GITHUB_REF_NAME#desktop-v}" != "$APP_VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match app version ${APP_VERSION}" >&2
+            exit 1
+          fi
+      - name: Build an older copy to update from
+        run: npx electron-builder --publish never "-c.extraMetadata.version=0.0.1" "-c.directories.output=old"
+        working-directory: mobile/desktop
+      - run: npm run dist
+        working-directory: mobile/desktop
+      - name: Install, open and update on this machine
+        shell: pwsh
+        working-directory: mobile/desktop
+        run: |
+          $want = node -p "require('./package.json').version"
+          Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait
+          $exe = (Get-ChildItem "$env:LOCALAPPDATA\Programs" -Recurse -Filter Pencil.exe | Select-Object -First 1).FullName
+          if (-not $exe) { throw "The installer did not install Pencil" }
+          "Installed $exe, version $((Get-Item $exe).VersionInfo.ProductVersion)"
+          Start-Process $exe -ArgumentList "--shot=$PWD\shot.png", "--after=10" -Wait
+          if (-not (Test-Path shot.png)) { throw "The app did not open and draw its window" }
+          $files = Start-Process python -ArgumentList '-m', 'http.server', '8123', '--directory', 'dist' -PassThru
+          $env:PENCIL_UPDATE_URL = 'http://localhost:8123'
+          $env:PENCIL_UPDATE = 'now'
+          Start-Process $exe
+          $got = ''
+          foreach ($i in 1..60) {
+            Start-Sleep 5
+            $got = (Get-Item $exe -ErrorAction SilentlyContinue).VersionInfo.ProductVersion
+            if ($got -like "$want*") { break }
+          }
+          Stop-Process -Id $files.Id -Force
+          "After updating: $got"
+          if ($got -notlike "$want*") { throw "The older copy did not update itself to $want" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-check
+          path: |
+            mobile/desktop/shot.png
+            mobile/desktop/dist/Pencil-Setup.exe
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mobile/desktop/dist/Pencil-Setup.exe
+            mobile/desktop/dist/Pencil-Setup.exe.blockmap
+            mobile/desktop/dist/latest.yml
+          prerelease: true
+          generate_release_notes: true

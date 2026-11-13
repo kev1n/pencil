@@ -109,6 +109,11 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
         description: "Show CAESAR registration dates and your appointments in the Paper.nu header."
       },
       {
+        id: "paper-register",
+        label: "Register from Paper.nu",
+        description: "A Register button in the Paper.nu header that enrolls you in classes from your CAESAR cart."
+      },
+      {
         id: "paper-ctec",
         label: "CTECs on your schedule",
         description: "Ratings and hours on each schedule card, with full analytics a click away."

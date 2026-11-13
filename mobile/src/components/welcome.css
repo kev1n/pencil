@@ -1,0 +1,11 @@
+/* First-launch welcome (Welcome.tsx). */
+.welcome-body { display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 34px; text-align: center; }
+.welcome-body h1 { margin: 4px 0 0; font-size: 26px; letter-spacing: -0.02em; }
+.welcome-body .text { max-width: 30em; margin: 0; }
+.welcome-love { margin: 6px 0 10px; font-family: "Caveat", cursive; font-weight: 600; color: var(--bc-color-text-strong); font-size: 24px; line-height: 1.25; }
+@media (min-width: 900px) { ion-modal.sheet.welcome { --width: 520px; --height: 500px; } }
+.welcome-devices { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-bottom: 4px; }
+.welcome-devices span { padding: 4px 11px; border: 1px solid var(--bc-color-border); border-radius: 999px; font-size: 13px; color: var(--bc-color-text-muted); }
+.welcome-body .bc-btn { min-width: 17em; }
+.welcome-later { font-size: 13px; opacity: 0.8; }
+.welcome-body .bc-btn:not(.bc-btn--primary) { box-shadow: inset 0 0 0 1px var(--bc-color-border-strong); }

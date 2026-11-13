@@ -11,6 +11,21 @@
   },
   "entries": [
     {
+      "version": "1.0.2",
+      "date": "2026-11-13",
+      "headline": "Register without leaving Paper.nu",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "Register for classes in your CAESAR cart straight from Paper.nu. Turn on \"Register from Paper.nu\" in this popup to get a Register button in Paper.nu's top bar."
+        },
+        {
+          "kind": "fix",
+          "text": "When Northwestern's CTEC site fails to open a report, Pencil now says so and lets you try again, instead of showing the class as having no ratings."
+        }
+      ]
+    },
+    {
       "version": "1.0.1",
       "date": "2026-11-11",
       "headline": "Tidier search, smaller screens",

@@ -45,6 +45,7 @@ export const FEATURE_GROUPS: Record<string, "caesar" | "paper"> = {
   "course-history-view": "caesar",
   "paper-brand": "paper",
   "paper-enrollment-dates": "paper",
+  "paper-register": "paper",
   "paper-ctec": "paper",
   "paper-ctec-single-summary-card": "paper",
   "paper-ctec-compact-cards": "paper",
@@ -82,6 +83,8 @@ const DEFAULT_FEATURE_STATES: Record<string, boolean> = {
   // by the bar's on-page toggle and default OFF.
   "paper-combos": true,
   "paper-combos-active": false,
+  // Enrolls for real, so a student turns it on themselves.
+  "paper-register": false,
   // Prereq-filter is experimental and default OFF — the source data
   // (plan.json's course-level `p` field) drops program restrictions,
   // standing rules, co-requisites, and other gates that CAESAR actually

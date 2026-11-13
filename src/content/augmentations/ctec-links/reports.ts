@@ -539,6 +539,12 @@ async function ensureReportEntries(
       return { state: "error", message: `Request failed (${response.status}).` };
     }
 
+    // The CTEC site sometimes answers a report request with its own error
+    // page. That says nothing about the report, so don't save it as empty.
+    if (isCtecSiteErrorPage(response.text)) {
+      return { state: "error", message: CTEC_SITE_ERROR_MESSAGE };
+    }
+
     const summary = parseCtecReportHtml(response.text, url, response.finalUrl || url);
     if (summary) {
       await extractChartCountsForSummary(
@@ -554,6 +560,16 @@ async function ensureReportEntries(
     state: "found",
     entries
   };
+}
+
+export const CTEC_SITE_ERROR_MESSAGE =
+  "Northwestern’s CTEC site couldn’t open these reports just now. Try again in a bit.";
+
+// The CTEC site's own failure page: no report on it, only the server's
+// stock error text.
+export function isCtecSiteErrorPage(html: string): boolean {
+  if (html.includes("report-block")) return false;
+  return /Server Error in '[^']*' Application|<title>\s*Runtime Error\s*<\/title>/i.test(html);
 }
 
 export function selectEntriesForTitle<T extends { description: string }>(

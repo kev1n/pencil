@@ -1,0 +1,6 @@
+{
+  "appId": "nu.pencil.app",
+  "appName": "Pencil",
+  "webDir": "dist",
+  "ios": { "contentInset": "never" }
+}
