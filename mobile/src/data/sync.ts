@@ -61,12 +61,23 @@ async function applyToSchedule(merged: SyncDoc): Promise<void> {
 let running: Promise<void> | null = null;
 let again = false;
 
-async function syncOnce(secret: string): Promise<void> {
+async function readGroup(secret: string): Promise<{ url: string; keys: ReturnType<typeof deriveKeys>; remote: SyncDoc }> {
   const keys = deriveKeys(secret);
   const url = `${RELAY}/v1/${keys.id}`;
   const got = await fetch(url, { cache: "no-store" });
   if (!got.ok && got.status !== 404) throw new Error(`The sync service answered ${got.status}.`);
-  const remote: SyncDoc = got.ok ? open(await got.text(), keys.key) : { v: 1, items: {} };
+  return { url, keys, remote: got.ok ? open(await got.text(), keys.key) : { v: 1, items: {} } };
+}
+
+// A group that joined another one leaves a note naming it; this device then
+// belongs to that group instead. `hops` stops a pair of notes that point at
+// each other from being followed for ever.
+async function syncOnce(secret: string, hops = 0): Promise<void> {
+  const { url, keys, remote } = await readGroup(secret);
+  if (remote.moved && isSecret(remote.moved) && remote.moved !== secret && hops < 8) {
+    saveSecret(remote.moved);
+    return syncOnce(remote.moved, hops + 1);
+  }
   const merged = mergeDocs(remote, localDoc());
   await applyToSchedule(merged);
   if (!sameDoc(merged, remote)) {
@@ -111,10 +122,22 @@ export function turnOnSync(): string {
   return secret;
 }
 
-// Pairs this device using a secret from another one. The two plans merge.
-export function joinSync(secret: string): Promise<void> {
+// Pairs this device using a secret from another one. The two plans merge. If
+// this device was already paired, the group it leaves gets a note pointing at
+// the new one, so its other devices merge in and follow: two groups become one.
+export async function joinSync(secret: string): Promise<void> {
+  const left = state.get().secret;
   saveSecret(secret);
-  return syncNow();
+  await syncNow();
+  const { secret: joined, problem } = state.get();
+  if (!left || !joined || joined === left || problem) return;
+  try {
+    const { url, keys, remote } = await readGroup(left);
+    if (remote.moved) return;
+    await fetch(url, { method: "PUT", headers: { "X-Write-Token": keys.writeToken }, body: seal({ ...remote, moved: joined }, keys.key) });
+  } catch {
+    // The devices left behind keep syncing with each other as before.
+  }
 }
 
 // Stops syncing on this device only; the plan stays here and on the others.

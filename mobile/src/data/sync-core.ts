@@ -8,7 +8,9 @@ import { sha256 } from "@noble/hashes/sha2.js";
 
 // One entry per planned class, keyed "term|section". A removal stays as a
 // marker so it wins over an older add on another device.
-export type SyncDoc = { v: 1; items: Record<string, { at: number; gone?: true }> };
+// `moved` is a forwarding note: this group joined another one, whose secret it
+// names. A device that reads it merges its plan into that group and follows.
+export type SyncDoc = { v: 1; items: Record<string, { at: number; gone?: true }>; moved?: string };
 
 const text = new TextEncoder();
 const hex = (bytes: Uint8Array) => [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");

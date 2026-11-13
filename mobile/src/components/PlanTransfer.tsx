@@ -37,6 +37,8 @@ export function PlanTransfer({ open, onClose }: { open: boolean; onClose: () => 
   const [pasted, setPasted] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  // A pairing secret waiting for the student to agree to combine plans.
+  const [asking, setAsking] = useState<string | null>(null);
 
   const link = sync.secret ? pairingLink(sync.secret) : "";
 
@@ -56,8 +58,8 @@ export function PlanTransfer({ open, onClose }: { open: boolean; onClose: () => 
     try {
       const secret = readPairingLink(text);
       if (secret) {
-        await joinSync(secret);
-        setNote("This device now syncs with your others.");
+        if (secret !== sync.secret) setAsking(secret);
+        else setNote("This device already syncs with that one.");
       } else {
         const result = await importPlan(text);
         const parts = [`Added ${result.added} ${result.added === 1 ? "class" : "classes"}.`];
@@ -68,6 +70,18 @@ export function PlanTransfer({ open, onClose }: { open: boolean; onClose: () => 
       setPasted("");
     } catch (error) {
       setNote(error instanceof Error ? error.message : "That link couldn’t be read.");
+    }
+    setBusy(false);
+  }
+
+  async function combine(secret: string) {
+    setAsking(null);
+    setBusy(true);
+    try {
+      await joinSync(secret);
+      setNote("This device now syncs with your others.");
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : "Pairing didn’t go through.");
     }
     setBusy(false);
   }
@@ -149,6 +163,20 @@ export function PlanTransfer({ open, onClose }: { open: boolean; onClose: () => 
                   {busy ? "Adding…" : "Add"}
                 </button>
               </div>
+              {asking && (
+                <div className="transfer">
+                  <p className="text">
+                    Combine plans? The classes planned here and on the other device become one plan, on every device
+                    paired with either of them. This can’t be undone.
+                  </p>
+                  <div className="transfer-row">
+                    <button className="bc-btn bc-btn--primary bc-btn--compact" onClick={() => void combine(asking)}>
+                      Combine
+                    </button>
+                    <button className="bc-btn bc-btn--compact" onClick={() => setAsking(null)}>Cancel</button>
+                  </div>
+                </div>
+              )}
               {note && <p className="text">{note}</p>}
             </div>
           </Section>
