@@ -1,5 +1,6 @@
 import { IonContent, IonModal } from "@ionic/react";
 import { useRef } from "react";
+import { Icon } from "./bits";
 import { closeAnalytics, openAnalytics, type AnalyticsModalSource } from "../data/analytics";
 
 // The full CTEC analytics view: the extension's own sheet (terms, ratings,
@@ -17,7 +18,7 @@ export function AnalyticsSheet({ source, onClose }: { source: AnalyticsModalSour
     >
       <IonContent>
         <div className="full-sheet-top">
-          <button className="link quiet" onClick={onClose}>Done</button>
+          <button className="sheet-back" onClick={onClose}><Icon name="left" />Back</button>
         </div>
         <div className="full-sheet-host" ref={host} />
       </IonContent>

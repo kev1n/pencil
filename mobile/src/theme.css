@@ -179,7 +179,11 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .actions { display: flex; gap: 8px; padding: 2px 0 14px; }
 .actions .bc-btn { flex: 1 1 0; }
 
-.full-sheet-top { display: flex; align-items: center; justify-content: flex-end; padding: calc(env(safe-area-inset-top) + 8px) var(--pad) 0; }
+/* leaving the full CTEC view is going back, top left, like any other screen */
+.sheet-back { display: inline-flex; align-items: center; gap: 2px; margin-left: -6px; font-size: 14px; color: var(--bc-color-text-soft); cursor: pointer; }
+.sheet-back:hover { color: var(--bc-color-text-strong); }
+.sheet-back .icon { width: 20px; height: 20px; margin: 0; }
+.full-sheet-top { display: flex; align-items: center; justify-content: flex-start; padding: calc(env(safe-area-inset-top) + 8px) var(--pad) 0; }
 .full-sheet-host { padding: 0 16px 24px; }
 /* The hosted analytics sheet's 24px gutters assume a 16px-padded panel. */
 .full-sheet-host .bc-sheet .bc-sheet-top,
