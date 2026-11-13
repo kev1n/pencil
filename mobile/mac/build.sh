@@ -21,7 +21,7 @@ FLAGS="-O"
 [ "$MODE" = release ] || FLAGS="-Onone -D DEBUG"
 # shellcheck disable=SC2086
 swiftc $FLAGS -target "$(uname -m)-apple-macos13.0" -o "$APP/Contents/MacOS/Pencil" \
-  mac/PencilMac.swift ios/App/App/NUSessionCore.swift
+  mac/PencilMac.swift mac/Updater.swift ios/App/App/NUSessionCore.swift
 
 # A development build is signed for this Mac only. A release build is signed
 # with the Developer ID certificate in the login keychain, then sent to Apple

@@ -18,6 +18,7 @@ final class PencilApp: NSObject, NSApplicationDelegate, WKScriptMessageHandlerWi
     private var webView: WKWebView!
     private let core = NUSessionCore()
     private var signInSheet: SignInSheet?
+    private let updater = Updater()
     // A plan link the app was opened with, until the page asks for it.
     private var launchLink = ""
     private var pageReady = false
@@ -85,6 +86,10 @@ final class PencilApp: NSObject, NSApplicationDelegate, WKScriptMessageHandlerWi
             window.orderBack(nil)
         }
         webView.load(URLRequest(url: URL(string: "\(appScheme)://app/index.html")!))
+
+        #if !DEBUG
+        updater.check(over: window)
+        #endif
 
         #if DEBUG
         // Development aid: `-link <plan link>` acts as if the app was opened with it.
