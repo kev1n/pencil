@@ -1,0 +1,26 @@
+<!-- The picture behind the icons in Pencil.dmg's window (620 by 400): the
+     website's warm ruled paper and handwriting. dmg-background.sh turns it
+     into dmg-background.tiff, which is kept in the repo. The app's icon sits
+     at 165,200 and the Applications shortcut at 455,200 (see dmg-settings.py). -->
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  @font-face { font-family: Caveat; font-weight: 600; src: url("../../src/assets/fonts/caveat-600.woff2"); }
+  html, body { margin: 0; }
+  body {
+    width: 620px; height: 400px; overflow: hidden; position: relative;
+    background: #fbfaf7 repeating-linear-gradient(#0000 0 33px, #9fb8d655 33px 34px);
+    background-position: 0 14px;
+    font: 600 34px/1 Caveat, cursive; color: #2c3550;
+  }
+  /* the red margin line of a notebook page */
+  body::before { content: ""; position: absolute; left: 46px; top: 0; bottom: 0; width: 1px; background: #ef8da6aa; }
+  p { position: absolute; left: 0; right: 0; top: 46px; margin: 0; text-align: center; rotate: -1.5deg; }
+  mark { background: linear-gradient(transparent 55%, #f5c842cc 55% 92%, transparent 92%); color: inherit; padding: 0 4px; }
+  svg { position: absolute; left: 245px; top: 168px; }
+</style>
+<p>drag Pencil into <mark>Applications</mark></p>
+<svg width="130" height="60" viewBox="0 0 130 60" fill="none" stroke="#2c3550" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M6 34 C 34 18, 70 16, 118 30" />
+  <path d="M101 16 L119 30 L99 41" />
+</svg>
