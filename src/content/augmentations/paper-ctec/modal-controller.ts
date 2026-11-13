@@ -46,7 +46,7 @@ import {
   discoverInstructorRows,
   type InstructorDiscoveryResult
 } from "../ctec-links/fetcher-instructor";
-import type { DryRunPoolStatus, DryRunPreset } from "./modal/types";
+import type { AnalyticsModalInput, DryRunPoolStatus, DryRunPreset } from "./modal/types";
 import type {
   AnalyticsModalSource,
   PaperCtecAnalyticsState,
@@ -76,6 +76,11 @@ export type ModalControllerCallbacks = {
   // Called when a background refresh discovers new evaluations — gives the
   // augmentation a chance to update the schedule-chip mini-summary too.
   renderForKey: (key: string, data: PaperCtecWidgetData) => void;
+  // What the panel's foot offers for this class: add to cart or register.
+  cartAction?: (source: AnalyticsModalSource) => AnalyticsModalInput["cartAction"];
+  // CAESAR's facts about this class, loaded when the panel opens.
+  caesarInfo?: (source: AnalyticsModalSource) => AnalyticsModalInput["caesarInfo"];
+  caesarRefresh?: (source: AnalyticsModalSource) => void;
   // Wraps fetchCtecCourseAnalytics through withAuthRecovery so the modal's
   // batch + refresh fetches benefit from the same silent → popup-and-retry
   // cascade used by the schedule chip. Returns null when the user cancels
@@ -380,6 +385,8 @@ export class ModalController {
         // even with no data, otherwise an errored fetch with no parsed
         // entries leaves the modal as a dead end.
         canRefresh: !!data || !!errorMessage,
+        cartAction: this.callbacks.cartAction?.(source) ?? null,
+        caesarInfo: this.callbacks.caesarInfo?.(source) ?? null,
         canLoadMore,
         loadMoreBatchSize: PAPER_CTEC_CONFIG.aggregate.recentTerms,
         remainingTerms,
@@ -517,6 +524,7 @@ export class ModalController {
       onCommentsSentimentChange: (f: ModalCommentSentimentFilter) =>
         set("commentsSentimentFilter", f, true),
       onRefresh: () => this.data.kickRefresh(source),
+      onCaesarRefresh: () => this.callbacks.caesarRefresh?.(source),
       onLoadMore: () => this.data.kickBatch(source),
       onDismissRefreshFlash: () => {
         this.data.clearRefreshFlash(source.key);

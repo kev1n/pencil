@@ -11,6 +11,33 @@
   },
   "entries": [
     {
+      "version": "1.0.3",
+      "date": "2026-11-13",
+      "headline": "Seats, class info and Register on Paper.nu",
+      "items": [
+        {
+          "kind": "feat",
+          "text": "Open a class on Paper.nu to see how many seats are left, its grading and units, and one button that adds it to your CAESAR cart and then registers you."
+        },
+        {
+          "kind": "feat",
+          "text": "CAESAR's enrollment requirements, class attributes and class notes now show beside a class's CTECs on Paper.nu."
+        },
+        {
+          "kind": "feat",
+          "text": "Paper.nu's map is now a drawn campus map of your day's walk between classes, with the break you have for each leg."
+        },
+        {
+          "kind": "feat",
+          "text": "Register for a class in your cart right from Sharper Search on CAESAR, and see its units and grading in Details."
+        },
+        {
+          "kind": "fix",
+          "text": "Registering from Paper.nu no longer shows another quarter's cart."
+        }
+      ]
+    },
+    {
       "version": "1.0.2",
       "date": "2026-11-13",
       "headline": "Register without leaving Paper.nu",

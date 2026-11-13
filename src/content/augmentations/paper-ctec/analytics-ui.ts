@@ -3,21 +3,30 @@ import { html, render } from "lit-html";
 import { PAPER_CTEC_CONFIG } from "./config";
 import {
   SIDECARD_ANALYTICS_PANEL_CLASS,
+  SIDECARD_CAESAR_PANEL_CLASS,
+  SIDECARD_FOOT_CLASS,
   SIDECARD_TABS_CLASS
 } from "./constants";
 import type { PaperCtecSideCardContext } from "./types";
 import { preventAndStop } from "./ui-shared";
 
-// Paper.nu's Section Info panel gets a Paper.nu / CTECs tab pair, placed in
-// the panel's own header row beside its link and close buttons. The CTECs
-// tab hides Paper.nu's own content, widens the panel, and returns an empty
-// host element that the analytics sheet (modal/view.ts) renders into, so
-// there is one side panel on the page instead of two.
+// Paper.nu's Section Info panel gets Paper.nu / CAESAR / CTECs tabs, placed
+// in the panel's own header row beside its link and close buttons. The
+// CAESAR and CTECs tabs hide Paper.nu's own content and hand back an empty
+// host element to draw into (CAESAR's facts for the class; the analytics
+// sheet from modal/view.ts, which also widens the panel), so there is one
+// side panel on the page instead of several.
 
 export const SIDECARD_WIDE_ATTR = "data-bc-ctec-wide";
 
+type Tab = "paper" | "caesar" | "analytics";
+
+// `foot` is the seats-and-register bar under Paper.nu's own tab; the other
+// two tabs draw that bar themselves.
+export type SideCardHosts = { analytics: HTMLElement | null; caesar: HTMLElement | null; foot: HTMLElement | null };
+
 type SideCardAnalyticsRenderData = {
-  selectedTab: "paper" | "analytics";
+  selectedTab: Tab;
   // CTEC Analytics tab only surfaces once the user has actually loaded
   // CTECs for this class (or there's a cached aggregate to draw from).
   // Until then the side panel hides the tabs entirely and shows the
@@ -28,47 +37,37 @@ type SideCardAnalyticsRenderData = {
 export function renderSideCardAnalytics(
   context: PaperCtecSideCardContext,
   data: SideCardAnalyticsRenderData,
-  onSelectTab: (tab: "paper" | "analytics") => void
-): HTMLElement | null {
+  onSelectTab: (tab: Tab) => void
+): SideCardHosts {
   const header = ensureSideCardHeader(context.panel);
-
-  if (!data.analyticsAvailable) {
-    removeSideCardAnalyticsChrome(context.panel);
-    restoreDefaultPanelChildren(context.panel, header);
-    return null;
-  }
-
   const tabsRoot = ensureSideCardTabs(context.panel, header);
-  const panelRoot = ensureSideCardAnalyticsPanel(
-    context.panel,
-    tabsRoot.parentElement === context.panel ? tabsRoot : header
-  );
+  const after = tabsRoot.parentElement === context.panel ? tabsRoot : header;
+  const analyticsRoot = ensureSideCardPanel(context.panel, SIDECARD_ANALYTICS_PANEL_CLASS, after);
+  const caesarRoot = ensureSideCardPanel(context.panel, SIDECARD_CAESAR_PANEL_CLASS, after);
 
-  renderSideCardTabs(tabsRoot, data.selectedTab, onSelectTab);
-  applySideCardMode(context.panel, header, tabsRoot, panelRoot, data.selectedTab);
+  const footRoot = ensureSideCardPanel(context.panel, SIDECARD_FOOT_CLASS, null);
+  // Paper.nu adds its own content after ours: the bar stays last.
+  if (context.panel.lastElementChild !== footRoot) context.panel.append(footRoot);
 
-  const showing = data.selectedTab === "analytics";
-  context.panel.parentElement?.toggleAttribute(SIDECARD_WIDE_ATTR, showing);
-  return showing ? panelRoot : null;
+  renderSideCardTabs(tabsRoot, data.selectedTab, data.analyticsAvailable, onSelectTab);
+  applySideCardMode(context.panel, header, tabsRoot, { analytics: analyticsRoot, caesar: caesarRoot, foot: footRoot }, data.selectedTab);
+
+  context.panel.parentElement?.toggleAttribute(SIDECARD_WIDE_ATTR, data.selectedTab === "analytics");
+  return {
+    analytics: data.selectedTab === "analytics" ? analyticsRoot : null,
+    caesar: data.selectedTab === "caesar" ? caesarRoot : null,
+    foot: data.selectedTab === "paper" ? footRoot : null
+  };
 }
 
-function removeSideCardAnalyticsChrome(panel: HTMLElement): void {
+export function removeSideCardChrome(panel: HTMLElement): void {
   panel.parentElement?.removeAttribute(SIDECARD_WIDE_ATTR);
   panel.querySelector<HTMLElement>(`.${SIDECARD_TABS_CLASS}`)?.remove();
   panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`)?.remove();
-}
-
-function restoreDefaultPanelChildren(
-  panel: HTMLElement,
-  header: HTMLElement | null
-): void {
-  // applySideCardMode hides paper.nu's own panel content when the Analytics
-  // tab is active. When we strip Analytics back out, those children must be
-  // re-shown.
+  panel.querySelector<HTMLElement>(`.${SIDECARD_CAESAR_PANEL_CLASS}`)?.remove();
+  panel.querySelector<HTMLElement>(`.${SIDECARD_FOOT_CLASS}`)?.remove();
   for (const child of Array.from(panel.children)) {
-    if (!(child instanceof HTMLElement)) continue;
-    if (child === header) continue;
-    if (child.hidden) child.hidden = false;
+    if (child instanceof HTMLElement && child.hidden) child.hidden = false;
   }
 }
 
@@ -96,15 +95,11 @@ function ensureSideCardTabs(panel: HTMLElement, header: HTMLElement | null): HTM
   return tabsRoot;
 }
 
-function ensureSideCardAnalyticsPanel(panel: HTMLElement, after: HTMLElement | null): HTMLElement {
-  const existing = panel.querySelector<HTMLElement>(`.${SIDECARD_ANALYTICS_PANEL_CLASS}`);
-  if (existing) {
-    insertAfter(panel, existing, after);
-    return existing;
-  }
-
+function ensureSideCardPanel(panel: HTMLElement, className: string, after: HTMLElement | null): HTMLElement {
+  const existing = panel.querySelector<HTMLElement>(`:scope > .${className}`);
+  if (existing) return existing;
   const root = panel.ownerDocument.createElement("section");
-  root.className = SIDECARD_ANALYTICS_PANEL_CLASS;
+  root.className = className;
   insertAfter(panel, root, after);
   return root;
 }
@@ -127,12 +122,15 @@ function insertAfter(panel: HTMLElement, node: HTMLElement, reference: HTMLEleme
 
 function renderSideCardTabs(
   tabsRoot: HTMLElement,
-  selectedTab: "paper" | "analytics",
-  onSelectTab: (tab: "paper" | "analytics") => void
+  selectedTab: Tab,
+  analyticsAvailable: boolean,
+  onSelectTab: (tab: Tab) => void
 ): void {
-  const tabs: Array<{ key: "paper" | "analytics"; label: string }> = [
+  // CTECs shows once there is something to show for this class, and then
+  // carries CAESAR's facts too; until then those get a tab of their own.
+  const tabs: Array<{ key: Tab; label: string }> = [
     { key: "paper", label: "Paper.nu" },
-    { key: "analytics", label: "CTECs" }
+    analyticsAvailable ? { key: "analytics", label: "CTECs" } : { key: "caesar", label: "CAESAR" }
   ];
 
   render(
@@ -163,16 +161,18 @@ function applySideCardMode(
   panel: HTMLElement,
   header: HTMLElement | null,
   tabsRoot: HTMLElement,
-  analyticsRoot: HTMLElement,
-  selectedTab: "paper" | "analytics"
+  roots: { analytics: HTMLElement; caesar: HTMLElement; foot: HTMLElement },
+  selectedTab: Tab
 ): void {
-  analyticsRoot.hidden = selectedTab !== "analytics";
+  if (roots.analytics.hidden !== (selectedTab !== "analytics")) roots.analytics.hidden = selectedTab !== "analytics";
+  if (roots.caesar.hidden !== (selectedTab !== "caesar")) roots.caesar.hidden = selectedTab !== "caesar";
+  if (roots.foot.hidden !== (selectedTab !== "paper")) roots.foot.hidden = selectedTab !== "paper";
 
   for (const child of Array.from(panel.children)) {
     if (!(child instanceof HTMLElement)) continue;
-    if (child === header || child === tabsRoot || child === analyticsRoot) continue;
+    if (child === header || child === tabsRoot || child === roots.analytics || child === roots.caesar || child === roots.foot) continue;
 
-    const shouldHide = selectedTab === "analytics";
+    const shouldHide = selectedTab !== "paper";
     if (child.hidden !== shouldHide) {
       child.hidden = shouldHide;
     }

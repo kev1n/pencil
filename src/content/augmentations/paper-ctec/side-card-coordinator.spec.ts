@@ -127,7 +127,7 @@ describe("createSideCardCoordinator — tab events", () => {
     const renderSideCardAnalytics = vi.fn().mockImplementation(
       (_ctx, state, onTab) => {
         onTabChange = onTab;
-        return state.selectedTab === "analytics" ? host : null;
+        return { analytics: state.selectedTab === "analytics" ? host : null, caesar: null };
       }
     );
     const { deps, modal } = makeDeps({
@@ -154,7 +154,7 @@ describe("createSideCardCoordinator — tab events", () => {
       hasUserActivated: vi.fn().mockReturnValue(true),
       renderSideCardAnalytics: vi.fn().mockImplementation((_ctx, state, onTab) => {
         onTabChange = onTab;
-        return state.selectedTab === "analytics" ? host : null;
+        return { analytics: state.selectedTab === "analytics" ? host : null, caesar: null };
       })
     });
     const coord = createSideCardCoordinator(deps);
@@ -250,4 +250,63 @@ describe("createSideCardCoordinator — start/stop", () => {
     const lastState = renderSideCardAnalytics.mock.calls.at(-1)?.[1];
     expect(lastState).toEqual({ selectedTab: "paper", analyticsAvailable: true });
   });
+});
+
+it("the CAESAR tab draws CAESAR's facts and leaves the CTEC sheet closed", () => {
+  const caesar = document.createElement("section");
+  const renderCaesarTab = vi.fn();
+  let pick!: (tab: "paper" | "caesar" | "analytics") => void;
+  const { deps, modal } = makeDeps({
+    renderCaesarTab,
+    renderSideCardAnalytics: vi.fn().mockImplementation((_ctx, state, onTab) => {
+      pick = onTab;
+      return { analytics: null, caesar: state.selectedTab === "caesar" ? caesar : null };
+    })
+  });
+  const coord = createSideCardCoordinator(deps);
+  coord.syncSideCard(document);
+  expect(renderCaesarTab).not.toHaveBeenCalled();
+  // No CTECs for this class: the CAESAR tab is there all the same.
+  pick("caesar");
+  expect(renderCaesarTab).toHaveBeenCalledWith(expect.objectContaining({ key: makeContext().key }), caesar);
+  expect(modal.openModal).not.toHaveBeenCalled();
+});
+
+it("loads a class once each time the panel opens on it", () => {
+  const onClassOpened = vi.fn();
+  const extractSideCardContext = vi.fn().mockReturnValue(makeContext());
+  const { deps } = makeDeps({ onClassOpened, extractSideCardContext });
+  const coord = createSideCardCoordinator(deps);
+  coord.syncSideCard(document);
+  coord.syncSideCard(document);
+  expect(onClassOpened).toHaveBeenCalledTimes(1);
+  // Closed and opened again: loaded again.
+  extractSideCardContext.mockReturnValue(null);
+  coord.syncSideCard(document);
+  extractSideCardContext.mockReturnValue(makeContext());
+  coord.syncSideCard(document);
+  expect(onClassOpened).toHaveBeenCalledTimes(2);
+});
+
+it("draws the seats-and-register bar under Paper.nu's own tab", () => {
+  const foot = document.createElement("section");
+  const renderPanelFoot = vi.fn();
+  const { deps } = makeDeps({
+    renderPanelFoot,
+    renderSideCardAnalytics: vi.fn().mockReturnValue({ analytics: null, caesar: null, foot })
+  });
+  createSideCardCoordinator(deps).syncSideCard(document);
+  expect(renderPanelFoot).toHaveBeenCalledWith(expect.objectContaining({ key: makeContext().key }), foot);
+});
+
+it("shows CAESAR's facts on the CTECs tab once a class has CTECs", () => {
+  // The first draw picks the CAESAR tab, as a class without CTECs offers.
+  const renderSideCardAnalytics = vi.fn().mockReturnValue(null);
+  renderSideCardAnalytics.mockImplementationOnce((_ctx, _state, onTab) => {
+    onTab("caesar");
+    return null;
+  });
+  const { deps } = makeDeps({ hasUserActivated: vi.fn().mockReturnValue(true), renderSideCardAnalytics });
+  createSideCardCoordinator(deps).syncSideCard(document);
+  expect(renderSideCardAnalytics.mock.calls.at(-1)?.[1].selectedTab).toBe("analytics");
 });

@@ -180,6 +180,27 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .actions { display: flex; gap: 8px; padding: 2px 0 14px; }
 .actions .bc-btn { flex: 1 1 0; }
 
+/* seat urgency: one tone per state, shared by the line under the buttons and
+   the From CAESAR meter so the two always agree */
+.tone-open { --tone: var(--bc-color-success); --tone-text: var(--bc-color-success-text); }
+.tone-filling { --tone: var(--bc-color-warn); --tone-text: var(--bc-color-warn-text); }
+.tone-last, .tone-full { --tone: var(--bc-color-danger); --tone-text: var(--bc-color-danger-text); }
+
+/* the at-a-glance line: pulled up into the buttons' bottom padding, held to
+   one line (each half ellipsizes) so it never grows past a line's height */
+.glance { display: flex; align-items: center; gap: 12px; height: 20px; margin: -8px 0 12px; font-size: 13px; line-height: 20px; white-space: nowrap; }
+.glance-seats { display: inline-flex; align-items: center; gap: 7px; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--bc-fw-semibold); color: var(--tone-text); }
+.glance-seats .meter { flex: none; position: relative; width: 36px; height: 4px; border-radius: 2px; background: var(--bc-color-surface-hover); overflow: hidden; }
+.glance-seats .meter > span { position: absolute; inset: 0 auto 0 0; border-radius: 2px; background: var(--tone); }
+.glance-facts { min-width: 0; margin-left: auto; overflow: hidden; text-overflow: ellipsis; color: var(--bc-color-text-muted); }
+
+/* the From CAESAR meter: headline and count on one row, the bar under them */
+.rate.seat-rate { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "label val" "bar bar"; row-gap: 6px; height: auto; padding: 2px 0 6px; }
+.seat-rate .rate-label { grid-area: label; font-weight: var(--bc-fw-semibold); color: var(--tone-text); }
+.seat-rate .rate-val { grid-area: val; }
+.seat-rate .rate-bar { grid-area: bar; }
+.seat-rate .rate-fill, [data-bc-mode="dark"] .seat-rate .rate-fill { background: var(--tone); }
+
 /* leaving the full CTEC view is going back, top left, like any other screen */
 .sheet-back { display: inline-flex; align-items: center; gap: 2px; margin-left: -6px; font-size: 14px; color: var(--bc-color-text-soft); cursor: pointer; }
 .sheet-back:hover { color: var(--bc-color-text-strong); }

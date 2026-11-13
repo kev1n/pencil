@@ -10,7 +10,7 @@ import {
   isFeatureEnabled,
   subscribeCtecStrategy
 } from "../../settings";
-import { resolveChipSection, addChipSectionToCart } from "./cart-flow";
+import { resolveChipSection, addChipSectionToCart, loadChipClassDetails } from "./cart-flow";
 import { ctecCreditPool, psCreditPool } from "../../../shared/credit-pool";
 import { showToast } from "../../../shared/toast";
 import { isCtecAccessDenied } from "../../ctec-index/access";
@@ -42,7 +42,11 @@ import {
 } from "./dom";
 import { ModalController } from "./modal-controller";
 import { buildStatusBarData } from "./session";
-import type { PaperCtecAnalyticsState, PaperCtecWidgetData } from "./types";
+import type { AnalyticsModalSource, PaperCtecAnalyticsState, PaperCtecSideCardContext, PaperCtecWidgetData } from "./types";
+import { html, render } from "lit-html";
+import { classKey } from "./identity";
+import { renderCaesarBody, renderFoot, type CaesarInfo, type CartAction } from "./modal/caesar-info";
+import { readActiveTermNameFromDom } from "./paper-active-term";
 import {
   injectStyles,
   renderIdle,
@@ -52,6 +56,7 @@ import {
   renderWidget
 } from "./ui";
 import { attachCartAnchor } from "./schedule-ui";
+import { enrollFailureText, enrollOne } from "../../enroll/register-button";
 import {
   createChipCartCoordinator,
   type ChipCartCoordinator,
@@ -106,6 +111,83 @@ export class PaperCtecAugmentation implements Augmentation {
   private readonly modal: ModalController;
   private unsubscribeStrategy: (() => void) | null = null;
 
+  // CAESAR's facts for the class each panel has shown, loaded once each;
+  // `force` asks CAESAR again.
+  private readonly caesarInfo = new Map<string, CaesarInfo>();
+  private sheetCaesarInfo(source: AnalyticsModalSource, force = false): CaesarInfo {
+    // One entry per class, whichever of its names asked.
+    const key = classKey(source.key);
+    const known = this.caesarInfo.get(key);
+    if (known && !force) return known;
+    if (known?.loading) return known;
+    const settle = (info: CaesarInfo) => {
+      this.caesarInfo.set(key, info);
+      if (this.modal?.isOpen()) this.modal.sync(document);
+      this.sideCard?.syncSideCard(document);
+    };
+    if (!psCreditPool.tryConsume("paper-ctec-class-info").allowed) {
+      const stopped = { ...known, loading: false, error: "Too many CAESAR requests for now. Try again shortly." };
+      this.caesarInfo.set(key, stopped);
+      return stopped;
+    }
+    // A refresh keeps the last answer on screen while the new one loads.
+    const loading = { ...known, loading: true };
+    this.caesarInfo.set(key, loading);
+    void loadChipClassDetails(this.authRecovery, source, force).then((answer) =>
+      settle(
+        answer.ok
+          ? { loading: false, details: answer.details, fetchedAt: answer.fetchedAt }
+          : { ...known, loading: false, error: answer.error }
+      )
+    );
+    return loading;
+  }
+
+  // The panel's foot button: add to cart, then register. `note` is only
+  // there when the state needs saying.
+  private sheetCartAction(source: AnalyticsModalSource): CartAction {
+    const { state, kick } = this.chipCart.actionFor({ key: source.key, params: source.params, titleHint: source.titleHint });
+    const at = (note: string | null, label: string | null, busy = false) => ({ note, label, busy, onClick: kick });
+    if (state.kind === "adding") return at(null, state.message || "Adding…", true);
+    if (state.kind === "already" || state.kind === "success") return at("In your cart", "Register");
+    if (state.kind === "confirm") return at("This enrolls you in CAESAR", "Confirm: enroll me");
+    if (state.kind === "enrolled") return at("You’re enrolled", null);
+    if (state.kind === "error") return at(state.message, "Retry");
+    return at(null, "Add to cart");
+  }
+
+  // The seats-and-register bar under Paper.nu's own tab.
+  private renderPanelFoot(context: PaperCtecSideCardContext, host: HTMLElement): void {
+    render(
+      html`<div class="bc-sheet bc-sheet--inline">${renderFoot(this.sheetCartAction(context), this.sheetCaesarInfo(context))}</div>`,
+      host
+    );
+  }
+
+  // The CAESAR tab of Paper.nu's Section Info panel.
+  private renderCaesarTab(context: PaperCtecSideCardContext, host: HTMLElement): void {
+    const info = this.sheetCaesarInfo(context);
+    const where = [
+      readActiveTermNameFromDom(document),
+      [context.component, context.section].filter(Boolean).join(" "),
+      context.instructorName
+    ].filter(Boolean);
+    render(
+      html`<div class="bc-sheet bc-sheet--inline">
+        <header class="bc-sheet-top">
+          <div class="bc-sheet-top-line">
+            <span class="bc-sheet-code">${context.params.subject} ${context.params.catalogNumber}</span>
+          </div>
+          <h2 class="bc-sheet-title">${context.titleHint}</h2>
+          <p class="bc-sheet-meta">${where.join(" · ")}</p>
+        </header>
+        <div class="bc-sheet-body">${renderCaesarBody(info, () => void this.sheetCaesarInfo(context, true))}</div>
+        ${renderFoot(this.sheetCartAction(context), info)}
+      </div>`,
+      host
+    );
+  }
+
   constructor() {
     void initCartCache();
 
@@ -115,6 +197,8 @@ export class PaperCtecAugmentation implements Augmentation {
       addChipSectionToCart: (params, titleHint, onProgress) =>
         addChipSectionToCart(this.authRecovery, params, titleHint, onProgress),
       resolveChipSection,
+      enrollClass: enrollOne,
+      enrollFailureText,
       lookupBySignature,
       recordOptimisticAdd,
       subscribeCartCache,
@@ -122,6 +206,9 @@ export class PaperCtecAugmentation implements Augmentation {
         for (const widget of findWidgetsByKey(document, key)) {
           attachCartAnchor(widget, state, onClick);
         }
+        // The open panel shows the same state at its foot.
+        if (this.modal?.isOpen()) this.modal.sync(document);
+        this.sideCard?.syncSideCard(document);
       }
     });
 
@@ -185,6 +272,10 @@ export class PaperCtecAugmentation implements Augmentation {
       hasCachedReportAggregate,
       getAggregateLimit: () => getRecentAggregationTerms(),
       renderSideCardAnalytics,
+      renderCaesarTab: (context, host) => this.renderCaesarTab(context, host),
+      renderPanelFoot: (context, host) => this.renderPanelFoot(context, host),
+      // Opening a class loads CAESAR's page for it: seats and facts together.
+      onClassOpened: (context) => void this.sheetCaesarInfo(context),
       findCard: (key) =>
         findWidgetsByKey(document, key)[0]?.closest<HTMLElement>(
           PAPER_CTEC_CONFIG.selectors.scheduleCard
@@ -204,6 +295,9 @@ export class PaperCtecAugmentation implements Augmentation {
         syncStatusBar: () => this.statusBar.syncStatusBar(document),
         syncSideCard: () => this.sideCard.syncSideCard(document),
         renderForKey: (key, data) => this.chipFetch.renderForKey(key, data),
+        cartAction: (source) => this.sheetCartAction(source),
+        caesarInfo: (source) => this.sheetCaesarInfo(source),
+        caesarRefresh: (source) => void this.sheetCaesarInfo(source, true),
         fetchAnalytics: (params, titleHint, recentAggregateLimit, onProgress, fetchLimit, forceRefreshLinks) =>
           fetchAnalyticsWithAuth(
             this.authRecovery,
@@ -287,6 +381,7 @@ export class PaperCtecAugmentation implements Augmentation {
     // forward without verifying the underlying cache is still valid.
     this.chipFetch.stop();
     this.chipCart.stop();
+    this.caesarInfo.clear();
     this.sideCard.stop(doc);
     this.statusBar.stop(doc);
     this.analyticsResolved.clear();

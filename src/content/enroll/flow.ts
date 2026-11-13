@@ -16,16 +16,31 @@ import { fetchPeopleSoft, fetchPeopleSoftGet } from "../peoplesoft/http";
 import { extractErrorMessage } from "../peoplesoft/parsers";
 import { resolveActionUrl } from "../peoplesoft/shared";
 
+// The career and term a cart page is for. CAESAR states them in the page's
+// key list in one layout and only in its links in the other.
+export function cartPageKeys(html: string): { career?: string; termId?: string } {
+  const key = /PIA_KEYSTRUCT\s*=\s*\{[^}]*\}/.exec(html)?.[0] ?? "";
+  const link = /\.GBL\?[^"'\s]*[?&]ACAD_CAREER=\w+[^"'\s]*[?&]STRM=\d+/.exec(html.replace(/&amp;/g, "&"))?.[0] ?? "";
+  return {
+    career: /ACAD_CAREER:"(\w+)"/.exec(key)?.[1] ?? /[?&]ACAD_CAREER=(\w+)/.exec(link)?.[1],
+    termId: /STRM:"(\d+)"/.exec(key)?.[1] ?? /[?&]STRM=(\d+)/.exec(link)?.[1]
+  };
+}
+
 // The cart page for a term. CAESAR picks the term itself unless the address
 // names one, and naming one needs the student's career too, which the page
 // CAESAR picks states. A sign-in page comes back as it is, for the caller
-// to tell apart.
+// to tell apart. Never answers with another term's cart.
 export async function cartPage(termId?: string | null, get: (url: string) => Promise<string> = fetchPeopleSoftGet): Promise<string> {
   const html = await get(CART_URL);
-  const key = /PIA_KEYSTRUCT\s*=\s*\{[^}]*\}/.exec(html)?.[0] ?? "";
-  const career = /ACAD_CAREER:"(\w+)"/.exec(key)?.[1];
-  if (!termId || !career || /STRM:"(\d+)"/.exec(key)?.[1] === termId) return html;
-  return get(`${CART_URL}&ACAD_CAREER=${career}&INSTITUTION=${INSTITUTION_DEFAULT}&STRM=${termId}`);
+  const shown = cartPageKeys(html);
+  if (!termId || shown.termId === termId || !/name=['"]ICSID['"]/.test(html)) return html;
+  const wrongTerm = () => new Error("CAESAR didn’t open the shopping cart for this term. Open it in CAESAR and try again.");
+  if (!shown.career) throw wrongTerm();
+  const named = await get(`${CART_URL}&ACAD_CAREER=${shown.career}&INSTITUTION=${INSTITUTION_DEFAULT}&STRM=${termId}`);
+  const got = cartPageKeys(named).termId;
+  if (got && got !== termId) throw wrongTerm();
+  return named;
 }
 
 const CART_ENDPOINT = "/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL";

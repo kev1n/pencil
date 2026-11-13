@@ -20,6 +20,9 @@ export type SeatsNotesCacheEntry = {
 type CacheStore = {
   version: 1;
   entries: Record<string, SeatsNotesCacheEntry>;
+  // CAESAR class numbers already found, by term and Paper.nu section, so
+  // a class's page can be asked for without a catalog search first.
+  numbers?: Record<string, string>;
 };
 
 let memoryCache: CacheStore = { version: 1, entries: {} };
@@ -49,6 +52,17 @@ export function readCachedEntry(classNumber: string): SeatsNotesCacheEntry | nul
 
 export function writeCachedEntry(classNumber: string, entry: SeatsNotesCacheEntry): void {
   memoryCache.entries[classNumber] = entry;
+  void chrome.storage.local.set({ [CACHE_STORAGE_KEY]: memoryCache });
+}
+
+export function knownClassNumber(termId: string, sectionId: string): string | null {
+  return memoryCache.numbers?.[`${termId}|${sectionId}`] ?? null;
+}
+
+export function rememberClassNumber(termId: string, sectionId: string, classNumber: string): void {
+  const key = `${termId}|${sectionId}`;
+  if (memoryCache.numbers?.[key] === classNumber) return;
+  memoryCache.numbers = { ...memoryCache.numbers, [key]: classNumber };
   void chrome.storage.local.set({ [CACHE_STORAGE_KEY]: memoryCache });
 }
 

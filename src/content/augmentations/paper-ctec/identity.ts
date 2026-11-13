@@ -7,6 +7,15 @@ export function buildCourseKey(params: CourseIdentity, titleHint: string): strin
   return `${params.subject}:${params.catalogNumber}:${params.instructor.toLowerCase().trim()}:${title}`;
 }
 
+// A card names the professor "Horswill" where Paper.nu's Section Info panel
+// says "I Horswill", so one class has two keys. This is the part they
+// share: course, title and last names.
+export function classKey(key: string): string {
+  const [subject, catalog, instructor = "", ...title] = key.split(":");
+  const lastNames = instructor.split(",").map((name) => name.trim().split(" ").pop() ?? "").join(",");
+  return `${subject}:${catalog}:${lastNames}:${title.join(":")}`;
+}
+
 // Compact-but-discriminating identity for an instructor list. Each name
 // becomes "<firstInitial> <last>" when a leading first name is available
 // and falls back to "<last>" otherwise. Preserving the first initial lets

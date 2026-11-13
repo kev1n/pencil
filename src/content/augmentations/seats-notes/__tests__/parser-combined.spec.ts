@@ -82,3 +82,26 @@ describe("seats-notes parser — combined section", () => {
     expect(result.combinedSectionRows).toEqual([]);
   });
 });
+
+describe("seats-notes parser — class facts", () => {
+  it("reads units, grading, components, career, session and campus", () => {
+    const html = `
+<span id='SSR_CLS_DTL_WRK_UNITS_RANGE'>1 units</span>
+<span id='GRADE_BASIS_TBL_DESCRFORMAL'>Graded</span>
+<span id='SSR_CLS_DTL_WRK_SSR_COMPONENT_LONG$0$' class='PSLONGEDITBOX'>&lt;table&gt;&lt;tr&gt;&lt;td&gt;Discussion Required, Lecture Required&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;</span>
+<span id='PSXLATITEM_XLATLONGNAME'>Undergraduate</span>
+<span id='PSXLATITEM_XLATLONGNAME$31$'>Regular Academic Session</span>
+<span id='CAMPUS_TBL_DESCR'>Evanston</span>`;
+    const result = toSeatsNotesResult(makeResponse(html));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.facts).toEqual({
+      units: "1 units",
+      grading: "Graded",
+      components: "Discussion Required, Lecture Required",
+      career: "Undergraduate",
+      session: "Regular Academic Session",
+      campus: "Evanston"
+    });
+  });
+});

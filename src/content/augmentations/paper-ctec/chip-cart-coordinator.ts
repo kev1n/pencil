@@ -26,6 +26,10 @@ import type { CartEntry, CartLookupHit } from "../../cart-cache";
 const CART_URL =
   "https://caesar.ent.northwestern.edu/psc/csnu/EMPLOYEE/SA/c/SA_LEARNER_SERVICES.SSR_SSENRL_CART.GBL?Page=SSR_SSENRL_CART&Action=A";
 const CART_SUCCESS_RESET_MS = 10_000;
+// How long "Confirm: enroll me" waits for the second press.
+const CONFIRM_MS = 6000;
+// A second press sooner than this is the other half of a double-click.
+const CONFIRM_AFTER_MS = 600;
 
 export type ChipIdentity = {
   key: string;
@@ -72,6 +76,13 @@ export type ChipCartCoordinatorDeps = {
     catalog: string,
     sectionLabel: string
   ): CartLookupHit | null;
+  /**
+   * Enrolls in one cart class. Null when a sign-in was started instead;
+   * throws when the request failed and may still have gone through.
+   */
+  enrollClass(termId: string, classNumber: string): Promise<{ ok: boolean; message: string } | null>;
+  /** What to say when `enrollClass` threw. */
+  enrollFailureText(error: unknown): string;
   /** Cart-cache optimistic write. */
   recordOptimisticAdd(termId: string, entry: CartEntry): void;
   /** Cart-cache subscribe → returns unsubscribe. */
@@ -96,6 +107,11 @@ export interface ChipCartCoordinator {
   seedCartStateFromCache(chip: ChipIdentity): Promise<void>;
   /** Drives a full cart-add flow for the chip. */
   kickChipCart(chip: ChipIdentity): void;
+  /**
+   * The cart state of a class named from outside its card (the analytics
+   * panel), and the press that moves it on: add to cart, then register.
+   */
+  actionFor(chip: ChipIdentity): { state: CartAnchorState; kick(): void };
   /** Lookup the current state for a key (for repainting from outside). */
   getState(key: string): CartAnchorState | undefined;
   /** Snapshot for tests. */
@@ -129,6 +145,10 @@ export function createChipCartCoordinator(
   // The chip identity bundle for each key — needed so onCartCacheChanged
   // can re-issue applyCartCacheToChip against the current widget(s).
   const identities = new Map<string, ChipIdentity>();
+  // The term each key's section belongs to, once resolved.
+  const termIds = new Map<string, string>();
+  const confirmTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const armedAt = new Map<string, number>();
 
   let unsubscribe: (() => void) | null = null;
 
@@ -174,6 +194,7 @@ export function createChipCartCoordinator(
     // Don't trample mid-flight or error states — they reflect the user's
     // most recent intent. Cache updates can only override idle/cache-sourced
     // states (success/already/enrolled).
+    termIds.set(key, resolved.termId);
     if (
       local &&
       local.kind !== "success" &&
@@ -262,10 +283,80 @@ export function createChipCartCoordinator(
     })();
   }
 
+  // Paper.nu's Section Info panel names the professor "I Horswill" where the
+  // card says "Horswill", so the same class has two keys: same course and
+  // title, same last name.
+  function cardKeyFor(key: string): string {
+    if (cartStates.has(key)) return key;
+    const parts = (k: string) => {
+      const [subject, catalog, instructor = "", ...title] = k.split(":");
+      return { course: `${subject}:${catalog}:${title.join(":")}`, last: instructor.split(" ").pop() ?? "" };
+    };
+    const asked = parts(key);
+    for (const other of cartStates.keys()) {
+      const mine = parts(other);
+      if (mine.course === asked.course && mine.last === asked.last) return other;
+    }
+    return key;
+  }
+
+  function actionFor(asked: ChipIdentity): { state: CartAnchorState; kick(): void } {
+    const key = cardKeyFor(asked.key);
+    const chip = identities.get(key) ?? asked;
+    // A class with no card yet: find out whether it is in the cart.
+    if (!chipSections.has(chip.key)) void seedCartStateFromCache(chip);
+    return { state: cartStates.get(key) ?? { kind: "idle" }, kick: () => kickChipCart(chip) };
+  }
+
+  // The button of a class that is in the cart: the first press asks, the
+  // second enrolls.
+  function kickRegister(chip: ChipIdentity, classNumber: string, confirmed: boolean): void {
+    const key = chip.key;
+    const inCart: CartAnchorState = { kind: "already", classNumber };
+    if (!confirmed) {
+      armedAt.set(key, Date.now());
+      setCartState(key, { kind: "confirm", classNumber });
+      clearTimeout(confirmTimers.get(key));
+      confirmTimers.set(
+        key,
+        setTimeout(() => {
+          if (cartStates.get(key)?.kind === "confirm") setCartState(key, inCart);
+        }, CONFIRM_MS)
+      );
+      return;
+    }
+    if (Date.now() - (armedAt.get(key) ?? 0) < CONFIRM_AFTER_MS) return;
+    clearTimeout(confirmTimers.get(key));
+    const termId = termIds.get(key);
+    if (!termId) {
+      setCartState(key, inCart);
+      return;
+    }
+    cartInFlight.add(key);
+    setCartState(key, { kind: "adding", message: "Enrolling…" });
+    void (async () => {
+      try {
+        const answer = await deps.enrollClass(termId, classNumber);
+        if (answer) deps.showToast(answer.message, { tone: answer.ok ? "success" : "error", durationMs: 8000 });
+        setCartState(key, answer?.ok ? { kind: "enrolled", classNumber } : inCart);
+      } catch (error: unknown) {
+        // The request may have gone through: say so instead of guessing.
+        deps.showToast(deps.enrollFailureText(error), { tone: "error", durationMs: 8000 });
+        setCartState(key, inCart);
+      }
+      cartInFlight.delete(key);
+    })();
+  }
+
   function kickChipCart(chip: ChipIdentity): void {
     rememberIdentity(chip);
     const key = chip.key;
     if (cartInFlight.has(key)) return;
+    const current = cartStates.get(key);
+    if (current?.kind === "already" || current?.kind === "success" || current?.kind === "confirm") {
+      kickRegister(chip, current.classNumber, current.kind === "confirm");
+      return;
+    }
 
     // Chip cart-add fires a CAESAR catalog search + multi-step cart chain.
     // Pull from the same seats-notes credit pool that gates class-search /
@@ -291,6 +382,7 @@ export function createChipCartCoordinator(
         (message) => setCartState(key, { kind: "adding", message })
       );
 
+      if (result.termId) termIds.set(key, result.termId);
       if (result.ok) {
         setCartState(key, {
           kind: "success",
@@ -354,6 +446,10 @@ export function createChipCartCoordinator(
       unsubscribe = null;
       for (const timer of cartResetTimers.values()) clearTimeout(timer);
       cartResetTimers.clear();
+      for (const timer of confirmTimers.values()) clearTimeout(timer);
+      confirmTimers.clear();
+      armedAt.clear();
+      termIds.clear();
       cartStates.clear();
       cartInFlight.clear();
       chipSections.clear();
@@ -361,6 +457,7 @@ export function createChipCartCoordinator(
     },
     seedCartStateFromCache,
     kickChipCart,
+    actionFor,
     getState(key: string): CartAnchorState | undefined {
       return cartStates.get(key);
     },

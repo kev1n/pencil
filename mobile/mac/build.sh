@@ -38,12 +38,13 @@ if [ "$MODE" = release ]; then
   rm -f "$ZIP"
   # The download: a disk image holding the app beside a shortcut to the
   # Applications folder, signed and checked by Apple like the app itself.
+  # dmgbuild lays out its window (mac/dmg-settings.py, mac/dmg-background.tiff).
   DMG=mac/build/Pencil.dmg
-  STAGE="$(mktemp -d)"
-  cp -R "$APP" "$STAGE/Pencil.app"
-  ln -s /Applications "$STAGE/Applications"
+  TOOLS="$(mktemp -d)"
+  python3 -m venv "$TOOLS"
+  "$TOOLS/bin/pip" install --quiet dmgbuild==1.6.7
   rm -f "$DMG"
-  hdiutil create -quiet -volname Pencil -srcfolder "$STAGE" -format UDZO "$DMG"
+  "$TOOLS/bin/dmgbuild" -s mac/dmg-settings.py -D app="$APP" Pencil "$DMG"
   codesign --force --timestamp --sign "Developer ID Application" "$DMG"
   xcrun notarytool submit "$DMG" --keychain-profile pencil --wait
   xcrun stapler staple "$DMG"

@@ -50,6 +50,8 @@ function makeDeps(
       termId: "4750"
     } as CartChipResult),
     resolveChipSection: vi.fn().mockResolvedValue(makeResolved()),
+    enrollClass: vi.fn().mockResolvedValue({ ok: true, message: "Enrolled: Success." }),
+    enrollFailureText: () => "failed",
     lookupBySignature: vi.fn().mockReturnValue(null),
     recordOptimisticAdd: vi.fn(),
     subscribeCartCache: vi.fn().mockReturnValue(vi.fn()),
@@ -426,4 +428,84 @@ describe("createChipCartCoordinator — kills synthesized-target hack", () => {
       expect.any(Function)
     );
   });
+});
+
+describe("createChipCartCoordinator — registering from the cart button", () => {
+  const inCart = (): CartLookupHit => ({
+    status: "in-cart",
+    entry: { classNumber: "12345", subject: "COMP_SCI", catalog: "111-0", sectionLabel: "1-LEC", capturedAt: 0 }
+  });
+
+  it("first press asks, second press enrolls that class in its term", async () => {
+    const deps = makeDeps({ lookupBySignature: vi.fn().mockReturnValue(inCart()) });
+    const coord = createChipCartCoordinator(deps);
+    const chip = makeChip();
+    await coord.seedCartStateFromCache(chip);
+    expect(coord.getState(chip.key)).toEqual({ kind: "already", classNumber: "12345" });
+
+    coord.kickChipCart(chip);
+    expect(coord.getState(chip.key)?.kind).toBe("confirm");
+    expect(deps.enrollClass).not.toHaveBeenCalled();
+    expect(deps.addChipSectionToCart).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+    coord.kickChipCart(chip);
+    await vi.runOnlyPendingTimersAsync();
+    expect(deps.enrollClass).toHaveBeenCalledTimes(1);
+    expect(deps.enrollClass).toHaveBeenCalledWith("4750", "12345");
+    expect(coord.getState(chip.key)?.kind).toBe("enrolled");
+  });
+
+  it("a double press does not enroll, and the ask lapses", async () => {
+    const deps = makeDeps({ lookupBySignature: vi.fn().mockReturnValue(inCart()) });
+    const coord = createChipCartCoordinator(deps);
+    const chip = makeChip();
+    await coord.seedCartStateFromCache(chip);
+    coord.kickChipCart(chip);
+    coord.kickChipCart(chip);
+    expect(deps.enrollClass).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(7000);
+    expect(coord.getState(chip.key)?.kind).toBe("already");
+  });
+
+  it("a refusal leaves the class in the cart and says why", async () => {
+    const deps = makeDeps({
+      lookupBySignature: vi.fn().mockReturnValue(inCart()),
+      enrollClass: vi.fn().mockResolvedValue({ ok: false, message: "Not enrolled: no access." })
+    });
+    const coord = createChipCartCoordinator(deps);
+    const chip = makeChip();
+    await coord.seedCartStateFromCache(chip);
+    coord.kickChipCart(chip);
+    vi.advanceTimersByTime(1000);
+    coord.kickChipCart(chip);
+    await vi.runOnlyPendingTimersAsync();
+    expect(coord.getState(chip.key)?.kind).toBe("already");
+    expect(deps.showToast).toHaveBeenCalledWith("Not enrolled: no access.", expect.objectContaining({ tone: "error" }));
+  });
+});
+
+it("finds a card's class under the Section Info panel's name for it", async () => {
+  vi.useFakeTimers();
+  const hit: CartLookupHit = {
+    status: "in-cart",
+    entry: { classNumber: "12345", subject: "COMP_SCI", catalog: "111-0", sectionLabel: "1-LEC", capturedAt: 0 }
+  };
+  const deps = makeDeps({
+    lookupBySignature: vi.fn((_t: string, _s: string, catalog: string) => (catalog === "111-0" ? hit : null)),
+    resolveChipSection: vi.fn(async (params: { catalogNumber: string }) => makeResolved({ catalog: `${params.catalogNumber}-0` }))
+  });
+  const coord = createChipCartCoordinator(deps);
+  await coord.seedCartStateFromCache(makeChip({ key: "COMP_SCI:111:smith:intro: part 1" }));
+  const named = (key: string, catalogNumber = "111") =>
+    coord.actionFor(makeChip({ key, params: { subject: "COMP_SCI", catalogNumber, instructor: "x" } }));
+  expect(named("COMP_SCI:111:j smith:intro: part 1").state.kind).toBe("already");
+  expect(named("COMP_SCI:111:j jones:intro: part 1").state.kind).toBe("idle");
+  expect(named("COMP_SCI:211:j smith:intro: part 1", "211").state.kind).toBe("idle");
+
+  // Its press moves the card's own class on: it asks, it does not add again.
+  named("COMP_SCI:111:j smith:intro: part 1").kick();
+  expect(coord.getState("COMP_SCI:111:smith:intro: part 1")?.kind).toBe("confirm");
+  expect(deps.addChipSectionToCart).not.toHaveBeenCalled();
+  vi.useRealTimers();
 });

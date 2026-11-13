@@ -13,6 +13,7 @@ import { paperEnrollmentDatesAugmentation } from "./paper-enrollment-dates";
 import { paperExportHelperAugmentation } from "./paper-export-helper";
 import { paperHideTakenAugmentation } from "./paper-hide-taken";
 import { paperRegisterAugmentation } from "./paper-register";
+import { paperWalkAugmentation } from "./paper-walk";
 import { prereqFilterAugmentation } from "./prereq-filter";
 import { seatsNotesAugmentation } from "./seats-notes";
 
@@ -32,6 +33,7 @@ export const augmentationRegistry: Augmentation[] = [
   paperBrandAugmentation,
   paperEnrollmentDatesAugmentation,
   paperRegisterAugmentation,
+  paperWalkAugmentation,
   paperCtecAugmentation,
   paperCombosAugmentation,
   paperExportHelperAugmentation,

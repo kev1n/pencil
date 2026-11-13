@@ -110,6 +110,8 @@ export type AnalyticsModalCallbacks = {
   onTermChange: (id: string | null) => void;
   onCommentsSentimentChange: (filter: ModalCommentSentimentFilter) => void;
   onRefresh: () => void;
+  // Ask CAESAR again for this class's seats and facts.
+  onCaesarRefresh?: () => void;
   onLoadMore: () => void;
   onDismissRefreshFlash: () => void;
   // Switches the active analytics lens. Persists globally — the chip
@@ -152,6 +154,11 @@ export type AnalyticsModalInput = {
   errorMessage: string | null;
   notFound: boolean;
   canRefresh: boolean;
+  // CAESAR's own facts about this class; the foot shows seats and grading.
+  caesarInfo?: import("./caesar-info").CaesarInfo | null;
+  // The panel's foot: add this class to the CAESAR cart, or register for
+  // it once it is there. No button once enrolled.
+  cartAction?: import("./caesar-info").CartAction | null;
   canLoadMore: boolean;
   loadMoreBatchSize: number;
   remainingTerms: number;

@@ -15,6 +15,7 @@ import {
   formatRoom,
   meetingPatternCount
 } from "../filter";
+import { createRegisterButton } from "../../../enroll/register-button";
 import type { PaperSection } from "../paper-data";
 
 export type SectionRowProps = {
@@ -46,6 +47,10 @@ export type SectionRowProps = {
    *  where the section is already in the user's cart or enrolled —
    *  Add is meaningless there. Defaults to true. */
   showAdd?: boolean;
+  /** A Register button for this row. It shows once the row's Add button
+   *  reads "In cart", or at once when `always` is set (a row that has no
+   *  Add button because its class is already in the cart). */
+  register?: { termId: string; classNumber(): string | null; always?: boolean };
 };
 
 export function renderSectionRow(
@@ -184,11 +189,20 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
     on: { click: props.onToggleDetails }
   });
 
+  const registerBtn = props.register
+    ? createRegisterButton({
+        doc,
+        termId: props.register.termId,
+        classNumber: props.register.classNumber,
+        className: `bc-cs-register${props.register.always ? " is-always" : ""}`
+      })
+    : null;
+
   const showAdd = props.showAdd !== false;
   if (!showAdd) {
     // "Your classes" cards reuse the section row but the entry is already
     // in the cart / enrolled, so Add is meaningless. Return only Details.
-    return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn]);
+    return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn, registerBtn]);
   }
 
   const addBtn = el(doc, "button", {
@@ -203,7 +217,7 @@ function buildActionsCell(doc: Document, props: SectionRowProps): HTMLElement {
   // mounts to the DOM.
   props.registerAddButton(addBtn, props.sigKey);
 
-  return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn, addBtn]);
+  return el(doc, "div", { class: "bc-cs-section-actions" }, [detailsBtn, addBtn, registerBtn]);
 }
 
 /**

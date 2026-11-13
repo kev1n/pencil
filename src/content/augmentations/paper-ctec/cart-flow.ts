@@ -19,6 +19,17 @@ import {
   type PaperSection
 } from "../class-search/paper-data";
 import { extractLastNameTokens } from "../ctec-links/helpers";
+import { lookupClass } from "../../peoplesoft";
+import { initCartCache, lookupBySignature } from "../../cart-cache";
+import { toSeatsNotesResult } from "../seats-notes/parser";
+import {
+  initStorage as initSeatsNotesStorage,
+  knownClassNumber,
+  readCachedEntry,
+  rememberClassNumber,
+  writeCachedEntry
+} from "../seats-notes/storage";
+import type { SeatsNotesSuccess } from "../seats-notes/types";
 import type { CtecLinkParams } from "../ctec-links/types";
 import { readPaperScheduleSnapshot } from "../paper-combos/data";
 import { buildInstructorLastNameLabel } from "./identity";
@@ -133,6 +144,89 @@ async function addChipSectionToCartCore(
     termId,
     sectionLabel: caesarSection.sectionLabel
   };
+}
+
+// The section Paper.nu's Section Info panel is about, for a class that is
+// not on the schedule: found in the term's catalog by its number and kind.
+async function resolvePanelSection(
+  params: CtecLinkParams,
+  hint: { section?: string; component?: string }
+): Promise<{ termId: string; termName: string; section: PaperSection }> {
+  const activeTerm = readActiveTermNameFromDom(document);
+  const schedule = await readPaperScheduleSnapshot();
+  if (!activeTerm || !schedule) throw new Error("Couldn't tell which term Paper.nu is showing. Reload Paper.nu and try again.");
+  const termName = (await getDataMapInfo(schedule.termId)).terms[schedule.termId]?.name;
+  if (termName !== activeTerm) throw new Error("The saved schedule doesn't match this tab's term. Reload Paper.nu and try again.");
+  const wantCatalog = formatCatalogForDisplay(params.catalogNumber);
+  const wantKind = (hint.component ?? "").slice(0, 3).toUpperCase();
+  const matches = (await getTermCourses(schedule.termId))
+    .flatMap((course) => course.sections)
+    .filter(
+      (section) =>
+        section.subject === params.subject &&
+        formatCatalogForDisplay(section.number ?? section.catalog) === wantCatalog &&
+        section.section === hint.section &&
+        (!wantKind || section.component.toUpperCase() === wantKind)
+    );
+  const [section] = matches;
+  if (matches.length !== 1 || !section) throw new Error(`Couldn't identify this section of ${params.subject} ${params.catalogNumber} in ${termName}.`);
+  return { termId: schedule.termId, termName, section };
+}
+
+export type ChipClassDetails =
+  | { ok: true; details: SeatsNotesSuccess; fetchedAt: number }
+  | { ok: false; error: string };
+
+// CAESAR's own page for the section a chip or panel stands for, in the term
+// being planned: units, grading basis, seats, requirements, notes. Saved in
+// the seats-notes cache, so a class looked at before answers without a
+// request unless `force` asks for a fresh copy.
+export async function loadChipClassDetails(
+  authRecovery: AuthRecovery,
+  source: { params: CtecLinkParams; titleHint: string; section?: string; component?: string },
+  force = false
+): Promise<ChipClassDetails> {
+  const { params } = source;
+  try {
+    const { termId, termName, section } = await resolveScheduledChip(params, source.titleHint, true).catch((error: unknown) => {
+      if (!source.section) throw error;
+      return resolvePanelSection(params, source);
+    });
+    const bare = bareCatalogNumber(params.catalogNumber);
+    // CAESAR's class page is one request that carries seats and every other
+    // fact. Finding the class number first costs a catalog search, so that
+    // is skipped when the number is already known for this section.
+    const answer = await withAuthRecovery(authRecovery, isCaesarAuthRequiredError, async () => {
+      await Promise.all([initSeatsNotesStorage(), initCartCache()]);
+      let classNumber =
+        knownClassNumber(termId, section.section_id) ??
+        lookupBySignature(termId, section.subject, section.number ?? section.catalog, `${section.section}-${section.component}`)?.entry.classNumber;
+      if (!classNumber) {
+        const search = await searchCaesarCatalog({ termId, institution: INSTITUTION_DEFAULT, subject: params.subject, bareCatalog: bare });
+        const group = matchCaesarGroup(search.groups, section.number ?? section.catalog);
+        classNumber = (group ? matchCaesarSection(group, section.section, section.component) : null)?.classNumber;
+        if (!classNumber) throw new Error(`CAESAR didn't return this section in ${termName}.`);
+      }
+      rememberClassNumber(termId, section.section_id, classNumber);
+      const saved = readCachedEntry(classNumber);
+      if (!force && saved?.result.ok && saved.result.facts) return saved;
+      const result = toSeatsNotesResult(
+        await lookupClass(
+          { type: "lookup-class", classNumber, careerHint: Number.parseInt(bare, 10) >= 400 ? "TGS" : "UGRD", termId },
+          { priority: "background", owner: "paper-ctec-class-info", label: `Class details for ${classNumber}` }
+        )
+      );
+      const entry = { result, fetchedAt: Date.now() };
+      if (result.ok) writeCachedEntry(classNumber, entry);
+      return entry;
+    });
+    if (answer === null) return { ok: false, error: "CAESAR sign-in was canceled." };
+    return answer.result.ok
+      ? { ok: true, details: answer.result, fetchedAt: answer.fetchedAt }
+      : { ok: false, error: answer.result.error };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 export type ResolvedChipSection = {
