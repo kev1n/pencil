@@ -5,6 +5,8 @@ import { meetingsOf } from "../data/schedule";
 import { courseCode, Section, type ColorOf } from "./bits";
 import type { Timed } from "./WeekGrid";
 
+// Seconds from one stop appearing on the map to the next.
+const STEP = 0.8;
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 // The map is the Evanston campus, north up, at a fixed scale so a building
@@ -123,6 +125,16 @@ export function Trail({ entries, colorOf }: { entries: Timed[]; colorOf: ColorOf
     return () => el.removeEventListener("wheel", wheel);
   });
 
+  // The walk draws itself over and over: stop by stop, then it rests for
+  // three seconds and starts again. `run` counts the drawings.
+  const [run, setRun] = useState(0);
+  const walked = `${day}|${[...off].join()}`;
+  useEffect(() => {
+    if (stops.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(() => setRun((n) => n + 1), (stops.length * STEP + 3) * 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [walked, stops.length]);
   if (courses.length === 0) return null;
 
   // One marker per building, numbered with every stop made there.
@@ -230,11 +242,6 @@ export function Trail({ entries, colorOf }: { entries: Timed[]; colorOf: ColorOf
           onPointerCancel={() => (drag.current = null)}
           onDoubleClick={() => setMoved(null)}
         >
-          <defs>
-            <marker id="trail-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-              <path d="M1 1.5L8 5L1 8.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-            </marker>
-          </defs>
           <path className="trail-water" d={WATER} />
           <path className="trail-field" d={FIELDS} />
           <path className="trail-street" d={STREETS} />
@@ -268,23 +275,35 @@ export function Trail({ entries, colorOf }: { entries: Timed[]; colorOf: ColorOf
             };
             const s = trim(a, 12);
             const e = trim(b, 15);
-            // The break before the next class, written on the middle of the leg.
+            // The break before the next class, written beside the middle of
+            // the leg, on the outside of its bow, so the line stays readable.
             const gap = leg.to.start - leg.from.end;
             const tight = gap < walkMinutes(leg.from.place!, leg.to.place!);
-            const t = 0.5;
-            const lx = (1 - t) * (1 - t) * s.x + 2 * t * (1 - t) * mx + t * t * e.x;
-            const ly = (1 - t) * (1 - t) * s.y + 2 * t * (1 - t) * my + t * t * e.y;
+            const nx = -(b.y - a.y) / len;
+            const ny = (b.x - a.x) / len;
+            const lx = (s.x + 2 * mx + e.x) / 4 + nx * 9;
+            const ly = (s.y + 2 * my + e.y) / 4 + ny * 13;
+            const anchor = nx > 0.35 ? "start" : nx < -0.35 ? "end" : "middle";
+            // The way the leg is heading as it arrives, for its arrowhead.
+            const turn = (Math.atan2(e.y - my, e.x - mx) * 180) / Math.PI;
+            // Legs draw one after another, each as its stop is reached.
+            const begin = (stops.indexOf(leg.to) - 1) * STEP + 0.25;
             return (
-              <g key={`${day}|${[...off].join()}|${i}`}>
+              <g key={`${walked}|${run}|${i}`}>
                 <path
                   className="trail-leg"
                   d={`M${s.x} ${s.y}Q${mx} ${my} ${e.x} ${e.y}`}
                   pathLength={1}
-                  markerEnd="url(#trail-arrow)"
-                  style={{ animationDelay: `${0.15 + i * 0.35}s` }}
+                  style={{ animationDelay: `${begin}s` }}
                 />
-                {/* A leg between next-door buildings is too short to write on. */}
-                {len >= 40 && <text className={`trail-between${tight ? " is-tight" : ""}`} x={lx} y={ly + 4} textAnchor="middle" style={{ animationDelay: `${0.4 + i * 0.35}s` }}>
+                <path
+                  className="trail-head"
+                  d="M-6 -4.5L1 0L-6 4.5"
+                  transform={`translate(${e.x} ${e.y}) rotate(${turn})`}
+                  style={{ animationDelay: `${begin + 0.5}s` }}
+                />
+                {/* A leg between next-door buildings is too short to write beside. */}
+                {len >= 40 && <text className={`trail-between${tight ? " is-tight" : ""}`} x={lx} y={ly + 4} textAnchor={anchor} style={{ animationDelay: `${begin + 0.3}s` }}>
                   {gap === 0 ? "no break" : span(gap)}
                 </text>}
               </g>
@@ -295,7 +314,11 @@ export function Trail({ entries, colorOf }: { entries: Timed[]; colorOf: ColorOf
             const label = marker.numbers.join("·");
             const left = p.x > MAP_W * 0.62;
             return (
-              <g key={place.name} className="trail-stop" style={colorOf(marker.stop.entry.subject, marker.stop.entry.catalog)}>
+              <g
+                key={`${walked}|${run}|${place.name}`}
+                className="trail-stop"
+                style={{ ...colorOf(marker.stop.entry.subject, marker.stop.entry.catalog), animationDelay: `${(marker.numbers[0]! - 1) * STEP}s` }}
+              >
                 <circle cx={p.x} cy={p.y} r={label.length > 1 ? 13 : 11} />
                 <text className="trail-num" x={p.x} y={p.y + 4} textAnchor="middle">{label}</text>
                 <text className="trail-name" x={p.x + (left ? -17 : 17)} y={p.y + 4} textAnchor={left ? "end" : "start"}>{place.name}</text>

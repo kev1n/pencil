@@ -90,6 +90,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .rows { margin: 0 calc(var(--pad) * -1); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px var(--pad); border-top: 1px solid var(--bc-color-border); }
 .rows .row:first-child { border-top: 0; }
+.row-empty { margin: 0; font-size: 14px; color: var(--bc-color-text-muted); }
 .row.tap:active { background: var(--bc-color-surface-hover); }
 .row-body { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .row-code { font-size: 12.5px; font-weight: var(--bc-fw-medium); color: var(--bc-color-text-muted); }
@@ -511,7 +512,11 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .ctec-btn.is-none, .ctec-btn.is-busy { padding-left: 10px; font-weight: var(--bc-fw-medium); color: var(--bc-color-text-muted); }
 .ctec-btn.is-busy { box-shadow: none; background: none; padding-left: 0; cursor: default; }
 .row-actions { align-items: center; margin-top: 9px; }
-.row-more { display: inline-flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
+.row-more { display: inline-flex; flex-wrap: wrap; gap: 4px 2px; margin-left: -8px; font-size: 13px; }
+/* Details and Add to cart light up on their own under the pointer, apart from the card's hover */
+.row-more .link { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 7px; text-decoration: none; transition: background 0.12s, color 0.12s; }
+.row-more .link:not(:disabled):is(:hover, .is-over) { background: color-mix(in srgb, var(--bc-color-text-strong) 12%, transparent); color: var(--bc-color-text-strong); }
+.row-more .link:not(:disabled):active { background: color-mix(in srgb, var(--bc-color-text-strong) 18%, transparent); }
 /* whether you have a course's prerequisites, beside its code in a list */
 .prereq { margin-left: 8px; font-size: 11.5px; font-weight: var(--bc-fw-medium); }
 .prereq.ok { color: var(--bc-color-sentiment-pos-fg); }
@@ -568,8 +573,10 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 .trail-here .trail-building { fill: var(--block-edge); }
 .trail-mark { font-size: 9.5px; font-weight: 600; fill: var(--bc-color-text-muted); paint-order: stroke; stroke: var(--bc-color-surface-hover); stroke-width: 3px; stroke-linejoin: round; }
 .trail-lake { font-size: 11px; letter-spacing: 0.08em; fill: var(--bc-color-text-subtle); }
-.trail-leg { fill: none; stroke: var(--bc-color-text-strong); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: 0.45s ease-out forwards trail-draw; }
-.trail-between { font-size: 11.5px; font-weight: 700; fill: var(--bc-color-bg); paint-order: stroke; stroke: var(--bc-color-text-strong); stroke-width: 7px; stroke-linejoin: round; animation: 0.25s ease-out both fade-in; }
+.trail-leg { fill: none; stroke: var(--bc-color-text-strong); stroke-width: 2; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; animation: 0.55s ease-in-out forwards trail-draw; }
+.trail-head { fill: none; stroke: var(--bc-color-text-strong); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; animation: 0.2s ease-out both fade-in; }
+.trail-stop { animation: 0.3s ease-out both fade-in; }
+.trail-between { font-size: 10.5px; font-weight: 700; fill: var(--bc-color-bg); paint-order: stroke; stroke: var(--bc-color-text-strong); stroke-width: 5px; stroke-linejoin: round; animation: 0.25s ease-out both fade-in; }
 .trail-between.is-tight { fill: #fff; stroke: var(--bc-color-sentiment-neg-fg); }
 @keyframes trail-draw { to { stroke-dashoffset: 0; } }
 .trail-stop circle { fill: var(--block-edge); stroke: var(--bc-color-surface-hover); stroke-width: 2; }
@@ -588,7 +595,7 @@ button { font: inherit; color: inherit; letter-spacing: inherit; }
 @media (min-width: 900px) {
   .trail { grid-template-columns: minmax(0, 460px) minmax(0, 1fr); column-gap: 32px; align-items: start; }
 }
-@media (prefers-reduced-motion: reduce) { .trail-leg { animation: none; stroke-dashoffset: 0; } .trail-between { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .trail-leg { animation: none; stroke-dashoffset: 0; } .trail-between, .trail-head, .trail-stop { animation: none; } }
 
 /* ratings could not load without a fresh sign-in */
 .ratings-ask { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 4px 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--bc-color-surface-hover); box-shadow: inset 0 0 0 1px var(--bc-color-border-strong); }

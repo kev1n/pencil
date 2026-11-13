@@ -271,7 +271,6 @@ export function SchedulePage() {
               <button className="switch" role="switch" aria-checked={combosOn} onClick={() => setCombosOn((on) => !on)}>
                 <i />Combinations
               </button>
-              {!combosOn && !wide && <span className="note-text">Every way these classes fit without overlapping</span>}
             </div>
           )}
           {combosOn && credits && (
@@ -329,10 +328,10 @@ export function SchedulePage() {
           )}
     </div>
   );
+  // Registration dates sit under the week, above the class lists.
+  const dates = <RegDates termName={terms?.terms.find((t) => t.id === termId)?.name ?? ""} />;
   const notes = (
     <>
-          <RegDates termName={terms?.terms.find((t) => t.id === termId)?.name ?? ""} />
-
           <OffCampusNote />
 
           {stalled && (
@@ -352,7 +351,10 @@ export function SchedulePage() {
     <>
               {GROUPS.map(([state, title]) => {
                 const group = classes.filter((c) => c.state === state);
-                if (group.length === 0) return null;
+                // Enrolled and cart always show once signed in, empty or not, so
+                // what CAESAR said is plain; an empty Planned list is left out.
+                if (group.length === 0 && (state === "planned" || !signedIn)) return null;
+                const term = termShort(termName);
                 return (
                   <div key={state} data-group={state}>
                   <Section
@@ -360,7 +362,17 @@ export function SchedulePage() {
                     ctx={
                       state === "planned" ? (
                         syncing ? "Synced across your devices" : `Only on this ${device}`
-                      ) : state === "cart" && signedIn ? (
+                      ) : state === "enrolled" ? (
+                        busy ? (
+                          <><Spin /> Checking CAESAR</>
+                        ) : (
+                          <>
+                            {cartTerm?.refreshedAt ? `Checked ${timeAgo(cartTerm.refreshedAt)}` : null}
+                            {cartTerm?.refreshedAt ? <Sep /> : null}
+                            <button className="link" onClick={() => void refresh()}>Refresh</button>
+                          </>
+                        )
+                      ) : state === "cart" && group.length > 0 ? (
                         checking ? (
                           <><Spin /> {checking}</>
                         ) : (
@@ -370,6 +382,11 @@ export function SchedulePage() {
                     }
                   >
                     <div className="rows">
+                      {group.length === 0 && (
+                        <p className="row row-empty">
+                          {state === "enrolled" ? `Not enrolled in anything for ${term}` : `Nothing in your cart for ${term}`}
+                        </p>
+                      )}
                       {group.map((entry) => {
                         const section = entry.section;
                         const seats = state === "cart" && entry.classNumber ? seatsOf(entry.classNumber) : null;
@@ -430,27 +447,14 @@ export function SchedulePage() {
               })}
     </>
   );
-  const foot = (
-    <>
-          <p className="note-text" style={{ marginTop: 16 }}>
-            {!signedIn ? (
-              <>
-                <button className="link" onClick={() => void signInToCaesar().then((ok) => { if (ok) void refresh(); })}>
-                  Sign in to Northwestern
-                </button>{" "}
-                to see your cart and enrolled classes here.
-              </>
-            ) : busy ? (
-              <><Spin /> Checking CAESAR</>
-            ) : (
-              <>
-                {cartTerm?.refreshedAt ? `Cart and enrollment checked ${timeAgo(cartTerm.refreshedAt)}` : "CAESAR has nothing for this term"}
-                <Sep />
-                <button className="link" onClick={() => void refresh()}>Refresh</button>
-              </>
-            )}
-          </p>
-    </>
+  // Signed out, the cart and enrolled lists can't be read: one line says so.
+  const foot = !signedIn && (
+    <p className="note-text" style={{ marginTop: 16 }}>
+      <button className="link" onClick={() => void signInToCaesar().then((ok) => { if (ok) void refresh(); })}>
+        Sign in to Northwestern
+      </button>{" "}
+      to see your cart and enrolled classes here.
+    </p>
   );
   const empty = (
     <Section first bare>
@@ -520,8 +524,9 @@ export function SchedulePage() {
               </div>
               <div className="split-detail">
                 <div className="screen">
+                  {dates}
                   {notes}
-                  <div className="sched-list">{classes.length === 0 ? empty : lists}</div>
+                  <div className="sched-list">{classes.length === 0 && empty}{lists}</div>
                   {foot}
                 </div>
               </div>
@@ -558,7 +563,9 @@ export function SchedulePage() {
             <div className="sched">
               <WeekGrid entries={[]} hourPx={wide ? 56 : 44} colorOf={colorOf} />
               <div className="sched-list">
+                {dates}
                 {empty}
+                {lists}
               </div>
             </div>
           ) : (
@@ -566,6 +573,7 @@ export function SchedulePage() {
               <WeekGrid entries={timed} hourPx={wide ? 56 : 44} colorOf={colorOf} onOpen={open} />
 
               <div className="sched-list">
+              {dates}
               {lists}
               </div>
             </div>
