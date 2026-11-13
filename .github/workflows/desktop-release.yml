@@ -53,8 +53,14 @@ jobs:
         working-directory: mobile/desktop
         run: |
           $want = node -p "require('./package.json').version"
-          $setup = Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait -PassThru
-          "Installer finished with code $($setup.ExitCode)"
+          # The installer now and then crashes on the build machine before
+          # doing anything; a second run goes through.
+          foreach ($try in 1..3) {
+            $setup = Start-Process old\Pencil-Setup.exe -ArgumentList '/S' -Wait -PassThru
+            "Installer finished with code $($setup.ExitCode)"
+            if ($setup.ExitCode -eq 0) { break }
+            Start-Sleep 5
+          }
           # The installer can hand back control before its files are in place.
           $exe = $null
           foreach ($i in 1..30) {

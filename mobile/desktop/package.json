@@ -1,7 +1,7 @@
 {
   "name": "pencil-desktop",
   "productName": "Pencil",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pencil for Windows and Linux",
   "author": "Kevin Wang & Jason Latz",
   "private": true,
