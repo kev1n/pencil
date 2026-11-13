@@ -223,7 +223,7 @@ export function CourseView({ termId, subject, catalog, search = "", onPreview, o
 
               {!detail.course && (
                 <Section first bare>
-                  <Status title="Not offered this term">This course has no sections in the term you’re planning.</Status>
+                  <Status title="Not offered this term" />
                 </Section>
               )}
 

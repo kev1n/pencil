@@ -478,9 +478,7 @@ export function SchedulePage() {
       <Status
         title={`Nothing in ${termName} yet`}
         action={<button className="bc-btn bc-btn--primary" onClick={find}>Find classes</button>}
-      >
-        Classes you plan, add to your cart or enroll in show up here as one week.
-      </Status>
+      />
     </Section>
   );
 
@@ -524,17 +522,9 @@ export function SchedulePage() {
                   <h2 className="sec-title">Your {terms ? termShort(termName) : "week"}</h2>
                   {combosBar}
                   <span className="sec-ctx">
-                    {combosOn
-                      ? ""
-                      : !picked
-                      ? "Click a class to open it"
-                      : ghosts.length > 0 && ghosts.every((g) => meetingsOf(g).length === 0)
-                        ? `${componentName(ghosts[0]!.component)} ${ghosts[0]!.section} has no day listed in the catalog, so it can’t be drawn here`
-                      : ghosts.length > 0
-                        ? `Dashed: when ${courseCode(picked.subject, picked.catalog)} is offered, one colour per section`
-                        : pickedOnWeek
-                          ? "Point at another section to see where it would fall"
-                          : "Click another class to see it instead"}
+                    {!combosOn && picked && ghosts.some((g) => meetingsOf(g).length > 0)
+                      ? `Dashed: other sections of ${courseCode(picked.subject, picked.catalog)}`
+                      : ""}
                   </span>
                 </div>
                 <WeekGrid entries={timed} hourPx={48} ghosts={ghosts} colorOf={colorOf} selected={picked} onOpen={open} />

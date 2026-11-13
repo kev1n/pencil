@@ -73,9 +73,7 @@ export function HistoryPage() {
                     Sign in to Northwestern
                   </button>
                 }
-              >
-                Sign in to bring in the classes you’ve taken.
-              </Status>
+              />
             </Section>
           )}
 

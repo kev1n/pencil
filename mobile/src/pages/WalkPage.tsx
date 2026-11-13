@@ -32,9 +32,7 @@ export function WalkPage() {
           </div>
           {timed.length === 0 ? (
             <Section first bare>
-              <Status title={`No classes with a time in ${termName} yet`}>
-                Once you plan, add to your cart or enroll in classes, this shows each day as a walk between their buildings.
-              </Status>
+              <Status title={`No classes with a time in ${termName} yet`} />
             </Section>
           ) : (
             <Trail entries={timed} colorOf={colorOf} />

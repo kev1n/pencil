@@ -305,7 +305,7 @@ function Ctecs(props: { state: CtecState; instructor: string; onLoad: () => void
             ? "Northwestern unlocks CTECs once you’ve filled out your own evaluations."
             : state.status === "error"
               ? describeError(state.error)
-              : `Ratings, hours and comments for ${instructor}.`;
+              : null;
     return (
       <Section
         first
@@ -318,7 +318,7 @@ function Ctecs(props: { state: CtecState; instructor: string; onLoad: () => void
           )
         }
       >
-        <p className={`note-text${state.status === "error" ? " is-error" : ""}`}>{text}</p>
+        {text && <p className={`note-text${state.status === "error" ? " is-error" : ""}`}>{text}</p>}
       </Section>
     );
   }
@@ -417,10 +417,8 @@ function FromCaesar(props: {
 
   return (
     <Section first={props.first} title="From CAESAR" ctx={ctx}>
-      {!ok && (
-        <p className={`note-text${error ? " is-error" : ""}`}>
-          {error ?? (details && !details.ok ? details.error :"Open seats, waitlist and notes, live from CAESAR.")}
-        </p>
+      {(error || (details && !details.ok)) && (
+        <p className="note-text is-error">{error ?? (details && !details.ok ? details.error : null)}</p>
       )}
       {ok && error && <p className="note-text is-error">{error}</p>}
       {urgency && (

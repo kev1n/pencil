@@ -7,7 +7,6 @@ import { iconElement, seasonIcon, seasonOf } from "@ext/content/design/icons";
 import type { CSSProperties, ReactNode } from "react";
 import type { PaperSection } from "../data/catalog";
 import { useSessionState } from "../platform/session-state";
-import { device } from "../platform/native";
 
 export const RATING_MAX = PAPER_CTEC_CONFIG.aggregate.ratingScaleMax;
 
@@ -239,9 +238,9 @@ export function OffCampusNote() {
   const { unreachable } = useSessionState();
   if (!unreachable) return null;
   return (
-    <p className="note-text offline" title="Connect to campus Wi-Fi or the Northwestern VPN for live seats and your cart.">
+    <p className="note-text offline">
       <span className="offline-dot" />
-      Off campus: showing what’s saved on this {device}. Live seats and your cart need campus Wi-Fi or the VPN.
+      Connect to eduroam or GlobalProtect for seat and CTEC information.
     </p>
   );
 }

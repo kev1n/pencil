@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { formatAppointmentTime, googleCalendarUrl, loadRegistration, useRegistration } from "../data/registration";
 import { useSessionState } from "../platform/session-state";
 import { describeError } from "../platform/sign-in";
-import { Icon, Sep, Spin, timeAgo } from "./bits";
+import { Icon, Sep, Spin } from "./bits";
 
 const STALE = 12 * 60 * 60 * 1000;
 
@@ -22,8 +22,9 @@ export function RegDates({ termName }: { termName: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [live, termName]);
 
-  if (!saved) return null;
-  const dates = saved.dates;
+  // Nothing posted for the term: say nothing. It is checked again by itself.
+  const dates = saved?.dates;
+  if (!saved || !dates) return null;
 
   async function refresh(): Promise<void> {
     setBusy(true);
@@ -40,7 +41,7 @@ export function RegDates({ termName }: { termName: string }) {
   const now = Date.now();
   return (
     <div className="reg">
-      {dates?.appointments.map((appointment) => {
+      {dates.appointments.map((appointment) => {
         const isOpen = appointment.startsAt <= now && (appointment.endsAt === null || now < appointment.endsAt);
         const closed = appointment.endsAt !== null && appointment.endsAt <= now;
         return (
@@ -60,26 +61,18 @@ export function RegDates({ termName }: { termName: string }) {
         );
       })}
       <p className="note-text">
-        {!dates
-          ? `No registration dates posted for ${termName} yet`
-          : dates.appointments.length === 0
-            ? "No registration appointment assigned yet"
-            : `Checked ${timeAgo(saved.at)}`}
-        {dates && dates.windows.length > 0 && (
-          <>
-            <Sep />
-            <button className="link quiet" onClick={() => setOpen((v) => !v)}>{open ? "Hide dates" : "All dates"}</button>
-          </>
+        {dates.windows.length > 0 && (
+          <button className="link quiet" onClick={() => setOpen((v) => !v)}>{open ? "Hide dates" : "All dates"}</button>
         )}
         {live && (
           <>
-            <Sep />
+            {dates.windows.length > 0 && <Sep />}
             {busy ? <Spin /> : <button className="link quiet" onClick={() => void refresh()}>Refresh</button>}
           </>
         )}
       </p>
       {error && <p className="note-text is-error">{error}</p>}
-      {open && dates && (
+      {open && (
         <ul className="reg-all">
           {dates.windows.map((line) => <li key={line}>{line}</li>)}
         </ul>
