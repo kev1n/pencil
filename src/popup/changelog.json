@@ -11,6 +11,16 @@
   },
   "entries": [
     {
+      "version": "1.0.5",
+      "date": "2026-11-16",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "CTECs no longer get stuck loading after you take a while to sign in to Northwestern."
+        }
+      ]
+    },
+    {
       "version": "1.0.4",
       "date": "2026-11-16",
       "items": [
