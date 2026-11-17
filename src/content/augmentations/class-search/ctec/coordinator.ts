@@ -134,7 +134,15 @@ export function createCtecCoordinator(
           );
           if (!snapshot || snapshot.entries.length === 0) return null;
           return buildModalDisplayData(snapshot, source.params, source.titleHint);
-        }
+        },
+        // Retry chip on a failed load: drop the error and fetch again.
+        data.state === "error"
+          ? () => {
+              if (resolved.get(key)?.state !== "error") return;
+              resolved.delete(key);
+              kick(source);
+            }
+          : undefined
       );
       return;
     }

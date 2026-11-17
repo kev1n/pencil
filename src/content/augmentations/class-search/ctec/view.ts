@@ -14,8 +14,11 @@ import type { ModalDisplayData } from "../../paper-ctec/modal-data";
 import {
   globalChip,
   errorChip,
+  isRetryableCtecError,
   makeChip,
-  metricChip
+  metricChip,
+  RETRY_CTEC_LABEL,
+  RETRY_CTEC_TITLE
 } from "../../paper-ctec/widget-chips";
 import type { PaperCtecWidgetData } from "../../paper-ctec/types";
 
@@ -71,9 +74,30 @@ export function renderResolved(
   host: HTMLElement,
   data: PaperCtecWidgetData,
   onAnalyticsClick: () => void,
-  getPreviewData?: () => ModalDisplayData | null
+  getPreviewData?: () => ModalDisplayData | null,
+  onRetry?: () => void
 ): void {
   host.dataset.state = data.state;
+  if (data.state === "error" && onRetry && isRetryableCtecError(data.message)) {
+    host.title = RETRY_CTEC_TITLE;
+    render(
+      html`<div class="bc-cs-ctec-summary">
+        <button
+          type="button"
+          class="bc-cs-ctec-load-btn"
+          title=${RETRY_CTEC_TITLE}
+          aria-label="CTEC unavailable. Retry CTEC"
+          @click=${(event: Event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onRetry();
+          }}
+        ><span>${RETRY_CTEC_LABEL}</span></button>
+      </div>`,
+      host
+    );
+    return;
+  }
   if (data.state === "error") {
     host.title = data.message;
   } else if (data.state === "no-access") {

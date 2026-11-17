@@ -304,6 +304,30 @@ describe("createChipFetchCoordinator — kickTargetFetch", () => {
     expect(coord.state.resolved.get(target.key)?.state).toBe("found");
   });
 
+  it("renders a failed load with a Retry callback that fetches again", async () => {
+    const deps = makeDeps({
+      fetchAggregate: vi.fn()
+        .mockResolvedValueOnce({ state: "error", message: "CAESAR sign-in required" })
+        .mockResolvedValueOnce({ state: "found", aggregate: makeAggregate() })
+    });
+    const coord = createChipFetchCoordinator(deps);
+    const target = makeTarget();
+    document.body.appendChild(target.widget);
+    coord.syncTargets([target]);
+    coord.kickTargetFetch(target);
+    await vi.runAllTimersAsync();
+    expect(coord.state.resolved.get(target.key)?.state).toBe("error");
+
+    const call = vi.mocked(deps.renderWidget).mock.lastCall!;
+    expect(call[1].state).toBe("error");
+    const retry = call[4];
+    expect(retry).toEqual(expect.any(Function));
+    retry!();
+    await vi.runAllTimersAsync();
+    expect(deps.fetchAggregate).toHaveBeenCalledTimes(2);
+    expect(coord.state.resolved.get(target.key)?.state).toBe("found");
+  });
+
   it("auto-resumes a kick on the next sync if userActivated is set but inFlight + resolved are empty", async () => {
     const deps = makeDeps();
     const coord = createChipFetchCoordinator(deps);

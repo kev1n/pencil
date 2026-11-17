@@ -46,7 +46,7 @@ export function makeChip(
 // Chip for a failed load. A page left open across an extension update
 // can't reach Pencil any more; only a refresh fixes that, so say so.
 export function errorChip(message: string): TemplateResult {
-  if (/extension context invalidated/i.test(message)) {
+  if (!isRetryableCtecError(message)) {
     return makeChip(
       "spark",
       "Refresh page",
@@ -56,6 +56,16 @@ export function errorChip(message: string): TemplateResult {
   }
   return makeChip("spark", "CTEC unavailable", "is-muted");
 }
+
+// A failed load is worth retrying unless the extension was updated under
+// the page; then only a refresh helps.
+export function isRetryableCtecError(message: string): boolean {
+  return !/extension context invalidated/i.test(message);
+}
+
+export const RETRY_CTEC_LABEL = "CTEC unavailable · Retry";
+export const RETRY_CTEC_TITLE =
+  "CTECs didn't load, often because the CAESAR sign-in expired. Press to try again.";
 
 export function globalChip(aggregate: WidgetAggregate): TemplateResult | null {
   const components: Array<{ label: string; mean: number; n: number }> = [];
