@@ -7,7 +7,15 @@ import { WIDGET_CLASS } from "./constants";
 import type { ModalDisplayData } from "./modal-data";
 import type { PaperCtecWidgetData } from "./types";
 import { createIcon, preventAndStop, type IconName } from "./ui-shared";
-import { errorChip, globalChip, makeChip, metricChip } from "./widget-chips";
+import {
+  errorChip,
+  globalChip,
+  isRetryableCtecError,
+  makeChip,
+  metricChip,
+  RETRY_CTEC_LABEL,
+  RETRY_CTEC_TITLE
+} from "./widget-chips";
 
 export type AnalyticsPreviewSource = () => ModalDisplayData | null;
 
@@ -48,28 +56,40 @@ export function renderIdle(
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>
-      <button
-        type="button"
-        class=${`${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`}
-        aria-label=${caesarUnreachable ? `${CAESAR_CONNECTION_LABEL}. Retry CTEC` : "Load CTEC"}
-        @pointerdown=${(event: Event) => {
-          preventAndStop(event);
-          onLoad();
-        }}
-        @click=${preventAndStop}
-        @keydown=${(event: KeyboardEvent) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          preventAndStop(event);
-          onLoad();
-        }}
-      ><span
-          class=${`${WIDGET_CLASS}-chip-button-label`}
-        >${caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC"}</span></button>
+      ${chipButton(
+        caesarUnreachable ? CAESAR_CONNECTION_LABEL : "Load CTEC",
+        caesarUnreachable ? `${CAESAR_CONNECTION_LABEL}. Retry CTEC` : "Load CTEC",
+        onLoad
+      )}
     </div>`,
     widget
   );
 
   attachAnalyticsAnchor(widget);
+}
+
+// Muted chip that acts on press. Paper.nu cards open on click, so the
+// press is taken on pointerdown and the click swallowed.
+function chipButton(
+  label: string,
+  ariaLabel: string,
+  onPress: () => void
+): TemplateResult {
+  return html`<button
+    type="button"
+    class=${`${WIDGET_CLASS}-chip is-muted ${WIDGET_CLASS}-chip-button`}
+    aria-label=${ariaLabel}
+    @pointerdown=${(event: Event) => {
+      preventAndStop(event);
+      onPress();
+    }}
+    @click=${preventAndStop}
+    @keydown=${(event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      preventAndStop(event);
+      onPress();
+    }}
+  ><span class=${`${WIDGET_CLASS}-chip-button-label`}>${label}</span></button>`;
 }
 
 export function renderLoading(
@@ -98,19 +118,21 @@ export function renderWidget(
   widget: HTMLElement,
   data: PaperCtecWidgetData,
   onOpenAnalytics?: () => void,
-  getPreviewData?: AnalyticsPreviewSource
+  getPreviewData?: AnalyticsPreviewSource,
+  onRetry?: () => void
 ): void {
   // Title is updated via direct DOM (lit-html targets the widget's children;
   // the host's title attribute is independent).
   if (data.state === "error") {
-    widget.title = data.message;
+    widget.title =
+      onRetry && isRetryableCtecError(data.message) ? RETRY_CTEC_TITLE : data.message;
   } else {
     widget.removeAttribute("title");
   }
 
   // chips list is captured before render so we can pass it through to the
   // analytics-preview hover wiring after lit-html plants the DOM.
-  const summary = buildWidgetSummary(data);
+  const summary = buildWidgetSummary(data, onRetry);
 
   render(
     html`<div class=${`${WIDGET_CLASS}-summary`}>${summary}</div>`,
@@ -135,7 +157,8 @@ export function renderWidget(
 // the chip set is easy to follow without weaving render() ergonomics
 // through the data-state branches.
 function buildWidgetSummary(
-  data: PaperCtecWidgetData
+  data: PaperCtecWidgetData,
+  onRetry?: () => void
 ): TemplateResult | TemplateResult[] {
   if (data.state === "not-found") {
     return makeChip("spark", "No CTEC", "is-muted");
@@ -151,6 +174,9 @@ function buildWidgetSummary(
   }
 
   if (data.state === "error") {
+    if (onRetry && isRetryableCtecError(data.message)) {
+      return chipButton(RETRY_CTEC_LABEL, "CTEC unavailable. Retry CTEC", onRetry);
+    }
     return errorChip(data.message);
   }
 

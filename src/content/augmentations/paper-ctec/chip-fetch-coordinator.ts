@@ -28,6 +28,7 @@ import type {
   CtecReportAggregate
 } from "../ctec-links/reports";
 import type { ModalDisplayData } from "./modal-data";
+import { PAPER_CTEC_CONFIG } from "./config";
 import { findWidgetsByKey } from "./dom";
 import { ctecErrorToastOptions } from "../ctec-links/rate-limit";
 import { CaesarConnectionError, caesarConnectionToastOptions } from "../../peoplesoft/connection";
@@ -126,7 +127,8 @@ export type ChipFetchCoordinatorDeps = {
     widget: HTMLElement,
     data: PaperCtecWidgetData,
     onAnalytics: (() => void) | undefined,
-    getPreviewData: (() => ModalDisplayData | null) | undefined
+    getPreviewData: (() => ModalDisplayData | null) | undefined,
+    onRetry?: () => void
   ): void;
   /** Bump the loadingMessages map and resync the status bar. */
   setProgress(key: string, message: string): void;
@@ -216,6 +218,29 @@ export function createChipFetchCoordinator(
     };
   }
 
+  // A failed load renders as a Retry chip: pressing it drops the error
+  // and fetches again (usually after the user signs back in to CAESAR).
+  function retryCallbackFor(
+    key: string,
+    widget: HTMLElement,
+    data: PaperCtecWidgetData
+  ): (() => void) | undefined {
+    if (data.state !== "error") return undefined;
+    const source = targetSources.get(key);
+    if (!source) return undefined;
+    return () => {
+      if (resolved.get(key)?.state !== "error") return;
+      resolved.delete(key);
+      kickTargetFetch({
+        card: widget.closest<HTMLElement>(PAPER_CTEC_CONFIG.selectors.scheduleCard) ?? widget,
+        widget,
+        params: source.params,
+        titleHint: source.titleHint,
+        key
+      });
+    };
+  }
+
   function renderForKey(key: string, data: PaperCtecWidgetData): void {
     const onAnalytics = openAnalyticsCallbackFor(key);
     const getPreviewData = previewDataCallbackFor(key);
@@ -224,7 +249,8 @@ export function createChipFetchCoordinator(
         widget,
         data,
         onAnalytics,
-        getPreviewData
+        getPreviewData,
+        retryCallbackFor(key, widget, data)
       );
     }
     deps.syncStatusBar();
@@ -389,7 +415,8 @@ export function createChipFetchCoordinator(
           target.widget,
           cached,
           onAnalytics,
-          getPreviewData
+          getPreviewData,
+          retryCallbackFor(target.key, target.widget, cached)
         );
         continue;
       }

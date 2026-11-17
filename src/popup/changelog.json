@@ -11,6 +11,16 @@
   },
   "entries": [
     {
+      "version": "1.0.4",
+      "date": "2026-11-16",
+      "items": [
+        {
+          "kind": "fix",
+          "text": "When CTECs don't load (often because your CAESAR sign-in expired), press \"CTEC unavailable · Retry\" to try again without refreshing the page."
+        }
+      ]
+    },
+    {
       "version": "1.0.3",
       "date": "2026-11-13",
       "headline": "Seats, class info and Register on Paper.nu",
