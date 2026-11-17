@@ -86,6 +86,29 @@ type TrackedPopup = {
 const trackedPopups = new Map<number, TrackedPopup>();
 const ownerToPopup = new Map<number, number>();
 
+// Chrome stops this worker after ~30s idle, and signing in (password, Duo)
+// often takes longer. Keep the open sign-in tabs in session storage so a
+// restarted worker still knows which page to tell when sign-in ends;
+// otherwise that page waits for good.
+const AUTH_POPUPS_KEY = "auth-popups";
+
+const popupsLoaded: Promise<void> = chrome.storage.session
+  .get(AUTH_POPUPS_KEY)
+  .then((stored) => {
+    const saved = (stored[AUTH_POPUPS_KEY] ?? []) as TrackedPopup[];
+    for (const popup of saved) {
+      trackedPopups.set(popup.tabId, popup);
+      ownerToPopup.set(popup.ownerTabId, popup.tabId);
+    }
+  })
+  .catch(() => undefined);
+
+function savePopups(): void {
+  void chrome.storage.session
+    .set({ [AUTH_POPUPS_KEY]: Array.from(trackedPopups.values()) })
+    .catch(() => undefined);
+}
+
 // Layer-2 silent-tab tracking. Separate from `trackedPopups` because the
 // resolution path differs: silent tabs are inactive, time-limited, and
 // resolve a single in-flight Promise rather than broadcast a runtime
@@ -139,6 +162,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  void onTabUpdated(tabId, info, tab);
+});
+
+async function onTabUpdated(
+  tabId: number,
+  info: chrome.tabs.TabChangeInfo,
+  tab: chrome.tabs.Tab
+): Promise<void> {
   const currentUrl = tab.url ?? "";
   const isPostAuth = POST_AUTH_URL_PATTERNS.some((pattern) => pattern.test(currentUrl));
 
@@ -150,18 +181,23 @@ chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
     return;
   }
 
-  const tracked = trackedPopups.get(tabId);
-  if (!tracked) return;
   if (info.status !== "complete") return;
   if (!isPostAuth) return;
+  await popupsLoaded;
+  const tracked = trackedPopups.get(tabId);
+  if (!tracked) return;
 
   forgetPopup(tabId);
   void chrome.tabs.update(tracked.ownerTabId, { active: true }).catch(() => undefined);
   void chrome.tabs.remove(tabId).catch(() => undefined);
   notifyOwner(tracked.ownerTabId, "succeeded");
-});
+}
 
 chrome.tabs.onRemoved.addListener((tabId) => {
+  void onTabRemoved(tabId);
+});
+
+async function onTabRemoved(tabId: number): Promise<void> {
   const silent = trackedSilentTabs.get(tabId);
   if (silent) {
     // Tab removed before we got there ourselves — could be the user closing
@@ -171,11 +207,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
     return;
   }
 
+  await popupsLoaded;
   const tracked = trackedPopups.get(tabId);
   if (!tracked) return;
   forgetPopup(tabId);
   notifyOwner(tracked.ownerTabId, "user-closed");
-});
+}
 
 async function handleOpenAuthPopup(
   message: OpenAuthPopupMessage,
@@ -188,6 +225,7 @@ async function handleOpenAuthPopup(
     return;
   }
 
+  await popupsLoaded;
   const existingPopupId = ownerToPopup.get(ownerTabId);
   if (existingPopupId !== undefined) {
     forgetPopup(existingPopupId);
@@ -205,6 +243,7 @@ async function handleOpenAuthPopup(
       ownerTabId
     });
     ownerToPopup.set(ownerTabId, tab.id);
+    savePopups();
     sendResponse({ ok: true, tabId: tab.id });
   } catch (error) {
     sendResponse({
@@ -270,6 +309,7 @@ function forgetPopup(tabId: number): void {
   if (tracked && ownerToPopup.get(tracked.ownerTabId) === tabId) {
     ownerToPopup.delete(tracked.ownerTabId);
   }
+  if (tracked) savePopups();
 }
 
 function notifyOwner(ownerTabId: number, reason: AuthPopupClosedMessage["reason"]): void {
